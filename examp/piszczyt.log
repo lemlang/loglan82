@@ -1,0 +1,431 @@
+ 
+ program processus4;
+ #include "classes/gui.inc"
+(* czytelnicy pisarze *)
+    
+   unit elem : class;
+   var ile , nr : integer,qui:pi;
+   (*nr procesu ktory zostawil informacje lub ostatni FreePl w buforze*)
+   end elem;
+ 
+   unit ecran : GUI process(node:integer);
+ 
+      unit outtext : procedure(x,y:integer, s:string);
+      begin 
+           call GUI_clearArea(x,y,80,16);                   
+           call GUI_writeText(x,y,unpack(s),c_black,c_LightGrey);          
+      end outtext;
+      
+      unit outmessage: procedure(x,y:integer, s: string);
+      begin 
+        call GUI_clearArea(x,y,80,16);     
+        call GUI_writeText(x,y,unpack(s),c_lightgrey,c_red);
+      end outmessage;
+
+      unit circle: procedure(col,x,y,r : integer);   
+      begin
+           call GUI_Ellipse(x,y,r,r,0,360,c_black,col);
+      end circle;
+ 
+      unit line : procedure(col,x,y,dlugosc:integer,poziomo:boolean);
+      begin
+           call GUI_move(x,y); (* pozycja linii *)
+           if poziomo
+           then
+              call GUI_LineTo(x+dlugosc,y,col);
+           else (* linia pionowa *)
+              call GUI_LineTo(x, y+dlugosc,col);
+           fi;
+      end line;
+
+      unit Fin: procedure;
+      begin
+         call endRun
+      end fin;
+ 
+      unit pisarz: procedure(nr:integer);
+      (*nr jest jednoczesnie numerem kolorem wlasnym i numerem pisarza*)
+      begin
+          call GUI_Ellipse((nr-1)*150+20,8,10,10,0,360,c_black,nr);
+          call GUI_WriteText((nr-1)*150+50,5,unpack("Author"),c_black,c_white);
+          call GUI_WriteInt((nr-1)*150+30,5,nr,nr,c_white);
+          call GUI_rect((Nr-1)*150+10,20,(nr-1)*150+ 110,200,c_black,c_lightgrey);
+      end pisarz;
+ 
+ 
+      unit magazyn : procedure(posX,posY : integer);
+      begin
+          call GUI_Rect(10,250,600,305, c_Black,c_lightgrey);
+          call outtext(posX,posY-8,"B U F F E R");
+          call outtext(posX,posY+60,"READERS' QUEUE");
+          call outtext(posX+ 300, posY+60,"WRITERS'QUEUE");
+      end magazyn;
+   begin
+        call GUI_clear;
+        return;
+        enable magazyn, pisarz;
+        do
+            accept  Fin, line, circle, outtext, outmessage, 
+           GUI_Keypressed, GUI_ClearArea
+        od;
+ 
+   end ecran;
+ 
+   unit pi : elem process(node,nr : integer, M : monitor,ek:ecran);
+   (*  nr jest numerem pisarza *)
+   const stala=76;(* dludosc linii rysowanej przez pisarza *)
+   var posX, posY : integer; (* pozycja pisarza na ekranie *)
+ 
+   unit tempo : procedure(n:integer);
+   var i : integer;
+   begin
+       for i :=1 to n do i:= i od
+   end tempo;
+ 
+ 
+   unit wezwij_put : procedure(e:elem);
+   var czekaj : boolean;
+   begin
+         (* najpierw wymazuje z obszaru pisarza *)
+         call ek.outtext((nr-1)*150+20,210,"try to send");
+         for i := 1 to e.ile
+         do
+             call ek.line(7,(nr-1)*150+22,26+i,stala, true);
+             call tempo(50);
+         od;
+         call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+ 
+         call ek.outtext((nr-1)*150+20,210,"waiting");
+         do
+            call M.putt(e.nr, e.qui, e.ile, czekaj);
+            if czekaj 
+            then
+               call ek.outmessage((nr-1)*150+20,210,"stopped"); 
+               stop ;
+               call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+            else 
+                 call ek.outtext((nr-1)*150+20,210,"sending");
+                 exit 
+            fi;
+         od;
+    end wezwij_put;
+ 
+    unit wezwij_get : procedure(inout e:elem);
+       var czekaj : boolean, qui:pi,n,ch:integer ;
+       (*autor chce cos odczytac z magazynu *)
+    begin
+ 
+       do
+           n := e.nr; qui := e.qui;
+           call m.gett(n,qui,ch, czekaj);
+           if czekaj then 
+             call ek.outmessage((nr-1)*150+20,210,"stopped"); 
+             stop ;
+             call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+             (*  magazyn jest zajety; pisarz zostanie wpisany do kolejki oczekujacych*)
+
+           else
+               e:=new elem; e.nr :=n;
+               e.qui:=qui; e.ile :=ch;
+               call ek.outtext((nr-1)*150+20,210,"receiving");
+               for i := 1 to ch
+               do
+                  call ek.line(n,(nr-1)*150+22,26+i,stala,true);
+                  call tempo(100);
+               od;
+               call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+               
+(*           otrzymalem wiadomosc od pisarza nr        *)
+               exit
+           fi;
+       od;
+    end wezwij_get;
+ 
+    unit fin : procedure;
+    end;
+ 
+var el: elem, r : real;
+begin
+   call ek.pisarz(nr);
+  
+    
+   return;
+   do
+       r := random*100;
+       (*if r=0 then accept fin; exit fi; *)
+       (* to niezbt dobre rozwiazanie ze wzgl na kolejnosc *)
+       if r<50 then
+            (*  pisarz cos produkuje i chce to wyslac *)
+            el := new elem;
+            el.qui := this pi;
+            el.nr := nr;
+            el.ile := random*170;
+            call ek.outtext((nr-1)*150+20,210,"writing");
+            for i := 1 to el.ile
+            do
+               call ek.line(nr,(nr-1)*150+22,26+i,stala,true);
+               call tempo(100);
+            od;
+            call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+            call tempo(100);
+            call wezwij_put(el)
+       else
+           (* pisarz zdecydowal sie cos przeczytac  *)
+             el := new elem;
+             el.nr := nr; el.qui := this pi;
+            call ek.outtext((nr-1)*150+20,210,"demanding");
+            call wezwij_get(el);
+            call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+            call tempo(100);
+            call ek.outtext((nr-1)*150+20,210,"reading");
+            (* czytam przesylke *)
+            for i := el.ile downto 1
+            do
+               call ek.line(7,(nr-1)*150+22,26+i,stala,true);
+               call tempo(50);
+            od;
+            call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+ 
+       fi;
+    od;
+end pi;
+ 
+unit monitor : elem  process(node,size,max_proc : integer, ek:ecran);
+const posX = 30,
+         posY = 250;
+
+   unit Belem : class(e:elem,posx:integer);
+   end Belem;
+ 
+var     buffer : arrayof Belem,
+          queue_pour_lire,
+          queue_pour_ecrire : queue,
+          Qpos , x,y: integer,
+          counter, ilosc_ak, i, nb_proc: integer;
+   (* zmienna counter mowi ile jest elementow w buforze *)
+   (* ilosc_ak = ilosc miejsca w magazynie juz wykorzystana*)
+   (* nb_proc  = ilosc procesow stojacuch w obu kolejkach *)
+ 
+   unit qEl: class;
+    var  qui : pi, next : qEL;
+   end qEL;
+ 
+   unit queue: class(pos:integer);
+   var first, last : qEL;
+ 
+      unit into : procedure(p: pi,nr: integer (* nr is the no of pi*));
+      var aux : qEL, c: integer;
+      begin
+ 
+           call ek.circle(nr,pos+30,339,12);
+           pos := pos+30;
+           (* rysowanie kolka w odpowiedniej kolejce i odp.kolorem*)
+           nb_proc := nb_proc+1;
+           aux := new qEL;
+           aux .qui :=p;
+           aux . next := none;
+           if first=none then
+                first := aux; last := aux
+           else
+              last.next := aux;
+              last := aux;
+           fi;
+      end into;
+ 
+      unit out : function : pi;
+      begin
+          if first=none then exit else
+             nb_proc := nb_proc -1;
+             call ek.circle(15,pos,339,13);
+             pos :=pos-30;
+             (* wymazanie kolka w odpowiedniej kolejce *)
+             result := first.qui;
+             first := first.next;
+          fi;
+      end out;
+ 
+      unit empty : function: boolean;
+      begin
+          result :=  (first=none) ;
+      end empty;
+   end queue;
+ 
+   unit tempo : procedure(n:integer);
+   var j : integer;
+   begin
+        for j := 1 to n do j:= j od;
+   end tempo;
+ 
+   unit putt : procedure(nr:integer,qui:pi,ch:integer; output czekaj : boolean);
+   var  aux, i : integer,e : elem;
+   begin
+          
+         if (counter< 20 and ilosc_ak+ch<size)
+         then
+                e := new elem;
+                e.nr :=nr;
+                e.ile := ch;
+                e.qui := qui;              
+                counter := counter +1;
+                buffer(counter) := new Belem(e,x);
+    (*         monitor zapisuje przesylke od        *)
+                for i :=1 to ch do
+                      call ek.line(nr,x+i,posY+7,39,false);
+                      call tempo(50);
+                od;
+                x := x+ ch;
+                ilosc_ak := ilosc_ak+ch;
+                czekaj := false;
+                if not queue_pour_lire.empty
+                then
+(*                monitor budzi pisarza z kolejki czytelnikow  *)
+                    p := queue_pour_lire.out;
+                    call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+                    resume(p);
+                 fi;
+            else
+(*               nie ma miejsca w buforze dla pisarza      *)
+                 czekaj := true;
+                 call queue_pour_ecrire.into(qui,nr);
+            fi;
+      end putt;
+ 
+      unit gett : procedure(inout nr:integer, qui:pi, ch:integer, czekaj:boolean);
+      var i ,j : integer, e:elem , p:pi;
+      begin
+         p := qui;
+         if counter<> 0  then (* mozna cos zabrac z magazynu *)
+                e := buffer(counter).e;
+                nr := e.nr; qui := e.qui; ch := e.ile;
+                counter := counter - 1;
+                czekaj := false;
+                for i := x downto x-ch
+                do
+                   call ek.line(7,i,posY+7,39,false);
+                   call tempo(100);
+ 
+                od;
+                x := x-ch;
+                ilosc_ak := ilosc_ak-ch;
+                (* w magazynie zwolnilo sie miejsce i ktos moze wpisac *)
+ 
+                if not queue_pour_ecrire.empty
+                then
+       (*           writeln("M budzi pisarza ktory chce pisac ");*)
+                    p := queue_pour_ecrire.out;
+                     call ek.GUI_clearArea((nr-1)*150+20,210,80,16);
+                    resume(p);
+                 fi;
+            else (*jezeli counter=0 tzn. nic nie ma w magazynie *)
+(*              writeln("M wpisuje pisarza",nr,"do kolejki czytelnikow");*)
+                 czekaj := true;
+                (* qui := p;*) (* to jest instrukcja niepotrzebna *)
+                 call queue_pour_lire.into(p,nr);
+            fi;
+      end gett;
+ 
+begin  (*   tu sie zaczyna tresc monitora *)
+ 
+      array buffer dim(1:20);
+
+     counter := 0;
+     x := 15; ilosc_ak := 0;
+     Qpos := posX;
+     queue_pour_lire := new queue(Qpos);
+     queue_pour_ecrire := new queue(Qpos+300);
+     call ek.magazyn(posX,posY);
+     
+     return;
+     do
+          accept putt, gett;
+           
+          if  ek.GUI_KeyPressed<>0 then call ek.fin fi;
+          if nb_proc = max_proc
+          then
+              call ek.outmessage(470,339,"DEADLOCK! press CR");
+              readln;
+              call ek.fin;
+           fi;
+     od;
+end monitor;
+ 
+ 
+ (*  M A I N *)    
+
+var    
+         M        : monitor, 
+         i, j, nbNodes,ile           : integer,
+         EK      : ecran, EKR    : arrayof ecran, 
+         PROC  : arrayof arrayof pi, p : pi,    
+        TABnodes, NbProc      : arrayof integer;
+ 
+begin  
+ 
+     
+     write("The Number of  nodes- processors ?: ");
+     readln(NbNodes);    writeln(nbNodes);
+     if nbNodes = 0 then call ENDRun fi;
+     array TABnodes dim (1: NbNodes);
+     array NbProc dim (1: NbNodes);
+   
+     ile := 0;
+     for  i := 1 to NbNodes 
+     do
+             write("Node number ",i, " ? "); 
+             readln( TABnodes(i));  writeln;
+             write("Number of Readers/Writers on this node",TABnodes(i)," ? "); 
+             readln(NbProc(i));  writeln;
+             ile := ile + NbProc(i);
+      od;
+      
+      array EKR dim (1:NbNodes); 
+      for i := 1 to nbNodes 
+      do
+             if NbProc(i)>0 then  
+                  j := TABnodes(i);
+                  ek := new ecran(j);
+                  EKR(i) := ek;
+                  resume(ek)
+              fi;
+      od;
+     
+     (*  ile= ilosc utworzonych procesow typu Readaes/writers na wszystkich razem komputerach polaczonych w siec*)
+     (*  zakladam, ze  pierwszy z uzytych "node"  =0 i ma ilosc procesow >0 - to  oczywiscie mozna zmienic!!*) 
+
+     ek := EKR(1); 
+
+     M := new monitor(0,600,ile,ek);
+     resume(M);
+ 
+
+     array PROC dim (1: nbNodes);
+     for i := 1 to nbNodes
+     do  
+          array PROC(i) dim (1 : NbProc(i));
+           ek := ekr(i);
+           for j := 1 to NbProc(i)
+           do            
+                ile := TabNodes(i);
+               P := new pi(ile,j,M,ek);
+               Proc(i,j) := P;      
+           od
+         
+     od;
+        
+       ek := EKR(1); 
+       call  ek.outmessage(400,440,"press CR");
+       readln;
+       call  ek.outtext(400,440," press any key to STOP ");
+ 
+        for i :=1 to NbNodes
+        do        
+            for j := 1 to NbProc(i) 
+            do  
+                 p := Proc(i,j);            
+                 resume(p);
+            od
+        od;
+ 
+ 
+end processus4;
+  

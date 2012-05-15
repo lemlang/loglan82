@@ -1,0 +1,92 @@
+<HTML>
+<HEAD></HEAD>
+<BODY>
+<B>GUI procedures and functions </B> <HR>
+<UL>
+<LI>unit <B>GUI_Clear</B>:procedure;<BR>
+Clears the screen.
+<BR>
+<LI>unit <B>GUI_ClearArea</B>:procedure(x1,y1,w,h:integer);<BR>
+Clears a rectangular area.<BR>
+(x1,y1) - left corner of the rectangle<BR>
+w - rect width<BR>
+h - rect height<BR> 
+<LI>unit <B>GUI_Point</B>:procedure(x,y,col:integer);<BR>
+Draws a point at (x,y) with the color col.<BR>
+<LI>unit <B>GUI_Move</B>:procedure(x,y:integer);<BR>
+Moves the graphic cursor to the position (x,y).<BR>
+<LI>unit <B>GUI_Line</B>:procedure(x1,y1,x2,y2,col:integer);
+Draws a line from (x1,y1) to (x2,y2) with the color col.<BR>
+<LI>unit <B>GUI_LineTo</B>:procedure(x,y,col:integer);
+Draws a line from actual position of the graphic cursor to the point
+(x,y) with the color col.<BR>
+<LI>unit <B>GUI_Rect</B>:procedure(x1,y1,x2,y2,fcol,icol:integer);<BR>
+Draws a rectangle.<BR>
+(x1,y1) - left corner<BR>
+(x2,y2) - right corner<BR>
+fcol - frame color<BR>
+icol - interior color<BR>
+<LI>unit <B>GUI_Ellipse</B>:procedure(x,y,a,b,sa,ea,fcol,icol:integer);<BR>
+Draws an ellipse.<BR>
+(x,y) - center point<BR>
+a - horizontal radius<BR>
+b - vertical radius<BR>
+sa - start angle (in degrees)<BR>
+ea - end angle<BR>
+fcol - frame color<BR>
+icol - interior color<BR>
+<LI>unit <B>GUI_WriteInt</B>:procedure(x,y,i,fcol,bcol:integer);<BR>
+Writes integer <I>i</I> at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_WriteChar</B>:procedure(x,y:integer;c:char;fcol,bcol:integer);<BR>
+Writes character <I>c</I> at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_WriteReal</B>:procedure(x,y:integer;r:real;fcol,bcol:integer);<BR>
+Writes real <I>r</I> at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_WriteText</B>:procedure(x,y:integer;t:array_of char;fcol,bcol:integer);<BR>
+Writes text <I>t</I> at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_ReadText</B>:function(x,y,fcol,bcol:integer):array_of char;<BR>
+Reads text at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_ReadInt</B>:function(x,y,fcol,bcol:integer):integer;<BR>
+Reads integer at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_ReadChar</B>:function(x,y,fcol,bcol:integer):char;<BR>
+Reads character at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_ReadReal</B>:function(x,y,fcol,bcol:integer):real;<BR>
+Reads real at position (x,y).<BR>
+fcol - foreground color<BR>
+bcol - background color<BR>
+<LI>unit <B>GUI_PutImgFile</B>:procedure(x,y:integer;fname:string);<BR>
+Loads the image from file <I>fname</I> (it could be .BMP, .GIF, .XPM file)
+and puts it at position (x,y).<BR>
+<LI>unit <B>GUI_GetImg</B>:function(x,y,w,h:integer):array_of integer;<BR>
+Gets the contents of the screen from position (x,y) and stores them in the array.<BR>
+w - width of the image<BR>
+h - height of the image<BR>
+<LI>unit <B>GUI_PutImg</B>:procedure(x,y:integer;map:array_of integer);<BR>
+Puts an image from <I>map</I> at the position (x,y).<BR>
+<LI>unit <B>GUI_KillImg</B>:procedure(map:array_of integer);<BR>
+Destroys an image from <I>map</I>. (This is a proper procedure to delete
+a map stored by GUI_GetImg!)<BR>
+<LI>unit <B>GUI_MousePressed</B>:MOUSE procedure(INOUT x,y,btn:integer);<BR>
+Checks if the mouse button was pressed.<BR>
+(x,y) - mouse pointer position after press<BR>
+btn - number of the mouse button: 0 - none, 1 - left, 2 - middle, 3 - right<BR>
+<LI>unit <B>GUI_KeyPressed</B>:function:integer;<BR>
+Checks if the key was pressed. Returns the same value as the <B> inkey </B>
+procedure.
+<HR>
+<A HREF="index.html"> Return to Index </A>
+</BODY>
+</HTML>

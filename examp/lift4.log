@@ -1,0 +1,892 @@
+
+  
+ PROGRAM LIFT;
+ signal signal1;
+
+(* symulacja windy    wersja 5, 1 kwietnia 2000  *) 
+(*------------------------------------------------------------------------*)
+(*               klasa definiujaca procedury graficzne                    *)
+(*------------------------------------------------------------------------*)
+   UNIT graph : IIUWGRAPH CLASS;
+   CONST
+ 
+	MinX = 0,   MinY = 0,
+	MaxX = 640, MaxY = 480,
+	minDx = 50,minDy=10,maxDx= 600,maxDy=450,
+
+        czarny = 0,
+        czerwony = 4,
+        szary = 7,
+        cyklamen = 13,
+        bialy = 15;
+  
+ 
+      UNIT waitt : PROCEDURE;
+      (* wait for a key *)
+      BEGIN     
+        DO
+           IF INKEY =/= 0 THEN exit FI;
+        OD;        
+      END waitt;
+  
+  unit ludzik : procedure(x,y,k:integer);
+  begin
+       call color(k);	
+       call move(x,y);
+       call draw(x,y+6);
+       call draw(x-2,y+10);
+       call move(x,y+6);
+       call draw(x+2,y+10);       call move(x-2,y+2);
+       call draw(x+2,y+2);
+       call move(x-2,y+2);
+       call draw(x-4,y+4);
+       call move(x+2,y+2);
+       call draw(x+4,y+4)
+   end ludzik;
+ 
+   unit COMMENT : procedure(ss: string);
+   begin
+	call outstring(250,460,ss,cyklamen,15)
+   end COMMENT;
+
+  END graph;
+ 
+(*----------------------------------------------------------------------*)
+ 
+ 
+  UNIT EcRAN : graph process(node :integer); 
+  const 
+	H = 30,(* odleglosc miedzy pietrami*)        
+        xMAXw = 400, xMINw =200, yMaxW =400,
+        xpp = 405, xpl = 195, (* poczatkowe pozycje ludzikow*)
+        yp = 400;
+    var i : integer,    
+        PIETRA : arrayof etage,
+        MAP : arrayof integer;
+        
+     UNIT etage : class;
+     var GORA, DOL : arrayof boolean;
+     begin
+        array GORA dim(1:20); (* 20 maksymalna liczba pasazerow na pietrze*)
+	array DOL dim(1:20);            
+     end etage;
+
+
+     UNIT obrazWindy : procedure(pietro : integer);
+     begin
+           call move(XminW,YmaxW-(pietro+1)*H);
+	   MAP := getmap(XmaxW,YmaxW-pietro*H);
+     end ObrazWindy;
+
+     UNIT RysujWinde : procedure(Y,kolor: integer);
+     begin
+        if kolor= bialy then    
+	   CALL patern (XminW,Y,XmaxW,Y+H,bialy,1)
+        else     
+           call move(XminW,Y);
+           call putmap(MAP)
+	fi;
+        (* i wszystkich jej pasazerow *)
+     end RysujWinde;
+
+     UNIT DOM : procedure(kolor,ile_pieter:integer);
+     (*  szyb windy i pietra *)
+     var i :integer;  
+     begin
+        call patern(minDX,minDY,maxDX,maxDY,szary,1);
+        CALL patern (xMINw-2,yMaxW-(ile_pieter+1)*H,xMAXw+2,yMAXw,czarny,1); 
+        call color(2);    
+        for i := 0 to ile_pieter  do
+		call move(minDX,yMaxW-i*H); call draw(maxDX,yMAXw-i*H);
+	     (*   call Guzik(true,szary,i);*)
+             (*   call Guzik(false,szary,i);*)
+        od;
+        i := ile_pieter+1;
+        call move(minDX,yMAXw-i*H); call draw(maxDX,yMAXw-i*H);
+
+        CALL patern (xMINw,yMAXw-i*H,xMAXw,yMAXw,bialy,1); 
+
+     end DOM;		
+
+      unit JESTEM : procedure(gora:boolean,k,z:integer;output i:integer);
+      var j : integer;
+      begin
+          if gora then 
+	     for j:=1 to 20 do 
+		if not PIETRA(z).gora(j) then
+		   PIETRA(z).gora(j):= true;
+ 	           call ludzik(xpp+10*j,yp-z*H-12,k);
+		   i:=j; return   
+		fi 
+	    od
+	  else 
+	     for j:=1 to 20 do 
+		if not PIETRA(z).dol(j) then
+		   PIETRA(z).dol(j):= true;
+ 	           call ludzik(xpl-10*j,yp-z*H-12,k);
+		   i:=j; return   
+		fi 
+
+	    od
+         fi;
+      end JESTEM;
+
+      unit usunZpietra: procedure(gora: boolean,pietro,i : integer);
+      begin
+	  if gora then 
+		PIETRA(pietro).gora(i) := false;
+ 	        call ludzik(xpp+10*i,yp-pietro*H-12,szary);
+	  else	
+	        PIETRA(pietro).dol(i):= false;
+ 	        call ludzik(xpl-10*i,yp-pietro*H-12,szary);
+	   fi;
+      end usunZpietra;
+
+      unit Guzik : procedure(gora:boolean,k,i : integer);
+      begin
+         if gora then
+            call track(MaxDx-20,yMAXw-i*H-20,k,czarny,i)
+         else
+            call track(MinDx+20,yMAXw-i*H-20,k,czarny,i)
+         fi;
+      end Guzik;
+	
+      unit otworz : procedure(gora: boolean,i: integer);
+      begin
+        if gora then
+	   call patern(xMAXw,yMAXw-(i+1)*H,xMAXw+2,yMAXw-(i)*H,szary,1)
+	else
+	   call patern(xMINw,yMAXw-(i+1)*H,xMINw-2,yMAXw-(i)*H,szary,1)
+	fi;
+      end otworz;	
+
+      unit zamknij : procedure(gora:boolean,i: integer);
+      begin
+        if gora then
+	   call patern(xMAXw,yMAXw-(i+1)*H,xMAXw+2,yMAXw-(i)*H,czarny,1);
+	else
+	   call patern(xMINw,yMAXw-(i+1)*H,xMINw-2,yMAXw-(i)*H,czarny,1)
+	fi;
+      end zamknij;	
+
+
+      unit Koniec:  procedure;
+      var i : integer;
+      begin   
+             for i:=1 to 2000 do i:=i od;           
+             CALL GROFF; call ENDRUN
+      end Koniec; 
+
+  handlers
+   others       call comment("handler  EKRAN ");
+		call KONIEC;
+  end handlers;
+  begin
+      call GRON(0);       
+      array PIETRA dim(0:10);
+      for i := 0 to 10 do PIETRA(i) := new etage od;          
+      CALL patern (xminW,yMaxW-H,xmaxW,yMaxW,szary,1);
+      call ObrazWindy(0); (* obraz windy pustej na parterze *)
+      return;
+      do
+         accept RysujWinde, JESTEM, DOM, COMMENT,LUDZIK,
+	        obrazWindy, GUZIK, usunZpietra, OTWORZ, ZAMKNIJ, KONIEC;
+      od;
+
+  end ECRAN;
+
+
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)  
+
+
+  UNIT  LIFT :  process(node,n,MAXp : integer, EKRAN : ecran);
+  (* n = ilosc pieter, MAXp = maxymalna ilosc pasazerow w windzie *)
+  (* ile = ilosc pasazerow aktualnie w windzie *)   
+  CONST 
+        minX =200, maxY = 400, maxX=400, H=30,
+        xMINw =200, xMAXw =400, yMAXw = 400,	
+        kolor = 7,
+	szary = 7,
+	czerwony = 5,
+	czarny = 0,
+	gora = true,
+	dol = false;
+  VAR   i,j,p,jedzNa, NaPietrze,ile : integer,
+	booo, kierunek, stoj        : boolean,
+        PIETRA      : arrayof guzik,
+        PRZYCISKI   : arrayof boolean,
+        WWindzie    : arrayof boolean;
+
+     UNIT opis : class( k,x,y : integer); (* opis pasazera*)      
+     (* x,y odpowiada pozycji na pietrze lub w windzie *)
+     end opis;
+
+     UNIT guzik : class;
+     var   WGORE, Wdol : boolean;
+     end guzik;
+
+     UNIT pauza : PROCEDURE(JakDlugo : integer);
+     var i : integer;
+     BEGIN
+         for i :=1 to JakDlugo do i:=i od;
+     END pauza;
+ 
+
+     UNIT Wolam : procedure(Gora : boolean, pietro : integer);
+     begin           
+           if  gora then
+		PIETRA(pietro).wgore := true else PIETRA(pietro).wdol := true
+           fi;           
+	  call EKRAN.guzik(gora,czerwony,pietro)
+     end Wolam;
+
+      UNIT PasazerWysiada : procedure(j : integer);
+      var y : integer;
+      begin
+           (* Wymazac go z windy    *)           
+	   Wwindzie(j):= false;
+           y := yMaxW - naPietrze*H;
+           call EKRAN.ludzik(xMINw+10*j,y-12,szary);
+	   ile := ile -1;
+           PRZYCISKI(naPietrze):= false;
+           call Ekran.ObrazWindy(naPietrze)           
+      end PasazerWysiada;
+
+      UNIT PasazerWsiada : procedure(z,na,k,poz:integer; output p:integer);
+      var i,j,y : integer;
+      begin
+
+          if not (naPietrze=z and kierunek=(z<na) and ile< maxP) then 
+               p:= 0; return 
+          fi;
+          (* Wymaz pasazera z pietra z=naPietrze*)
+	  call EKRAN.UsunZpietra(z<na,naPIETRZE,poz);
+          y := yMaxw- naPietrze*H;
+
+          (* Wpisz go do windy *)
+           for j:=1 to 20 do 
+		if not Wwindzie(j) then
+		   Wwindzie(j):= true;
+		   (*  ludzik idzie  *) 
+		   p := j;
+                  
+		   for i:= 1 to j-1  do
+ 	             call EKRAN.ludzik(xMAXw-10*i,y-12,k);
+		     call pauza(200);
+ 	             call EKRAN.ludzik(xMAXw-10*i,y-12,7);
+	             call pauza(200)
+		   od;	
+ 	           call EKRAN.ludzik(xMINw+10*j,y-12,k);
+	           call pauza(300);			
+		   exit   
+		fi 
+	    od;
+           ile := ile+1;
+           call Ekran.RysujWinde(yMaxW-(naPietrze+1)*H,k);
+           call Ekran.Ludzik(xMinW+10*j,y-12,k);
+	   PRZYCISKI(na):= true;
+           call Ekran.ObrazWindy(naPietrze)           
+      end PasazerWsiada;
+
+
+      UNIT PRZYJECHALA : function(p:integer) : boolean;
+      begin
+            result := (naPietrze=p) 
+      end PRZYJECHALA;
+
+      unit CZEKAM : procedure(i: integer);
+      begin
+	     call Ekran.Otworz(gora,i);
+	     call Ekran.Otworz(dol,i);
+             enable PRZYJECHALA,PASAZERWSIADA, PASAZERWYSIADA;	
+
+	     call Ekran.Guzik(gora,czerwony,i);
+	     call Ekran.Guzik(dol,czerwony,i);
+(*      return   enable WOLAM,PRZYJECHALA,PASAZERWSIADA, PASAZERWYSIADA;*)
+
+      end CZEKAM;
+     
+      UNIT OtwieramDrzwi :  procedure( i: integer);
+      begin           
+	   call Ekran.Otworz(kierunek,i);
+           enable PRZYJECHALA,PASAZERWSIADA, PASAZERWYSIADA;
+	   call Ekran.Guzik(kierunek,czerwony,i);
+      end  OtwieramDrzwi;
+
+      UNIT ZamykamDrzwi :  procedure(gora:boolean, i: integer);
+      begin 
+           disable WOLAM;              
+           if  gora then
+		PIETRA(i).wgore := false else PIETRA(i).wdol := false
+           fi; 
+	   enable WOLAM; 
+          
+	   call Ekran.Zamknij(gora,i);
+	   call Ekran.Guzik(gora,szary,i);
+           disable PRZYJECHALA,PASAZERwsIADA, PASAZERwySIADA;
+      end  ZamykamDrzwi;
+
+      UNIT KierunekJazdy : procedure;
+      var i : integer;
+      begin
+         JEDZna := naPietrze;
+
+         if (kierunek= gora) then 
+             for i := naPIETRZE+1 to n 
+	     do              
+		if (PRZYCISKI(i) or PIETRA(i).wgore or PIETRA(i).wdol) then 
+		JedzNa := i; exit fi   
+	     od;
+             if JedzNa=naPietrze then 
+                for i := naPIETRZE-1 downto 0 
+	        do              
+		  if (PRZYCISKI(i) or PIETRA(i).wdol or PIETRA(i).wgore) then
+			 JedzNa := i; exit fi   
+	        od;
+             fi;
+	 else (*if kierunek= dol then *)
+             for i := naPIETRZE downto 0 
+	     do              
+		if (PRZYCISKI(i) or PIETRA(i).wdol or PIETRA(i).wgore) then 
+		JedzNa := i; exit fi   
+	     od;
+	     if JedzNa= naPietrze then 
+                for i := naPIETRZE+1 to n 
+	        do              
+		   if (PRZYCISKI(i) or PIETRA(i).wgore or PIETRA(i).wdol) then
+		     JedzNa := i; exit fi   
+	        od;
+             fi;
+        fi;
+        stoj := (naPIETRZE=JEDZna);
+        if stoj then kierunek := not kierunek else
+              kierunek := naPietrze < JedzNa 
+	fi;
+
+      END KierunekJazdy;
+
+      unit JEDZ : procedure(gora:boolean);
+      var j : integer;
+      begin
+          call EKRAN.RysujWinde(YmaxW-(naPietrze+1)*H,7); 
+	  if gora then
+             for j := 0 to H-1 do 
+                call EKRAN.RysujWinde(YmaxW-(naPietrze+1)*H -j,7); 
+                call pauza(2);
+                call EKRAN.RysujWinde(YmaxW-(naPietrze+1)*H -j,15); 
+                call pauza(2)
+             od;
+             call EKRAN.RysujWinde(YmaxW-(naPietrze+2)*H,7)
+          else
+              for j:= 0 to H-1 do 
+                 call EKRAN.RysujWinde(YmaxW-(naPietrze+1)*H +j,7); 
+                 call pauza(2);
+                 call EKRAN.RysujWinde(YmaxW-(naPietrze+1)*H +j,15);
+	         call pauza(2); 
+              od;
+              call EKRAN.RysujWinde(YmaxW-(naPietrze)*H,7); 
+	   fi;
+      end jedz;
+
+  handlers
+   others    call EKRAN.comment("handler  LIFT");
+             call pauza(500);
+             call EKRAN.KONIEC
+  end handlers;
+
+  BEGIN 
+     array PIETRA dim(0:n);
+     for i:= 0 to n do PIETRA(i):= new guzik od;  
+     array PRZYCISKI dim (0:n);
+     jedzNa := 0;   naPietrze:=0;
+     array WWindzie dim(1: MAXp); (* 20 = max ilosc pasazerow *)   
+
+     enable  Wolam;
+     kierunek := gora; 
+
+     return;
+     call EKRAN.RysujWinde(YmaxW-H, szary);
+
+     DO 
+	stoj:= true;
+        while stoj 
+        do 
+		call CZEKAM(naPIETRZE);
+	        for j := 1 to 10 do j := j od;
+		call KIERUNEKjazdy;
+        od;
+        call ZamykamDrzwi(gora,naPIETRZE);
+	call ZamykamDrzwi(dol,naPIETRZE);
+
+        if kierunek = gora then 
+             for i:= naPIETRZE+1 to JEDZna  DO
+	       (*  jade na nastepne pietro *)
+               call JEDZ(gora);
+	       naPietrze:= i;
+               (*jezeli ktos czeka lub wysiada to zatrzymaj*)
+	       if (PIETRA(i).wgore or PRZYCISKI(i)) then
+                  call pauza(500);
+	          call OtwieramDrzwi(i);
+                  (* pasazerowie wsiadaja lub wysiadaja *)
+	          for j := 1 to 1000 do j := j od;
+	          call ZamykamDRZWI(gora,i);
+	       fi;	         
+             od(* jedzNA*)
+        else
+        (*if kierunek = dol*)
+        
+	     for i := naPIETRZE-1 downto jedzNA   do
+	        (* zjezdzam w dol *)
+                call JEDZ(dol);
+		naPietrze:= i;
+                if ( PIETRA(i).wdol or PRZYCISKI(i)) then
+                   call pauza(500);
+	           call OtwieramDrzwi(i);
+                   (* pasazerowie wsiadaja/ wysiadaja*)
+	           call pauza(500);
+	           call ZamykamDrzwi(dol,i);
+	        fi;
+
+	     od (* jedz w dol NA*);
+	fi;
+
+      OD (* zachowania windy *);
+  END LIFT;
+
+
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+
+
+  UNIT PASAZER : process(node:integer,ss: string,z,na,kolor : integer,
+                        winda: lift,EKRAN : ecran);
+  const szary = 7;
+  var    i,j     : integer, 
+         jest,przyjechala,Wgore,wsiadlem : boolean;
+
+     handlers
+        others 
+	      call EKRAN.comment("handler  PASAZER");
+              call EKRAN.KONIEC;
+     end handlers;
+	
+  BEGIN  (***  opis zachowania  pasazera  ***)
+
+     return;
+     Wgore := na>z;      
+     call EKRAN.JESTEM(Wgore,kolor,z,i);
+     (*powinien otrzymac inormacje o swojej aktualnej pozycji na pietrze*)
+     wsiadlem := false; przyjechala:= false;    
+
+     while not wsiadlem do  
+        call Winda.Wolam(Wgore,z);   
+        call WINDA.PasazerWsiada(z,na,kolor,i,j);	     
+        (*  otrzymal od windy numerek j m lub 0 gdy nie wsiadl*)
+        wsiadlem :=(j<>0)
+     od;
+     while not przyjechala do 
+	przyjechala := WINDA.PRZYJECHALA(na) 
+     od;
+     call WINDA.PasazerWysiada(j);     
+   END pasazer;
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*) 
+
+  UNIT irandom : FUNCTION(a,b:INTEGER):INTEGER;
+  begin
+       result := entier((b-a)*random + a)
+  end irandom;
+ 
+ 
+
+ 
+ (*===================================================================*)
+VAR   EKRAN  : ecran, Winda : LIFT,
+      P      : arrayof PASAZER,pp :PASAZER,
+      i,n,m,z,na,k : integer;
+     handlers
+     when   signal1  : call EKRAN.comment("K O N I E C");
+                     call EKRAN.KONIEC;
+     others          call EKRAN.comment("handler   PROGRAM GLOWNY ");
+                     call EKRAN.KONIEC
+     end handlers;
+
+BEGIN   
+           EKRAN := new Ecran(0);
+           resume(EKRAN);
+           n :=10;  m := 1;(* calkowita ilosc pasazerow*)
+
+           call Ekran.DOM(7,n);        
+ readln;
+           array P dim(1:m);
+           Winda := new LIFT(0,n,10,EKRAN);
+
+           resume(Winda); 
+            
+readln;
+          DO	   (*  generowanie pasazerow *)       
+
+            for i := 1 to m 
+            do	        		
+               na,z := irandom (0,n);  
+               while z=na do na := irandom(0,n) od;
+	       k := 7;
+               while k=7 do k := irandom (0,14) od; 
+
+               pp:= new pasazer(0,"aa",z,na,k,winda,EKRAN);
+               resume(pp);               	       
+            od;
+	
+            pref IIUWGRAPH  block
+            var boo : boolean, x,y,i,l,r,z : integer;
+            begin
+             (*   call init(1,1); call ShowCursor;*)
+		call EKRAN.comment("CONTINUE? (y/n)");
+
+            (*    z:=0;boo:= false; i:=0;l:=0;r:=0; 
+                while not  (l= ord('y') or l= ord('n')) do
+                  boo := getpress(x,y,i,l,r,z);
+                od;
+             *)
+                   while not (l=ord('y') or l=ord('n')) do
+                     l:=inkey;
+                   od;
+		call EKRAN.comment("                ");
+
+ 	        if l= ord('n') then raise signal1 fi;
+
+            end;
+         OD;
+ 	  
+
+END LIFT;
+
+(***********************************************************************)
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+ 
+    unit zegar: process;
+      var i,j:integer;
+
+      begin
+        do
+          call ramka(420,310,480,335);
+          call ramka(422,312,478,333);
+          call ramka(421,311,479,334);
+          call move(433,320);
+          call wypisz(i);
+          call outstring(":");
+          call wypisz(j);
+          j:=j+1;
+          if j=60 then j:=0;i:=i+1 fi;
+          call hold(1)
+        od
+      end zegar;
+ 
+ 
+ 
+ 
+ 
+ unit ramka:iiuwgraph procedure(x1,y1,x2,y2:integer);
+   begin
+     call move(x1,y1);
+     call draw(x2,y1);
+     call draw(x2,y2);
+     call draw(x1,y2);
+     call draw(x1,y1)
+   end ramka;
+ 
+ 
+   unit elem : class; 
+      unit virtual affichage : procedure;
+      end affichage;   
+   end elem;
+ 
+   unit box : class;
+   var e: elem, next : box;
+   end box;
+
+   unit queue : class;
+   var premier, dernier : box;
+ 
+      unit virtual first :  function : elem;
+      begin
+          if not empty
+          then
+              result := premier.e;
+          fi;
+      end first;
+ 
+      unit virtual insert :  procedure( e: elem);
+      var aux : box;
+      begin
+          aux := new box;
+          aux.e := e;
+          if premier=none
+          then
+              premier := aux;
+              dernier := aux;
+          else
+              dernier.next := aux;
+              dernier := aux
+            fi;
+       end insert;
+  
+       unit virtual delete :  procedure;
+       begin
+            if not empty
+            then
+                premier := premier.next;
+            fi;
+        end delete;
+ 
+        unit virtual empty :  function : boolean;
+        begin
+             result := (premier=none)
+        end empty;           
+    end queue;
+
+END STRUC_QUEUE;
+
+ 
+ 
+   unit wstep:procedure;
+     begin
+        call gron(0);
+        call ramka(230,120,480,220);
+        call ramka(228,118,482,222);
+        call ramka(226,116,484,224);
+        call move(250,160);
+        call outstring("Symulacja windy przy pomocy procesow");
+        call move(250,180);
+        call outstring("GM");
+        call move(250,200);
+        call outstring(" Dabrowa kwiecien 2000");
+        WHILE INKEY=0 DO OD;
+        call groff
+      end wstep;
+ 
+
+           (* Strona tytulowa *)
+           CONTINUE_IKONA := new IKONA(szary,400,400,550,430,3,"   CONTINUE");
+           CALL ramka (1,5,0,0,638,478,ciemnoszary,szary,bialy,czarny);
+           CALL ramka (3,3,230,30,390,80,niebieski,szary,bialy,granatowy);
+           CALL Tytul (1,270,50,czarny,szary,"  LIFT  SIMULATION  ");
+
+           call CONTINUE_IKONA.write_i;
+ 
+           do
+              boo := getpress(xx,yy,i,l,r,z);
+              if z=1 and CZY(xx,yy,CONTINUE_IKONA) then  exit fi
+           od;
+           call CONTINUE_IKONA.push;
+
+
+
+    handlers
+      when MEMERROR : call comment("Zabraklo pamieci");
+                      call waitt; call GROFF;
+      when ACCERROR : call comment("Reference to none ");
+                      call waitt; call GROFF;
+      when LOGERROR : call comment("Niepoprawny Attach");
+                      call waitt;call GROFF;
+      when CONERROR : call comment(" Array-index error ");
+                      call waitt; call GROFF;
+      when SYSERROR : call comment("input-output error");
+                      call waitt; call GROFF;
+      when NUMERROR : call comment("blad numeryczny");
+                      call waitt; call GROFF;
+      others : call comment("Jakis blad ");
+                      call waitt; call GROFF;
+    end handlers;
+ 
+
+
+
+
+
+
+
+
+	   unit restore : procedure;
+	  (* odnawia kolory wierzcholkow na ekanie *)
+	   var i : integer;
+	   begin
+		delta := 0;
+		for i := 1 to nr  
+	        do
+		    lista(i).kolor := zolty;
+		od;
+           end restore;
+
+           UNIT strzalka : procedure(A,B : node);
+	   var r : real, cx,cy,dx,dy,ex,ey,delt,del : integer;  
+	   BEGIN
+		del := 15; delt:=7;
+		call color(zolty);
+		call move(A.x,A.y);
+		call draw(B.x,B.y);
+
+		call color(noir);
+                r := sqrt((b.y-a.y)*(b.y-a.y)+(b.x-a.x)*(b.x-a.x));
+		cx := b.x- entier((b.x-a.x)*del/r );
+		cy := b.y- entier((b.y-a.y)*del/r );
+		dx := b.x- entier((b.x-a.x)*(del+delt)/r + (b.y-a.y)*delt/r);
+		dy := b.y- entier((b.y-a.y)*(del+delt)/r - (b.x-a.x)*delt/r);
+		ex := b.x- entier((b.x-a.x)*(del+delt)/r - (b.y-a.y)*delt/r);
+		ey := b.y- entier((b.y-a.y)*(del+delt)/r + (b.x-a.x)*delt/r);
+		call move(dx,dy); call draw(cx,cy);
+		call move(ex,ey); call draw(cx,cy);
+           END strzalka;		
+
+
+	   unit print : procedure;
+	   var aux, aux1 : node, i : integer;
+           begin
+                   call patern(MinX,MinY+40,MaxX,MaxY,7,1);
+		   for i :=1 to nr 		   
+                   do 	
+		      aux := lista(i);
+                        call aux.affichage(zolty);
+                        if not aux.lista.empty
+			then 
+			    aux1 := aux.lista.first;
+                            while not aux1= none 
+			    do
+				call strzalka(aux,aux1);
+				aux1 := aux.lista.next;				 	
+			    od
+			fi;
+                   od;
+		   call comment("")                 
+           end print;
+
+       begin
+           array lista dim(1:10);
+	   nr := 0;	 
+       end graph;
+
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*    NODE - wierzcholek grafu                                          *)
+(*  x,y pozycja na ekranie, nr  numer wierzcholka                       *)
+(*  lista - lista wierzcholkow incydentnych                             *)
+(*----------------------------------------------------------------------*)
+       unit node : elem class(x,y,nr: integer);       
+       var lista : liste, 
+	   kolor : integer;
+
+	  unit affichage : procedure(c: integer);
+	  begin            
+	    call cirb(x+3,y+3,5,5,0,3600,c,1);
+            call track(x+5,y+5,nr,gris,noir);           
+	  end affichage;
+
+	  unit wypisz : procedure(i: integer);
+	 (*  wypisz kolejnosc odwiedzania wierzcholkow *)
+	  var j, k : integer;
+	  begin
+             for j := 0 to 160 do j:=j; call affichage(j mod 16 ) od;
+             k := (i+9) mod 16;
+	     if  k = gris then  k := noir fi;
+    	     call affichage(k);	     	     
+             call track(piszX+delta,piszY,nr,gris,k);
+	     if nr>9 then 
+		delta := delta+2*10 
+	     else  
+		delta := delta+10 
+	     fi;            
+	  end wypisz;
+
+          unit visite : function : boolean;
+	  (* Czy wierzcholek byl juz odwiedzony  *)
+	  (* Wierzcholek odwiedzony dostaje kolor czarny*)
+          begin
+              	if kolor=noir then result := true;
+              	else result := false; kolor := noir 
+		fi;
+          end visite;
+
+       begin
+           lista := new liste; kolor := zolty;
+       end node;
+
+       unit clear : procedure(col, minX,minY,maxX,maxY : integer);
+       var i, j, sr : integer;
+       begin
+	    call color(col);
+            sr := (minX+maxX) div 2;
+	    for i := 0 to (maxX - minX) div 2  
+	    do
+		call move( sr, maxY);
+		call draw(sr +i, minY);
+		call move(sr, maxY);
+		call draw(sr -i, minY);	
+		for j:=1 to 100 do j:=j od;
+	    od;
+	    for i := 0 to (maxY - minY)   
+	    do
+		call move( sr, maxY);
+		call draw(maxX, minY+i);
+		call move(sr, maxY);
+		call draw(minX, minY+i);	
+		for j:=1 to 100 do j:=j od;
+	    od;
+
+       end clear;
+
+  
+    unit clear_all : procedure(col, minX,minY,maxX,maxY : integer);
+    var i,j : integer;
+    begin
+	    call color(col);
+	    for i := 1 to ((maxY - minY) div 2) 
+	    do
+		call patern(minX+i,minY+i,maxX-i,maxY-i,3,0);
+		for j:=1 to 200 do j:=j od;
+	    od;
+    end clear_all;
+
+    unit waittt : procedure;
+    var x,y,i,l,r,z : integer,boo : boolean;
+    begin
+        call outstring(maxX-100,maxY+25, "CONTINUE",zielony,noir);              
+	boo := false; 
+	while z=0 do boo := getpress(x,y,i,l,r,z) od;        
+        call outstring(maxX-100,maxY+25, "          ",gris,gris);              
+
+    end waittt;
+     
+    unit YES : function : boolean;
+    var x,y,i,l,r,z : integer,boo : boolean;
+    begin
+	boo := false; 
+	while l=0 do boo := getpress(x,y,i,l,r,z) od; 
+        if (l= ord('y') or l=ord('Y')) then 
+		result := true else result := false 
+	fi;       
+    end YES;     
+
+    unit comment : procedure (s : string);
+    begin
+        call patern(MinX+10,MaxY+2,MaxX,MaxY+50,gris,1);
+        call outstring(MinX+10,MaxY+16,s,noir,gris);   
+    end comment;
+ 
+€
+  

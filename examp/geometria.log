@@ -1,0 +1,780 @@
+ PROGRAM Geometria;
+  #include "classes/gui.inc"
+(*Program ma pokazac dzialanie algorytmow geometrycznych *)
+(* o ktorych mowilam na wykladzie*)
+
+  signal ERROR_exec;
+  CONST
+ 
+      MinX = 0,
+      MinY = 0,
+      MaxX = 640,
+      MaxY = 480,
+      comX = 30,
+      comY = 440,
+      sz   = 30, (*szerokosc paska menu*)
+       my_ecranMinX = MinX+5,
+       my_ecranMinY = MinY+sz+3,
+       my_ecranMaxX= MaxX-5,
+       my_ecranMaxY= MaxY-(2*sz+1),
+      exit_posX = 550,
+      exit_posY = 420,
+      help_posX = 20,
+      help_posY = 50,
+      grubosc = 2,
+      maly = 1;
+ 
+ 
+(*------------------------------------------------------------------------*)
+ 
+(*------------------------------------------------------------------------*)
+(*               klasa definiujaca procedury graficzne                    *)
+(*------------------------------------------------------------------------*)
+   UNIT graphics : GUI CLASS;
+   
+ 
+      UNIT pauza : PROCEDURE(JakDlugo:integer);
+      var i : integer;
+      BEGIN
+	 for i :=1 to JakDlugo do i:=i od;
+      END pauza;
+ 
+ 
+      UNIT waitt : PROCEDURE;
+      (* wait for a key *)
+      BEGIN	
+	 While GUI_KeyPressed=/= 0 DO OD;
+      END waitt;
+
+      UNIT clear_all : procedure;
+       begin
+            call GUI_Rect(my_ecranMinX, my_ecranMinY, my_ecranMaxX, 
+                                     my_EcranMaxY,c_DarkGrey,c_LightGrey);
+            call GUI_Rect(my_EcranMinX, MaxY-2*sz, 
+                                    my_EcranMaxX,MaxY-5,c_DarkGrey,c_DarkGrey);
+       end clear_all;
+
+      UNIT clear : PROCEDURE(x0,y0,x1,y1,c1,c2: integer);
+      (* wymaz wszystko w prostokacie (x0,y0)-(y1,y1) *)
+      (* Zostaw ekran w kolorze c2*)
+      var i,j,x,y : integer;
+      BEGIN
+	    x := (x1-x0) div 2;
+	    y := (y1-y0) div 2;
+	    i :=0; j :=0;
+	    while i<=x and j<=y  do
+		 call GUI_Rect(x0+i,y0+j,x1-i,y1-j,c_black,c_lightGrey);
+		 i := i+1; j := j+1;
+	    od;	    
+	    while i>=0 and j>=0  do
+		 call GUI_Rect(x0+i,y0+j,x1-i,y1-j,c1,c2);
+		 i := i-1; j :=j-1
+	    od;
+       END clear;
+     
+	
+(**************************************************************************)
+ 
+    UNIT katy : procedure(col1,col2,x,y,u,v,grubosc: integer);
+    var i : integer;
+    BEGIN
+	     for i :=0 to grubosc
+	     do
+		 call GUI_Line(x+i,y+i,u-i,y+i, col1);
+		 call GUI_Line(x+i,y+i,x+i,v-i, col1)
+	     od;
+	     for i :=0 to grubosc
+	     do
+		 call GUI_Line(u-i,v-i,x+i,v-i,col2);
+		 call GUI_Line(u-i,v-i,u-i,y+i, col2);
+	     od;
+    END katy;
+ 
+ 
+    unit comment: procedure(ss:string);
+       begin
+	   call GUI_Rect(minX+4,maxY-2*sz,maxX-4,maxY-10,c_darkGrey,c_darkGrey);
+	   (* wymazanie obszaru pod komentarze *)
+	   call GUI_writeText(comX+10,comY,unpack(ss),c_white,c_darkGrey);
+    end comment;
+ 
+    unit YES : function : boolean;
+    var  c : char;
+    begin
+	while (c <> 'y' and c<> 'Y' and c <> 'n' and c<> 'N' ) do         
+                    call GUI_move(comX,comY);
+                    c:= GUI_ReadChar(comX,comY,c_turq,c_lightGrey) od; 
+	if (c= 'y' or c='Y') then 
+		result := true else result := false 
+	fi;       
+    end YES;     
+ 
+  END graphics;
+(*************************************************************************)
+ 
+ BEGIN
+       pref GRAPHICS block
+ 
+
+(*-----------------------------------------------------------------------*)
+
+(*                      M E N U                                          *)
+(*-----------------------------------------------------------------------*)
+	unit option : class(nb : integer);
+	var Nom : arrayof string;
+	unit virtual action : procedure(j : integer);
+	begin
+	end action;
+	begin
+	   array Nom dim (1:nb);
+	   inner;
+	end option;
+ 
+	unit ikona : class(c,x,y,u,v,grubosc : integer, ss : string);
+	var sub_menu : menu;
+	   unit write_i : procedure;
+	   var i: integer;
+	   begin
+	     call GUI_Rect(x,y,u,v,c_black,c);
+	     call katy(c_white,c_darkGrey,x,y,u,v,grubosc);
+	     call GUI_writeText(x+grubosc+3,y+(v-y)div 2 - 5 ,unpack(ss),c_black,c)
+	   end write_i;
+ 
+	   unit wymaz : procedure;
+	   begin
+		call GUI_Rect(x,y,u,v,c_black,c_lightGrey);
+	   end wymaz;
+ 
+	   unit push : procedure;
+	   (* nacisniecie wybranej ikony *)
+	   begin
+	     call katy(c_darkGrey,c_white,x,y,u,v,grubosc);
+	     call pauza(200);
+	     call katy (c_white,c_darkGrey,x,y,u,v,grubosc);
+	     call pauza(200);
+	   end push;
+ 
+	   unit inactive : procedure;
+	   begin
+	     call katy(c_white,c_darkGrey,x,y,u,v,grubosc);
+	     call pauza(500);
+	     call katy (c_darkGrey,c_white,x,y,u,v,grubosc);
+	     call pauza(500);
+	   end inactive;
+	end ikona;
+ 
+	unit CZY : function(xx,yy:integer,IC:Ikona): boolean;
+	begin   (* czy mysz nacisnieta  w polozeniu ikony IC *)
+	   result := (IC.x<xx and xx<IC.u
+		   and IC.y<yy  and yy<IC.v)
+	end CZY;
+ 
+ 
+	unit menu : coroutine(minX,maxX,MinY,MaxY :integer, OPTIONS :option);
+	   (* sz szerokosc paska ikon *)       
+	var ICONES: arrayof IKONA, i,j,nb, x1, y1, dl : integer,
+	    l,r,z,
+	    col,xx,yy   : integer,
+	    boo : boolean;
+	    (* dl and sz  - wymiary ikon w tym menu *)
+ 
+	    unit instalation : procedure;
+	    (* rysowanie menu oraz jego ikon *)
+	    var i : integer;
+	    begin
+		call GUI_Rect(minX,minY,maxX,maxY,c_black,c_lightGrey);
+		(* duzy obszar szary *)
+ 
+		call GUI_Rect(minX+4,maxY-(2*sz),maxX-4,maxY-4,c_black,c_darkGrey);
+		(*obszar dla komentarzy*)
+		for i := 1 to nb
+		do
+		    call ICONES(i).write_i
+		od;
+	    end instalation;
+ 
+	    unit INI : procedure;
+	    var x,y,u,v : integer;
+	    BEGIN
+	       nb := OPTIONS.nb;
+	       dl := (MaxX-Minx) div nb ;
+	 
+	       array ICONES dim(1:nb);
+	       x := minX+2; y := minY+2;
+	       u := minX+dl-4;  v := minY+sz;
+	       for i := 1 to nb
+	       do
+		  ICONES(i) := new ikona(c_lightGrey,x,y,u,v,2,OPTIONS.NOM(i));
+		  x := x+dl; u := u+dl;
+	       od;
+	    end INI;
+handlers
+   when ERROR_exec :
+		  call comment(" error exec  ");
+		  call YES_ikona.write_i;        
+		  call NO_ikona.write_i;   
+		  z :=0;
+		  while not z=1 do  call GUI_MousePressed(xx,yy,z) od;
+		  call comment("");    
+		  (* szukam gdzie zostal nacisniety lewy klawisz myszki*)
+		  if CZY(xx,yy,YES_ikona)
+		  then
+		      call YES_ikona.push;
+		      call clear(minX+5,minY+sz+3,maxX-5,maxY-2*sz-1,c_white,c_lightGrey);
+		      wind
+		  fi;
+		  if CZY(xx,yy,NO_ikona)
+		  then
+		      call NO_ikona.push;
+		      call clear(minX+5,minY+sz+3,maxX-5,maxY-2*sz-1,c_white,c_lightGrey);
+		      call ENDRUN
+		  fi;
+
+ 
+   others         call comment(" ERROR press YES to continue or NO to stop?");
+		     
+		  call YES_ikona.write_i;        
+		  call NO_ikona.write_i;   
+		  z :=0;
+		  while not z=1 do  call GUI_MousePressed(xx,yy,z) od;
+		  call comment("");    
+		  (* szukam gdzie zostal nacisniety lewy klawisz myszki*)
+		  if CZY(xx,yy,YES_ikona)
+		  then
+		      call YES_ikona.push;
+		      call clear(minX+5,minY+sz+3,maxX-5,maxY-2*sz-1,c_white ,c_lightGrey);
+		      wind
+		  fi;
+		  if CZY(xx,yy,NO_ikona)
+		  then
+		      call NO_ikona.push;
+		      call clear(minX+5,minY+sz+3,maxX-5,maxY-2*sz-1,c_white ,c_lightGrey);
+		      call ENDRUN
+		  fi;
+	       
+end handlers;
+ 
+	begin 
+	   call INI;
+	   return;
+	   do  (* obsluga menu *) 
+	       call instalation;    (* rysowanie ikon z tego menu *)
+	       do
+		  xx, yy,i := 0;
+		
+		  while i=0  do
+		      call GUI_MousePressed(xx,yy,i) ;
+		  od;
+ 
+		  (* szukam gdzie zostal nacisniety lewy klawisz myszki *)
+		  for j :=1 to nb
+		  do
+		      if czy(xx,yy,ICONES(j))
+		      then
+			  call ICONES(j).push;exit;
+		      fi;
+		  od;
+		  if j>0 and j<nb+1
+		  then
+		       call OPTIONS.Action(j);
+		       if j=1 then detach; 
+			     exit
+		       else
+			  if ICONES(j).sub_menu<>none then
+			     attach(ICONES(j).sub_menu);
+			     exit;
+			  fi;
+		       fi;
+		  fi;
+	       od;
+	   od;
+	end menu;
+ 
+     unit OPTIONS_MAIN : option class;
+     unit virtual Action : procedure(j : integer);
+     begin               (* opcje glownego menu*)
+       
+	 case j
+	    when 1 : call comment("Exit    ");
+	    when 2 : call comment("Wczytanie danych do problemu otoczki.");
+                                call WczytajDane(il_punktow,TAB);
+	    when 3 : call comment("Dane do problemu przeciec odcinkow");
+
+	    when 4 : call comment("Tu ma byc informacja o algorytmie");
+		     
+	  esac;
+      end action;
+      begin
+	   Nom(1) := "EXIT";          
+	   Nom(2) := "OTOCZKA";
+	   Nom(3) := "ODCINKI";
+	   Nom(4) := "HELP";
+      end OPTIONS_MAIN;
+
+     unit OPTIONS_OTOCZKA : option class;
+     unit virtual Action : procedure(j : integer);
+     var x: integer, boo : boolean;
+     begin                                      
+	 case j
+	    when 1 :  call comment("RETURN    ");
+	    when 2 :  call GRAHAM(il_punktow,TAB);
+	    when 3 :  call JARVIS(il_punktow,TAB);
+	    when 4 :  call TROJKATY(il_punktow,TAB);
+		     call clear_all;
+	  esac;
+      end action;
+      begin
+	   Nom(1) := "RETURN";        
+	   Nom(2) := "GRAHAM";
+	   Nom(3) := "JARVIS";
+	   Nom(4) := "TROJKATY";
+      end OPTIONS_OTOCZKA;
+ 
+ 
+      unit OPTIONS_help : option class;
+      var ch : char, i:integer;
+      unit virtual Action : procedure(j : integer);
+      begin
+	  case j
+	    when 1 :  call comment(" ");
+	    when 2 :  call comment("NACISNIJ Y lub N"); 
+		     if YES then call comment("") fi;
+	    when 3 :  call comment("");
+	 esac;
+      end Action;
+      begin
+	   NOM(1) := "RETURN";
+	   NOM(2) := "NEXT";
+	   NOM(3) := "PREV";
+      end OPTIONS_help;
+ 
+ (*===================================================================*)
+ 
+    unit WczytajDane : procedure(inout il_punktow:integer,TAB : arrayof punkt);
+    const pminX = 30, pminY =50, pmaxX= 400, pmaxY=200,
+             il_ikon =5; 
+    var i ,xx, yy: integer, IK : arrayof IKONA;
+    begin
+          
+          array IK dim(1 : il_ikon);
+          call GUI_Rect(pminX,pminY,pmaxX,pmaxY,c_darkGrey,c_green);
+          call GUI_WriteText(pminX+10, pminY+10,unpack("Ilosc punktow = "),
+                                     c_darkGrey,c_green);
+          call GUI_writeInt(pminX+150,pminY+10,
+                                                      il_punktow, c_darkGrey,c_green);
+          call GUI_WriteText(pminX+10, pminY+45,unpack("Jakosc w % = "),
+                                            c_darkGrey,c_green);
+          
+          IK(1) :=new IKONA (6,pminX+200,pminY+10,pminX+250,pminY+35,3,"PLUS");
+          IK(2) :=new IKONA (6,pminX+260,pminY+10,pminX+310,pminY+35,3,"MINUS");
+          IK(3) :=new IKONA (6,pminX+200,pminY+45,pminX+250,pminY+70,3,"PLUS"); 
+          IK(4) :=new IKONA (6,pminX+260,pminY+45,pminX+310,pminY+70,3,"MINUS"); 
+          IK(5) := new IKONA (6,pminX+200,pminY+120,pminX+250,pminY+145,3,"EXIT");
+          for i:=1 to il_ikon do call IK(i).write_i; od;
+          (*badanie ktora ikona zostala nacisnieta*)
+            do
+		  xx, yy,i := 0;		
+		  while i=0  do
+		      call GUI_MousePressed(xx,yy,i) ;
+		  od;
+ 
+		  (* szukam gdzie zostal nacisniety lewy klawisz myszki *)
+		  for i :=1 to il_ikon do
+		      if czy(xx,yy,IK(i))
+		      then
+			  call IK(i).push; exit
+		      fi;
+		  od;
+                              case i 
+                                  when 1 : il_punktow := il_punktow+10;
+
+call GUI_Rect(pminX+150,pminY+10,pminX+180,pminY+25, c_green,c_green);
+call GUI_writeInt(pminX+150,pminY+10,il_punktow, c_darkGrey,c_green);
+                                  when 2 : il_punktow := il_punktow-10;
+call GUI_Rect(pminX+150,pminY+10, pminX+180,pminY+25, c_green,c_green);
+call GUI_writeInt(pminX+150,pminY+10, il_punktow, c_darkGrey,c_green);
+                                   when 3 : i := i+1;
+call GUI_Rect(pminX+150,pminY+45, pminX+180,pminY+60, c_green,c_green);
+call GUI_writeInt(pminX+150,pminY+45, i, c_darkGrey,c_green);
+                                  when 4 : i := i-1;
+call GUI_Rect(pminX+150,pminY+45, pminX+180,pminY+60, c_green,c_green);
+call GUI_writeInt(pminX+150,pminY+45, i, c_darkGrey,c_green);
+                                  when 5 :  exit;
+                               esac;
+             od;
+             call comment("Losowanie punktow."); 
+             array Tab dim(1: il_punktow);
+             for i :=1 to il_punktow do   
+                    TAB(i) := new punkt(20+random*600,40+random*360,c_red);                 
+            od;
+            call comment("");    
+            call  clear_all;
+    end WczytajDane;
+
+(*-------------------------------------------------------------*)
+   UNIT PokazPunkty : procedure(il_punktow:integer, TAB:arrayof punkt); 
+   var i : integer, pp : punkt; 
+   begin
+      call clear(minX+5,minY+sz+3,maxX-5,maxY-(2*sz+1),c_yellow,c_blue);
+      for  i := 1 to il_punktow do pp:= TAB(i); 
+              call pp.rysuj 
+      od;
+   end PokazPunkty;
+
+   UNIT WylosujPunkty : procedure(il_punktow:integer; inout Tab:arrayof punkt);
+    var pp : punkt;
+    begin
+           call clear(minX+5,minY+sz+3,maxX-5,maxY-(2*sz+1),c_yellow,c_blue);
+           call comment("Losowanie punktow."); 
+           array Tab dim(1: il_punktow);
+            for i :=1 to il_punktow do   
+                   pp:= new punkt(20+random*600,40+random*360,c_red);
+                   TAB(i) := pp
+            od;
+           call comment("");    
+    end WylosujPunkty;
+
+    unit INFO : procedure(il,ilb : integer);
+    begin
+      call comment("");
+      call GUI_WriteText( MinX+10, MaxY -50,
+      unpack("ilosc punktow : "), c_red,c_darkGrey);
+      call GUI_WriteInt(MinX+200, MaxY-50,il,c_red,c_darkGrey);
+           
+      call GUI_WriteText(MinX+10,MaxY-30,
+      unpack("ilosc bialych"),c_white,c_darkGrey);
+      call GUI_WriteInt(MinX+200, MaxY-30,ilb,c_white,c_darkGrey);
+      call STOP_IKONA.write_i;
+    end INFO;
+(*--------------------------------------------------------------*)
+
+    Unit GRAHAM : procedure(il_punktow: integer, TAB : arrayof punkt);
+          UNIT SORTUJ : procedure(p0:punkt);
+          unit mniejsze : function(p,q:punkt) : boolean;
+          (* q jest na lewo od p0,p *)
+          begin
+               result := false;
+               if q.naLewo(p0,p) then
+                     result := true 
+               fi;
+          end mniejsze;
+
+          unit pokaz : procedure(c,k:integer);
+          var i : integer;
+          begin
+                for i:=1 to 10 do
+                 call GUI_Line (p0.x,p0.y, Tab(k).x,Tab(k).y, c_green ) ;   
+                od;
+                call GUI_Line (p0.x,p0.y, Tab(k).x,Tab(k).y, c)    
+          end pokaz;
+
+          unit poprawHeap: procedure(k:integer);
+          var i,j : integer, v : punkt;
+          begin
+                v := Tab(k);
+                call pokaz(c_blue,k);
+                 while(k<= kk div 2) do
+                          j:= 2*k;
+                          if j < kk then
+                                 if mniejsze(Tab(j+1),Tab(j)) then j:=j+1 fi 
+                          fi;
+                          if mniejsze(v,Tab(j)) then exit fi;
+                          Tab(k) := Tab(j);
+                           k := j
+                  od;
+                  Tab(k) := v;
+                 call pokaz(c_blue,k);
+          end poprawHeap;
+          unit usun : procedure(ii:integer);
+           var p : punkt;
+          begin
+               p:=Tab(ii); Tab(ii):=Tab(1); Tab(1):=p;
+               call PoprawHeap(1);
+          end usun;
+        var i,j, k : integer;
+     BEGIN
+         call comment("sortowanie");
+          for i := kk div 2 downto 1 do
+              call poprawHeap(i)
+          od;
+          call comment(" teraz wynik ");
+           j:= kk;      
+          for i :=1 to kk do   
+                Wielokat(i) := Tab(1);
+                call pokaz(c_green,1) ; 
+                call usun(j);    
+                j:= j-1;                                  
+                   
+                k := 0;
+                call GUI_MousePressed(xx,yy,k);
+          od;                
+     END SORTUJ;
+
+     var  c, kk,i, lewy,prawy,gora,dol : integer , pp : punkt,  
+            Wielokat : arrayof punkt;
+     begin
+        call comment ("ALGORYTM  GRAHAMA  ");
+        array WIELOKAT dim(1:il_punktow);
+        call PokazPunkty(il_punktow,TAB); 
+        call comment(" Punkty do problemu otoczki ");
+        (* uproszczenie: *)
+        (* znajdz punkty najbardziej wysuniete na lewo , na prawo itd*)
+        (* usun punkty wewnetrzne czworokata : dol,gora,lewy, prawy*)
+         dol:=1; gora:=1; 
+         lewy:=1; prawy :=1;
+         call STOP_IKONA.write_i;
+         call continue_IKONA.write_i;
+
+         for i :=2 to il_punktow do 
+              if TAB(i).y>Tab(dol).y then dol:=i  
+              else 
+                 if TAB(i).y<TAB(gora).y then gora :=i fi 
+              fi;    
+              if  TAB(i).x>Tab(prawy).x then prawy := i 
+              else
+                     if TAB(i) .x< Tab(lewy).x then lewy := i fi
+              fi;
+         od;
+         Wielokat(1) := TAB(dol);  
+         Wielokat(2) := TAB(prawy);  
+         Wielokat(3) := TAB(gora);  
+         Wielokat(4) := TAB(lewy); 
+         (* narysuj czworokat o ekstrmalnych wierzcholkach*)
+         call NarysujWielokat(c_yellow,4,Wielokat);
+         (* usun wszystkie punkty, ktore sa wewnatrz tego wielokata*)
+          call Wnetrze(4,Wielokat,kk);
+          (* kk= il punktow ktore zostaly po usunieciu wnetrza*)      
+         call INFO(kk,il_punktow-kk);
+                i := 0;
+                call GUI_MousePressed(xx,yy,i);
+                if i=1 then 
+                  if CZY(xx, yy,STOP_IKONA) then 
+                    call STOP_IKONA.push; 
+                    exit 
+                   else if  CZY(xx,yy,CONTINUE_IKONA) then 
+                               call CONTINUE_IKONA.push fi
+                   fi
+               fi;   
+               (*wymazanie wielokata *)
+               call NarysujWielokat(c_blue,4,Wielokat);   
+               (*posortuj tablice Tab ze wzgledu na katy *)
+               call SORTUJ(WIELOKAT(1));
+               (* Rysuj boki otoczki *)
+
+     end GRAHAM;
+
+     
+    
+     UNIT JARVIS : procedure(n:integer,TAB:arrayof punkt);
+     BEGIN
+     END JARVIS;
+
+     UNIT TROJKATY : procedure(n:integer,TAB:arrayof punkt);
+     var Wielokat : arrayof punkt, i,j,k,x,kk :integer;
+     BEGIN
+         call comment ("ALGORYTM  - trojkaty  ");
+         array WIELOKAT dim(1:n);
+         call PokazPunkty(n,TAB); 
+         call comment(" Punkty do problemu otoczki ");
+            for i := 1 to n do
+                WIELOKAT(1):= TAB(i);
+               for j:= i +1 to n do
+                   WIELOKAT(2):= TAB(j);  
+                   for k :=j+1 to n do
+                        WIELOKAT(3):= TAB(k);  
+                        call narysujWielokat(c_red,3,Wielokat);
+                       (* narysuj trojkat *)
+                        for  x:=1 to n do      call Wnetrze(3,Wielokat,kk);      od;
+                       (* sprawdz co jest w srodku *)
+                       (*usun srodek*)
+                       call narysujWielokat(c_blue,3,Wielokat);
+                   od
+               od
+            od; 
+     END TROJKATY;
+
+     UNIT NarysujWielokat : procedure(c,n:integer,T: arrayof punkt);
+     var i : integer;
+     BEGIN    
+          for i :=2 to n do
+             call GUI_Line(T(i-1).x,T(i-1).y,T(i).x,T(i).y,c);
+      call pauza(500);
+         od;
+        call GUI_Line(T(1).x,T(1).y,T(n).x,T(n).y,c);
+     END  NarysujWielokat;
+
+     UNIT WYPISZ_INFO : procedure(cz,b,il_cz,il_b, ocena : integer);
+     BEGIN
+    
+     END WYPISZ_INFO;
+
+     unit Insert: procedure(pp: punkt,Tab : arrayof punkt, il : integer);
+     (* doloaczanie punktu pp do uporzadkowanej tablicy Tab  o il-elementach *)
+     var j : integer;
+     begin
+           j := il -1;
+           while  j>0 do
+               if  pp.mniejsze (Tab(j)) then
+                 Tab(j+1) := Tab(j);  j := j-1;
+              else exit fi
+           od;
+           Tab(j+1) := pp;
+     end Insert;
+
+     unit punkt : class(x,y,c: integer);
+     var boo : boolean;
+         unit mniejsze : function( p : punkt) : boolean;
+         begin
+               result := (y< p.y or (y=p.y and x< p.x)) 
+         end mniejsze;       
+
+         unit naLewo : function(p1,p2: punkt):boolean;
+         (*(x,y) jest na lewo (na ekranie ) od odcinka p1,p2 *)
+         begin
+               if ( (x-p1.x)*(p2.y - p1.y) -(p2.x-p1.x)*(y-p1.y))>0  then
+                   result := true
+               else result := false fi
+         end naLewo;
+
+         unit rysuj : procedure;
+         begin
+               call GUI_Ellipse(x,y,5,5,0,360,c,c)
+         end rysuj;
+    end punkt;
+    
+    unit WYMAZ_KONIEC: procedure(L : arrayof punkt, nr : integer);
+    begin
+          call GUI_Line(L(nr-1).x, L(nr-1).y, L(nr).x, L(nr).y, c_blue);
+    end WYMAZ_KONIEC; 
+
+    UNIT WNETRZE : procedure(n: integer, WIELOKAT: arrayof punkt;output k:integer);
+     var i, j : integer, boo : boolean, pp: punkt;
+     begin     
+        for i := 1 to il_punktow do
+            j := 2;
+            boo:= true;
+            while (j>1 and j<=n) and boo do 
+               if Tab(i).naLewo(WIELOKAT(j-1),WIELOKAT(j)) then j:= j+1 
+                else boo := false fi
+            od;
+           
+            if boo and  Tab(i).naLewo(WIELOKAT(n),WIELOKAT(1)) then  
+                TAB(i).boo := true;
+                 Tab(i).c := c_white;
+                call TAB(i).rysuj;
+            fi    
+        od ;  
+        (* przesun biale na koniec tablicy *)
+        k:= il_punktow;
+        for i := il_punktow downto 1 do
+           if Tab(i).boo then 
+                  pp :=Tab(k); Tab(k) :=Tab(i); Tab(i) :=pp;
+                  k :=k-1;
+          fi    
+        od; 
+     end WNETRZE;
+
+     UNIT NaLewo : procedure(p1,p2:punkt; output cz,b : integer);
+     var i : integer;
+      begin
+         
+      end NaLewo;
+
+     UNIT chromosom : class(x,y, u,w,ocena: integer);
+     begin
+     end chromosom;
+
+     
+(*--------------------------------------------------------------*)
+     UNIT ODCINKI : procedure;
+     END Odcinki;
+
+     UNIT ALG_2 : procedure(ilCZ, ilB : integer);
+     var POKOLENIE : arrayof chromosom,
+          ch : chromosom,
+          p1, p2 : punkt,
+          il_pokolen, b, cz,ocena,
+          ii, i, j,  mocP, il_prob, nrChromosomu : integer;
+      
+     begin
+          
+               i := 0;
+               call GUI_MousePressed(xx,yy,i);
+               if i=1 and CZY(xx, yy,STOP_IKONA) then call clear_all;exit fi;
+         
+     end ALG_2;
+    
+     
+     
+(*--------------------------------------------------------------*)
+
+     VAR     TAB : arrayof punkt, il_punktow, il_porownan: integer,	    
+	   OK_ikona,YES_ikona,NO_ikona, STOP_IKONA,
+                 EXIT_IKONA, CONTINUE_IKONA    : IKONA,
+	   menu_main, menu_START              :  menu,              
+                 i ,xx,yy                                          : integer;
+ 
+    handlers
+      when MEMERROR : call comment("Zabraklo pamieci");
+		      call waitt; 
+      when ACCERROR : call comment("Reference to none PR GLOWNY");
+		      call waitt; 
+      when LOGERROR : call comment("Niepoprawny Attach PR GLOWNY");
+		      call waitt;
+      when CONERROR : call comment(" Array-index error PR GLOWNY");
+		      call waitt; 
+      when SYSERROR : call comment("input-output error");
+		      call waitt; 
+      when NUMERROR : call comment("blad numeryczny");
+		      call waitt; 
+      others : call comment("Jakis blad ");
+		      call waitt; 
+    end handlers;
+ 
+ 
+   BEGIN  (* tu musi sie wygenerowac menu  *)
+	  
+         YES_ikona := new IKONA(6,450,360,500,385,3,"YES"); 
+         NO_ikona  := new IKONA(6,505,360,555,385,3,"NO"); 
+         STOP_IKONA :=  new IKONA(c_green,590,430,635,460,3,"STOP"); 
+         CONTINUE_IKONA := 
+                              new IKONA(c_green,450,430,550,460,3,"CONTINUE");
+
+          (* Strona tytulowa *)
+           CALL GUI_Rect(minX+1,minY+1,maxX-2,maxY-2,c_black,c_lightGrey);
+	
+           CALL GUI_writeText(250,100,unpack("PROJEKT"), c_black,c_lightGrey);
+           CALL GUI_writeText(250,200,unpack(
+                  "ALGORYTMY  W  GEOMETRII"), c_black,c_lightGrey); 
+ 
+           call CONTINUE_IKONA.write_i;               
+            i := 0;
+            while i<>1 or not CZY(xx,yy,CONTINUE_IKONA) do
+                   call GUI_MousePressed(xx,yy,i);
+            od;  
+             call CONTINUE_IKONA.push; 
+	   
+ 
+	   (* creation of main menu *)	 
+	   menu_main := new menu(minX,maxX,minY,maxY,new OPTIONS_MAIN(4));
+	  
+	   menu_main.ICONES(4).sub_menu :=
+		   new menu(minX,maxX,minY,maxY,new OPTIONS_help(3));
+
+	   menu_main.ICONES(2).sub_menu :=
+		   new menu(minX,maxX,minY,maxY,new OPTIONS_OTOCZKA(4));
+
+
+               
+	   attach(menu_main);
+ 
+	   call comment("THIS ENDS THE PROGRAM EXECUTION !!!!!");         	 
+                 call endRun;
+         END;
+  
+   END (* block od Grafiki *)
+END GEOMETRIA;
+ 
+       
+
+   

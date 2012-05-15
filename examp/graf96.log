@@ -1,0 +1,1995 @@
+ 
+program GRAF;
+#include "classes/gui.inc"
+
+ (* wersja z usuwaniem lukow grafu i tablica list reprezentujaca graf     *)
+ (* Algorithmes : search *)
+ (* BFS + DFS + STRANGE-STACK chodzenie po grafie                         *)
+ (* path, cycle, topological sort ???*)
+ (* Program wykorzystuje plik z przygotowanym grafem /graf.dta *) 
+ (* oraz plik /graf.txt z odrobina informacji o programie      *)
+ (* Wykonanie algorytmow mozna przerywac, naciskajac prawy klawisz myszy*)  
+ (* gdy pojawi sie  STOP? *)
+const 
+	dimX = 640,
+	dimY = 480,
+	MinX =  10,
+	MinY =  5,
+	MaxX = dimX-10,
+	MaxY = 372,
+	comX = MinX+10,
+	comY = dimY-40,
+	piszX = MinX+10,
+	piszY = MaxY-17,
+	StrMinY = dimY-100,
+	StrMaxY = dimY-20,
+	wrnX = MinX+ 10, (*  miejsce na ostrzezenia*)
+	wrnY = StrMinY+ 20,
+	 
+	mysz = 1,
+	klawiatura = 1,
+	nie_klawiatura =0;
+ 
+unit punkt : class(x,y:integer);
+end punkt;
+ 
+
+begin
+        pref GUI block
+ 
+     
+
+   
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*                    STRUKTURA  LIST                                      *)
+(* first - funkcja bez parametrow, ktorej wynikiem jest pierwszy element   *)
+(*         dodatkowo ustawia biezacy element jako poczatek listy           *)
+(* out   - procedura powalajaca usunac pierwszy element listy              *)
+(* insert- procedura z jednym parametrem typu elem, ktora pozwala dolaczyc *)
+(*         nowy element na koncu listy                                     *)
+(* next  - nastepny element listy lub none, jesli go nie ma                *)
+(* prev  - poprzedni element listy lub none, jesli go nie ma               *)
+(* link  - jest typem pomocniczym, ogniwem w liscie                        *)
+(*-------------------------------------------------------------------------*)
+ 
+    unit Liste : class;
+    var premier, dernier, courant : link;
+ 
+    unit link : class(e: elem, prec:link, suiv: link);
+    var used: boolean;
+       unit use :procedure;
+       begin
+	    used:= true;
+       end use;
+    begin
+       used := false;
+    end link;
+
+    unit debut : procedure;
+    (* post condition: (courant= x)  => debut (courant= premier)) *)
+    begin
+	 courant := premier;
+    end debut;
+
+    unit restore : procedure;
+    begin
+	 courant := premier;
+	 while courant<>none 
+	 do courant.used:= false; courant:= courant.suiv od;
+	 courant := premier;   
+    end restore;
+
+    unit next : function : elem;
+    begin
+	 result := none;
+	 if courant<>none then
+	    courant := courant.suiv;   
+	    if courant<>none then 
+		result := courant.e
+	    fi           
+	 fi; 
+    end next;
+
+    unit prev : function : elem;
+    begin
+	 result := none;
+	 if courant<>none then
+	    if courant.prec<> none then 
+		courant := courant.prec;
+		result := courant.e 
+	    fi           
+	 fi; 
+    end prev;
+
+    unit first : function : elem;
+    begin
+	result:= none;
+	if premier <> none then 
+	    result := premier.e;
+	fi;
+    end first;
+ 
+    unit insert: procedure(e:elem);
+    (* post condition: (courant=x) => insert(e)(courant=x and e is_in_this_list) *)
+    var l : link;
+    begin
+      l := new link(e,dernier,none);
+      if premier=none then
+	 premier := l;
+      else
+	 dernier.suiv := l;
+      fi;
+      dernier := l;
+    end insert;
+ 
+    unit delete : procedure(e : elem);
+    (* delete an element e;   *)
+    (* post condition : delete(e)(courant=premier  and e is_not_in_this_list) *)
+    var l,l1,aux : link, trouve : boolean;
+    begin
+	aux := premier;
+	while  aux<>none 
+	do
+	   if aux.e.egal(e) then
+	       trouve := true; exit
+	   else
+		aux := aux.suiv
+	   fi
+	od;
+	if trouve then
+	    l := aux.prec;
+	    l1 := aux.suiv;
+	    if l<>none then 
+		l.suiv := l1;
+		if l1<>none then 
+		    l1.prec := l
+		fi;
+		kill(aux)
+	    else
+		premier := premier.suiv;
+	    fi;
+	fi;        
+	courant := premier
+    end delete;
+ 
+    unit empty : function: Boolean;
+    begin
+       result := (premier = none)
+    end empty;
+
+   begin
+       premier := none; dernier := none; courant := premier;
+   end liste;
+   
+	
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*  ELEM jest typem elementow uzywanych we wszystkich strukturach tego progr.*) 
+
+   unit elem : class; 
+      unit virtual visite : function : boolean;
+      end visite;
+      unit virtual egal : function (e:elem) : boolean;
+      end egal;
+      unit virtual affichage : procedure;
+      end affichage;   
+   end elem;
+ 
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*      OGOLNY MODEL STRUKTURY ABSTRAKCYJNEJ                                *)
+
+   unit structure : class;
+    const x0= MinX+40,
+	  y0= StrMinY+40,
+	  delta= 30; 
+    var speedL : integer;
+    (*pozycja poczatkowa i przesuniecie dla ilustracji zawartosci struktury*)
+
+      unit virtual first : function : elem; 
+      end first;
+      unit virtual delete :  procedure; 
+      end delete;
+      unit virtual insert :  procedure (e:elem); 
+      end insert;
+      unit virtual empty :  function : boolean; 
+      end empty;
+
+      unit box : class;
+      var   e : elem,
+	    next : box;
+      end box;     
+
+      UNIT TRAVERSE :  procedure (G : Graph );
+      (* przegladanie grafu(ktory ma postac tablicy list) z uzyciem*) 
+      (* nieznanej struktury danych z operacjami: empty,first,insert,delete*)
+      var  i,debut,fin : integer, 
+	   aux, aux1    : node;
+      begin
+	debut:= G.root; fin:= G.nr;
+	i:= debut;
+	while i <= fin
+	do
+	  aux := G.lista(i);            
+	  if not aux.visite 
+	  then  
+	    call aux.visite_le;
+	    call insert(aux);       
+	    aux.father := none;
+	    while not empty
+	    do
+		 aux := first;
+		 call delete;     
+		 if aux.father<>none then  
+		    call G.strzalka(aux.father,aux,i mod 7,c_black)
+		 fi;    
+		 call aux.wypisz(i mod 7);(* i wyznacza kolor *)
+
+		 if not aux.lista.empty then 
+		       aux1 := aux.lista.first;             
+		       while  aux1<>none
+		       do
+			 if not aux1.visite then 
+			      call aux1.visite_le;
+			      call insert(aux1) ;
+			      aux1.father := aux
+			 fi;
+			 aux1 := aux.lista.next
+		       od; 
+		  fi;                   
+		  if arret then 
+		     call comment("This execution has been stopped! Use MENU now.");
+		     exit exit 
+		 fi;
+	     od (* not empty *);
+	  fi;
+	  (* dla kazdego i inna  skladowa *)
+	   call waittt;          
+	   i:= i+1;
+	   if (i>fin and debut<>1) then debut,i:=1; fin:= G.root-1; fi
+	od
+      end traverse;
+
+      UNIT TRAVERSE_bis :  procedure (G : Graph );
+      (* przegladanie grafu(ktory ma postac tablicy list) z uzyciem*) 
+      (* nieznanej struktury danych z operacjami: empty,first,insert,delete*)
+      (* wierzcholek jest usuwany dopiero gdy jego synowie juz zostali obsluzeni*)
+      var  i,debut,fin : integer, 
+	   aux, aux1    : node;
+      begin
+	debut:= G.root; fin:= G.nr;
+	i:= debut;
+	while i <= fin
+	do
+	  aux := G.lista(i);            
+	  if not aux.visite 
+	  then  
+	    call aux.visite_le;   
+	    call insert(aux);       
+	    call aux.wypisz(i);  (* i wyznacza kolor *)  
+	    aux.father := none;
+	    while not empty
+	    do
+		 aux := first; (* to jest pierwszy w str. pomocniczej*)
+		 if  (aux.lista.courant=none) then   
+		     call delete;
+		    (* usuwam go ze struktury tylko wtedy, gdy juz *)  
+		    (* odwiedzilam wszystkich jego synow *) 
+		 else   
+		  (* courant powinien pokazywac syna, ktorego mam teraz odwiedzic*)
+		  aux1 := aux.lista.courant.e;             
+		  while  aux1<>none
+		  do
+		       if arret then 
+			 call comment(
+			 "This execution has been stopped! Use MENU now.");
+			 return; 
+		       fi;
+
+		      if not aux1.visite then   
+			     call aux1.visite_le;
+			     call insert(aux1) ;
+			     aux1.father := aux;
+			     call G.strzalka(aux1.father,aux1,i,c_black);
+			     call aux1.wypisz(i);
+			     aux1 := aux.lista.next;   
+			     exit
+		       fi;
+		       aux1 := aux.lista.next
+		  od; 
+				      
+		  if arret then 
+		    call comment("This execution has been stopped! Use MENU now.");
+		    return; 
+		  fi;
+	       fi (* if lista.courant=none *);
+	       
+	     od (* not empty *);
+	  fi (* if visite*);
+	  (* dla kazdego i inna  skladowa *)
+	  call waittt;          
+	  i:= i+1;
+	  if (i>fin and debut<>1) then debut,i:=1; fin:= G.root-1; fi
+	od
+      end traverse_bis;
+
+
+      unit printSTRplace : procedure(s:string);
+      var j,i,l,r,z,xx,yy,pos : integer, 
+	  less, more,boo : boolean;
+      begin
+	  call GUI_writetext(MinX+10,StrMinY+10,
+	  unpack("CONTENTS OF THE AUXILIARY STRUCTURE - "),c_white,c_lightgrey);    
+	  call  GUI_writetext(MaxX-323,StrMinY+10,unpack(s),c_white,c_lightgrey); 
+	  call GUI_Rect(MaxX-172,StrMinY+8,MaxX-20,StrMinY+25,c_white,c_black); 
+	  call GUI_Rect(MaxX-170,StrMinY+9,MaxX-42,StrMinY+23,c_black,c_black);
+	  call GUI_writetext(MaxX-170,StrMinY+8,unpack("SPEED:"),c_white,c_lightgrey);        
+	  call GUI_writetext(MaxX-46,StrMinY+8,unpack(" > "),c_white,c_lightgrey);  
+	  call comment("Use the LEFT button to change and RIGHT to accep the speed.");
+
+	  pos:= MinX+ 500;
+	  speedL := 1;
+	  do
+		  z:=0; 
+		  while not (z=1 or z=3) do
+		      call GUI_MousePressed(xx,yy,z) ;
+		  od;
+		  (*call sleep(1);*)
+		  less:= (yy<STrMinY+23 and yy>StrMinY+10 and xx<(MinX+574));
+		  more:= (yy<STrMinY+23 and yy>StrMinY+10 and xx>(MinX+574));
+		  (* szukam gdzie zostal nacisniety klawisz myszki *)
+		  if  ((z=1 and less) and(speedL>1) )  then    
+		      speedL:= speedL-1; 
+		      call GUI_writetext(pos-8,StrMinY+8,unpack(" "),c_black,c_black);          
+		      pos := pos-8
+		  else
+		     if ((z=1 and more) and(speedL<10)) then
+			 speedL:= speedL+1;
+			 call GUI_writetext(pos,StrMinY+8,unpack(" "),
+                                                                                               c_darkturq,c_darkturq); 
+			 pos := pos+8
+		     else
+			 if z=3 then call comment("");exit fi;
+		     fi
+		  fi ;
+	       od;
+	      
+      end printSTRplace;
+
+
+   end structure;
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+
+   unit queue : structure class;
+   var premier, dernier : box;
+   var dernierX : integer;
+ 
+      unit virtual first :  function : elem;
+      begin
+	  if not empty
+	  then
+	      result := premier.e;
+	  fi;
+      end first;
+ 
+      unit virtual insert :  procedure( e: elem);
+      var aux : box;
+      begin
+	  if empty then dernierX:=x0 else dernierX:= dernierX+delta fi;   
+	  aux := new box;
+	  aux.e := e;
+	  if premier=none
+	  then
+	      premier := aux;
+	      dernier := aux;
+	  else
+	      dernier.next := aux;
+	      dernier := aux
+	  fi;
+	  (* dorysuj *)
+	  call GUI_ellipse(dernierX,y0,5,5,0,360,c_yellow,c_yellow);
+	  call GUI_writeInt(dernierX,y0+3,e qua node.nr,c_black,c_lightGrey);           
+	  (*call speed(speedL);    *)
+
+       end insert;
+  
+       unit virtual delete :  procedure;
+       var aux : box;
+       var pomX : integer;
+       begin
+	    if not empty
+	    then
+		call GUI_ellipse(x0,y0,5,5,0,360,c_LightGrey,c_LightGrey);  
+		call GUI_writeInt(x0,y0+3,15,c_LightGrey,c_LightGrey);
+                           (*wymazanie pierwszego*) 
+		call sleep(1);
+		aux := premier;
+		pomX := x0;
+		while  aux.next<>none
+		do
+		    call GUI_ellipse(pomX+delta,y0,5,5,0,360,c_LightGrey,c_LightGrey);  
+		    call GUI_writeInt(pomX+delta,y0+3,15,c_LightGrey,c_LightGrey); (*wymazanie*)
+		    call GUI_ellipse(pomX,y0,5,5,0,360,c_yellow,c_yellow);  
+		    call GUI_writeInt(pomX,y0+3,aux.next.e qua node.nr,c_black,c_lightgrey);  
+		    (* zmiana numerkow= przesuniecie w kolejce*)
+		    aux := aux.next;
+		    pomX := pomX + delta;
+		    call sleep(2)
+		od;
+		premier := premier.next;
+		if premier= none then dernier:= none fi;
+		
+		call GUI_ellipse(dernierX,y0,5,5,0,360,c_LightGrey,c_LightGrey);     
+		call GUI_writeInt(dernierX,y0+3,15,c_LightGrey,c_Lightgrey);    
+		if dernierX> x0 then dernierX := dernierX - delta fi; 
+	    fi;
+	end delete;
+ 
+	unit virtual empty :  function : boolean;
+	begin
+	     result := (premier=none)
+	end empty;
+	   
+    end queue;
+  (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+
+    unit stack : Structure class;
+    var premier : box;
+    var topX : integer;
+  
+      unit virtual first :  function : elem;
+      begin
+	  if not empty
+	  then
+	      result := premier.e;
+	  fi;
+      end first;
+ 
+      unit virtual insert : procedure( e: elem);
+      var aux : box;
+      begin
+	  if empty then topX := x0 else topX := topX+delta fi;
+	  aux := new box;
+	  aux.e := e;
+	  aux.next := premier;
+	  premier := aux;
+	  (*dorysuj*)
+	  call GUI_ellipse(topX,y0,5,5,0,360,c_yellow,c_yellow);
+	  call GUI_writeInt(topX,y0+3,e qua node.nr,c_black,c_lightgrey);           
+	 (* call speed(speedL);   *) 
+       end insert;
+ 
+       unit virtual delete :  procedure;
+       var j : integer;
+       begin
+	    if not empty
+	    then
+		premier := premier.next;
+		call GUI_ellipse(topX,y0,5,5,0,360,c_LightGrey,c_LightGrey);     
+		call GUI_writeInt(topX,y0+3,15,c_LightGrey,c_LightGrey);    
+		if topX> x0 then topX := topX - delta fi;
+	    fi;
+       end delete;
+ 
+       unit virtual empty : function : boolean;
+       begin
+	     result := (premier=none)
+       end empty;
+
+   
+    end stack;
+    
+(*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+    unit PILE_FILE : Structure class;
+    var premier, dernier,aux,aux1 : box;
+    var topX,dernierX : integer;
+ 
+    (* struktura, w ktorej delete i insert maja wlasnosci stosu*)
+    (* ale first dziala tak jak w kolejce *)
+
+      unit virtual first :  function : elem;
+      begin  call comment("first");
+	  if not empty
+	  then
+	      result := premier.e;
+	  fi;
+      end first;
+ 
+      unit virtual insert :  procedure( e: elem);
+      var aux : box;
+      begin  call comment("insert");
+	  if empty then topX,dernierX:=x0 else dernierX:= dernierX+delta fi;   
+	  aux := new box;
+	  aux.e := e;
+	  if premier=none
+	  then
+	      premier, dernier := aux;
+	  else
+	      dernier.next := aux;
+	      dernier := aux
+	  fi;
+	  (* dorysuj *)
+	  call GUI_Ellipse(dernierX,y0,5,5,0,360,c_yellow,c_yellow);
+	  call GUI_writeInt(dernierX,y0,e qua node.nr,c_lightgrey,c_black);           
+	(*  call speed(speedL);    *)
+       end insert;
+ 
+       unit virtual delete :  procedure;
+       var aux, aux1: box;
+       begin
+	    if not empty
+	    then   call comment("delete"); 
+		aux := premier;
+		if premier.next=none then dernier,premier:=none 
+		else
+		  aux1:= none;  aux := premier;   
+		  while aux.next<>none do aux1:=aux; aux :=  aux.next od;
+		  dernier := aux1; dernier.next:= none
+		fi;
+		call GUI_ellipse(dernierX,y0,5,5,0,360,c_darkgrey,c_darkgrey);     
+		call GUI_writeInt(dernierX,y0,15,c_darkgrey,c_darkgrey);    
+		if dernierX> x0 then dernierX := dernierX - delta fi;
+	    fi;
+       end delete;
+ 
+       unit virtual empty : function : boolean;
+       begin
+	     result := (premier=none)
+       end empty;
+
+    end PILE_FILE;
+
+
+    UNIT PI_FI : PILE_FILE procedure(G:GRAPH);
+      begin
+	  call printSTRplace(" QUEUE "); 
+	  call comment("PILE_FILE  SEARCH");      
+	  call traverse_bis(G);
+      end PI_FI;
+
+    
+ (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+    
+    unit STRANGE : Structure class;
+    var premier : box, extra: box;
+    var topX : integer;    
+
+      unit virtual first :  function : elem;
+      begin
+	  if not emptyN
+	  then
+	      result := premier.e;
+	  else 
+	      result := extra.e
+	  fi;
+      end first;
+ 
+      unit virtual insert : procedure( e : elem);
+      var aux : box;
+      begin
+	  if empty then topX := x0 else topX := topX+delta fi;    
+	  if emptyN  then extra := new box; extra.e := e fi;
+	  aux := new box;
+	  aux.e := e;
+	  aux.next := premier;
+	  premier := aux;
+	  call GUI_ellipse(topX,y0,5,5,0,360,c_yellow,c_yellow);
+	  call track(topX,y0,e qua node.nr,c_lightgrey,c_black);           
+	(*  call speed(speedL);  *)  
+       end insert;
+ 
+       unit virtual delete :  procedure;
+       begin
+	    if not emptyN
+	    then
+		premier := premier.next;
+		call GUI_ellipse(topX,y0,5,5,0,360,c_darkgrey,c_darkgrey);     
+		call track(topX,y0,15,c_darkgrey,c_darkgrey);    
+		if topX> x0 then topX := topX - delta fi;
+	    fi;
+       end delete;
+ 
+       unit  emptyN : function : boolean;
+       begin
+	     result := (premier=none)
+       end emptyN;
+
+       unit virtual empty : function : boolean;
+       begin
+	     result := false
+       end empty;
+       
+    end STRANGE;
+    
+ (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+ (* ALGORITHMS                                                          *)
+ (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*) 
+  
+
+      UNIT DFS : STACK procedure(G: GRAPH);
+      begin
+	  call printSTRplace(" STACK ");
+	  call comment("DEPTH FIRST SEARCH");
+	  call traverse(G);
+      end DFS;
+
+      UNIT DFS_bis : STACK procedure(G: GRAPH);
+      begin
+	  call printSTRplace(" STACK ");
+	  call comment("DEPTH FIRST SEARCH");
+	  call traverse_bis(G);
+      end DFS_bis;
+
+
+      UNIT BFS : QUEUE procedure(G:GRAPH);
+      begin
+	  call printSTRplace(" QUEUE "); 
+	  call comment("BREADTH FIRST SEARCH");      
+	  call traverse(G);
+      end BFS;
+
+      UNIT BFS_bis : QUEUE procedure(G:GRAPH);
+      begin
+	  call printSTRplace(" QUEUE "); 
+	  call comment("BREADTH FIRST SEARCH");      
+	  call traverse_bis(G);
+      end BFS_bis;
+
+
+      UNIT WHAT : STRANGE procedure (G: GRAPH);
+      begin
+	  call printSTRplace(" STACK?? ");     
+	  call comment("STRANGE SEARCH");   
+	  call traverse(G);
+      end WHAT;
+
+      unit look_all:  class(G: GRAPH);
+      var  i,debut,fin : integer, 
+	   aux   : node;
+      begin
+	debut:= G.root; fin:= G.nr;
+	i:= debut;
+	while i <= fin
+	do
+	    aux := G.lista(i);            
+	    inner; 
+	    call waittt;          
+	    i:= i+1;
+	    if (i>fin and debut<>1) then debut,i:=1; fin:= G.root-1; fi
+	od;
+      end look_all;
+
+      unit traverse_rec : look_all procedure;
+	   unit  DFS : procedure (aux: node,i:integer);
+	   var aux1:node;
+	   begin
+	       if not aux.visite 
+	       then  
+		   call aux.visite_le;   
+		   if aux.father<>none then 
+		      call G.strzalka(aux.father,aux,(i+9)mod 16,c_black) 
+		   fi;
+		   call aux.wypisz((i+9)mod 16);(* i wyznacza kolor *)  
+		  
+		    aux1 := aux.lista.first;
+		   while aux1<>none
+		   do
+			  aux1.father:= aux;
+			  call DFS(aux1,i);
+			  aux1:= aux.lista.next
+		   od;
+		  
+	       fi;
+	   end DFS;
+      begin
+	 call DFS(aux,i);     
+      end traverse_rec;
+
+
+
+      unit cycle_fond :  procedure(G:GRAPH);
+      var STOS    : arrayof integer, 
+	  ii,iii  : integer,
+	  pile    : stack;
+	  (* stos przechowuje tylko numery wierzcholkow ze stosu*)
+	  (* pile przechowuje wierzcholki  zeby pokazac zawartosc stosu *)
+
+	  unit CF : look_all procedure;
+	  var aux1 : node, 
+	        x, j    : integer;
+	  begin
+	       if (not aux.visite and not aux.use)
+	       then  
+		  ii := ii+1;
+		  stos(ii) := aux.nr;    
+		  call aux.visite_le;    
+		  call pile.insert(aux); 
+		  while not pile.empty 
+		  do
+		      if arret then 
+			call warning("This execution has been stopped! Use MENU now.");
+			return; 
+		      fi;
+
+		     aux := pile.first; 
+		     if aux.father<>none then 
+			call G.strzalka(aux.father,aux,11,c_black); 
+		     fi;
+		     for j := 1 to 160 do call aux.affichage(11) od;  
+		     call aux.affichage(11); 
+
+		     (* staram sie dopisac cos do stosu *)
+		     if aux.lista.courant<>none then  
+			 aux1 := aux.lista.courant.e;
+			 while aux1<>none
+			 do
+			    if not aux1.visite and not aux1.use then
+			       aux1.father:= aux;
+			       ii := ii+1;
+			       stos(ii) := aux1.nr;    
+			       call aux1.visite_le;    
+			       call pile.insert(aux1); 
+			       exit
+			    else 
+			       if ( not aux1.use and ii>1) then(* cykl ?  *)
+				  if aux1.nr<>STOS(ii-1) then
+				     iii := ii;
+				     call GUI_writeText(piszX+delta,piszY,
+                                                                                           unpack("("),c_blue,c_lightgrey);
+				     delta := delta + 8;
+				     while iii>0 
+				     do  
+					  x := STOS(iii); 
+					  call G.lista(x).wypisz(c_blue);
+					  if x=aux1.nr  then exit fi;    
+					  iii := iii-1;
+				     od;
+				     call GUI_writeText(piszX+delta,piszY,
+                                                                                           unpack(")"),c_blue,c_lightgrey);
+				     delta := delta+8;   
+		  
+				     call waittt;
+				  fi
+			       fi(* not aux.use *);
+			       (* trzeba przejsc do nastepnego wierzch *)
+			       aux1 := aux.lista.next
+			   fi
+
+			 od (*  while aux1<>none *);
+		      fi (* if courant<>none *);
+
+		      if aux.lista.courant=none then
+			  aux.kolor := c_lightgrey; (* element zuzyty*)    
+			  if ii>0 then ii:= ii-1 fi;(* usuwam ze stosu*)        
+			  call pile.delete
+		      fi;
+		   od(* while not empty pile *)
+	       fi;
+	 end CF;
+
+      begin
+	   array STOS dim(1:G.nr);
+	   pile := new stack; 
+	   call G.restore;    (* odnowic structure grafu *)  
+	   call pile.printSTRplace(" STACK ");
+	   ii:=0; (* ilosc elementow w stosie-tablicy*)
+	   call CF(G);
+      end cycle_fond;
+
+      
+      unit xxxxx: procedure (G:GRAPH);
+      var stos : stack;
+   
+      unit trie_topologique : look_all procedure;
+	   unit  DFS : procedure (aux: node,i:integer);
+	   var aux1 : node;
+	   begin
+	       if not aux.visite 
+	       then  
+		   call aux.visite_le;   
+		   if aux.father<>none then 
+		      call G.strzalka(aux.father,aux,i mod 7 ,c_black) 
+		   fi;
+		   call aux.wypisz(i mod 7);(* i wyznacza kolor *)  
+		  
+		   aux1 := aux.lista.first;
+		   while aux1<>none
+		   do
+			  aux1.father:= aux;
+			  call DFS(aux1,i);
+			  aux1:= aux.lista.next
+		   od;
+		   call stos.insert(aux);    
+	       fi;
+	   end DFS;
+      begin
+	   call DFS(aux,i);
+      end trie_topologique;
+      begin
+	 call G.restore;      
+	 stos := new stack;
+	 call stos.printSTRplace(" STACK");
+	 call trie_topologique(G);
+	 call GUI_Rect(piszX,piszY,maxX-5,piszY+13,c_lightGrey,c_lightGrey);
+
+	 delta:= 0;
+	 while not stos.empty
+	 do
+	    call stos.first qua node.wypisz(5);
+	    call stos.delete;
+	 od;
+      end xxxxx;
+
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+      UNIT EULER :  procedure(G:GRAPH);
+      var aux,aux1,aux2 : node, 
+	  booooo   : boolean,
+	  pile     : stack;
+      begin
+	    pile := new stack;
+	    call G.restore;
+	    call pile.printSTRplace(" STACK ");    
+	    aux := G.lista(G.root);            
+	    call pile.insert(aux);       
+	    while not pile.empty
+	    do
+		  aux := pile.first; (* to jest pierwszy w str. pomocniczej*)
+		  
+		  booooo := false;            
+		  call aux.lista.debut;
+		  aux1 := aux.lista.first;
+		  (* courant jest teraz na poczatku listy*)
+		  while  (not booooo  and  aux1<>none)
+		  do
+		      if not aux.lista.courant.used then   
+		      (* jezeli krawedz do courant nie byla jeszcze uzyta*)
+			     call aux.lista.courant.use;
+			     call pile.insert(aux1);
+			     call G.strzalka(aux,aux1,12,c_black);
+			     (* w liscie incydencji aux1 tez trzeba zmienic*)
+			     call aux1.lista.debut;
+			     aux2 := aux1.lista.first;   
+			     while  aux2<>none 
+			     do 
+				 if (*aux.egal(aux2)*) aux.nr=aux2.nr then
+				      call aux1.lista.courant.use;  
+				      exit
+				 else 
+				     aux2 := aux1.lista.next 
+				 fi;
+			     od;
+			     booooo := true;
+		       else
+			   aux1 := aux.lista.next
+		       fi;
+		  od; 
+		  if not booooo then 
+		     call pile.delete;   
+		     call aux.wypisz(12);   
+		  fi;                    
+		  if arret then 
+		    call comment("This execution has been stopped! Use MENU now.");
+		    return; 
+		  fi;
+	     od (* not empty *);
+      end EULER;
+
+      UNIT HAMILTON :  procedure(G:GRAPH);
+      begin
+
+      end HAMILTON;
+
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*) 
+
+      UNIT GRAPH : class;
+      var lista   : arrayof node,
+	  directed  : boolean,
+	  root,nr : integer,
+	  obraz   : arrayof integer ;
+
+	   unit createNODE : procedure;
+	   var    lista1 : arrayof node,
+		  fin, boo  : boolean,                      
+		  i,l,r,z,x,y : integer,
+			    w : node;
+	   begin                           
+		  z := 0;
+		   
+		  while not (z=3 ) do
+		      call GUI_mousePressed(x,y,z);
+		  od;
+		  if z=3 then 
+			   nr := nr+1;
+			   w := new node(x,y,nr);
+			   call w.affichage(14);
+			   if nr <= upper(lista) then
+				lista(nr) := w
+			   else
+				array lista1 dim (1: upper(lista)+10);
+				for i := 1 to upper(lista) 
+				do lista1(i) := lista(i) od;
+				lista := lista1;
+				lista(nr) := w
+			   fi           
+		  fi 
+	   end createNODE;
+
+	   unit change_root : procedure;    
+	   var x, y,i,l,r,z : integer;
+	   begin
+		call warning("You can change the starting point which is now: "); 
+		call GUI_writeInt(maxX-200,wrnY,root,
+                                                     c_lightGrey,c_black);   
+		call GUI_writetext(maxX-100,wrnY,
+                                    unpack(" change "),c_lightGrey,c_turq);             
+		call GUI_writetext(maxX-100,wrnY+16,
+                                    unpack(" accept "),c_lightGrey,c_turq);
+		while true do
+		   z := 0;
+		   call GUI_MousePressed(x,y,z) ;        
+		   call sleep(2);
+		   if (z=1) then 
+		     if (y>wrnY and y<wrnY+10) then
+			root := (root mod nr)+1;
+			call GUI_writetext(maxX-205,wrnY,
+                           unpack("    "),c_lightGrey,c_lightGrey); 
+			call GUI_writeInt(maxX-200,wrnY,
+                                                   root,c_lightGrey,c_black);  
+		     fi;   
+		     if (y>wrnY+15 and y<wrnY+30) then exit fi;    
+		   fi;
+		od;
+		call GUI_writetext(maxX-100,wrnY,
+                                       unpack("        "),c_darkGrey,c_darkGrey);              
+		call GUI_writetext(maxX-100,wrnY+16,
+                                        unpack("        "),c_darkGrey,c_darkGrey);
+
+		call comment("");
+		call warning("")
+	   end change_root;
+
+	   unit createARC : WEZ_DWA PROCEDURE;
+	   BEGIN
+	       (* do listy "w" dopisuje "w1"*)
+		call w.lista.insert(w1);
+		if not directed then call w1.lista.insert(w) fi;
+	   end createARC ;
+
+
+	   unit DeleteARC : wez_dwa procedure;   
+	   begin
+	      (*zaznacz luk pokazujac dwa wierzcholki nim polaczone*)
+	      (* wez z listy wierzcholkow poczatek luku "w"*) 
+	      (* i z jego listy incydencji usun drugi koniec luku "w1" *)
+	      call w.lista.delete(w1);    
+	      if not directed then call w1.lista.delete(w) fi;
+	   end DeleteARC;
+
+
+	   UNIT WEZ_DWA : class(cc:char);
+	   var w, w1, aux        : node,
+	       i,l,r,z,xx,yy     : integer, 
+	       boo, found, rysuj : boolean;
+	   begin
+	       if nr>0 then
+	       (*  czekam na nacisniecie prawego klawisza myszy w wierzcholku*)
+		   call warning("I am waiting for the right-button of the mouse.");
+		   z := 0;
+		   
+		   while not z=3 do
+			call GUI_MousePressed(xx,yy,z);
+		   od;  
+		   
+		   w := szukaj(xx,yy,true);
+		   if w<> none then 
+		   
+		     (* prawy klawisz  w jakims wierz.= koniec krawedzi *)
+		      call warning("To draw/remove use LEFT-B; Press RIGHT-B  to mark the end of an arc.");    
+		      z := 0; 
+		      while not z=3  
+		      do   (*jesli chcesz sam rysowac/wymazac to naciskaj lewy klawisz myszy*)            
+			   if z=1 then 
+			      rysuj := true;
+			      case cc
+			      when 'd' : call GUI_ellipse(xx,yy,3,3,0,360,c_lightGrey,c_lightGrey);      
+			      when 'i' : 
+					 call GUI_point(xx,yy,c_red);      
+			      esac;
+			   fi;
+			   call GUI_MousePressed(xx,yy,z); 
+		      od;
+		      call warning("");
+		      (* szukam odpowiadajacego wierzcholka w1 *) 
+		      w1 := SZUKAJ(xx,yy,true);
+		      if w1<> none then
+
+			       (* MOZNA dopisac/dorysowac lub usunac/wymazac*)
+			       inner;
+
+			       if not rysuj then           
+				 case cc
+				 when 'd' : call strzalka(w,w1,c_lightgrey,c_lightGrey);       
+				 when 'i' : call strzalka(w,w1,c_Yellow,c_black);       
+				 esac;
+			       fi;
+		       else 
+	call warning("I can not find the end of this arc, repeat the last action! ")
+			  fi;
+		    else call warning("Not found, repeat please!")fi (* w<>none *);  
+	       fi (* sa juz jakies wierzcholki *); 
+	   end WEZ_dwa;
+
+	   UNIT SZUKAJ : function(xx,yy : integer,b : boolean) : node;
+	   var aux : node,i,j : integer;
+	   begin
+		for i := 1 to nr
+		do
+		      aux := lista(i);
+		      if b then 
+		      for j:=1 to 50 do call aux.affichage(5) od;
+		      call aux.affichage(14);
+		      fi; 
+		      (* szukam odpowiadajacego wierzcholka w*)
+		      if (abs(aux.x- xx)<7  and abs(aux.y-yy)<7)
+		      then
+				 result := aux; exit
+		      fi;                               
+		od;
+	   end SZUKAJ;
+
+
+	   unit SAVE : procedure;
+	   var U,GL : arrayof integer, W : arrayof arrayof integer,
+		nn,i,j : integer,
+		sciezka : arrayof char,
+		aux, aux1 : node;  
+	   begin
+		 
+		(*call warning("Give the name of your file or press CR to accept this");*)
+		sciezka :=   unpack("/usr/local/vlp/examp/graf.dta");
+		call warning("");
+
+		open(G_file,direct,sciezka);
+		call rewrite(G_file);
+		call seek(G_file,0,2);
+		nn := 2* intSize;
+		array U dim (1:2);
+		U(1) := nr; if directed then U(2):=1 else U(2):=0 fi; 
+		putrec (G_file,U,nn);
+		array GL dim (1:nr);
+		array W dim (1:nr);
+		for i := 1 to nr do array W(i) dim (1:nr) od;
+		(* dla kazdego wierzcholka z listy zidentyfikuj jego sasiadow*)
+		for i := 1 to nr
+		do  
+		    aux := lista(i);
+		    call aux.lista.debut;
+		    aux1 := aux.lista.first;
+		    j := 0; (* j= liczbie wierzcholkow incydentnych dla aux *)
+		    while aux1<> none
+		    do
+		      j := j+1;         
+		      W(i,j) := aux1.x*1000*100 + aux1.y*100 ;
+		      aux1 := aux.lista.next    
+		    od;
+		    GL(i) := aux.x*1000*100 + aux.y*100 + j;               
+		  od;
+		  nn := nr * intSize;                
+		  putrec (G_file,GL,nn);
+		  for i := 1 to nr 
+		  do
+			 nn := (GL(i) mod 100) * intSize ;
+			 if GL(i) >0 then putrec(G_file,W(i),nn)fi;
+		  od; 
+		kill(G_file);
+		          
+	   
+	   end SAVE;
+
+	   unit TAKE : procedure;          
+	   (* odczytaj graf z pliku *)
+	   var  U,W,SASIEDZI : arrayof integer,
+		x,y,n,nn,ile,j,i : integer,
+		sciezka : arrayof char,
+		aux, aux1 : node;
+
+		unit decode : procedure(a: integer; output x,y,ile: integer);           
+		begin
+		    ile := a mod 100; 
+		    y := (a div 100) mod 1000; 
+		    x := (a div 100000)
+		end decode;
+	   begin
+		 
+	   (* call warning("Give the name of your file or press CR to accept");*)
+                  (* call GUI_Rect(20,338,20,140,c_black,c_lightGrey);*)
+	    (*sciezka := GUI_ReadText(20,338,c_yellow,c_black);*)
+	     (* call GUI_Rect(20,338,20,140,c_LightGrey,c_lightGrey);*)
+                             
+		call warning("");
+		sciezka :=   unpack("/usr/local/vlp/examp/graf.dta");
+		open(G_file,direct,sciezka);
+		call reset(G_file);
+		call seek(G_file,position(G_file),0);
+		array U dim(1:2);
+		nn := 2* intSize;
+		getrec (G_file,U,nn);
+		nr := U(1);
+		directed := (U(2)=1);   
+		array W dim (1:nr);
+		call seek(G_file,position(G_file),0);
+
+		nn := nr * intSize;
+		getrec (G_file,W,nn);
+		if upper(lista) < nr then 
+			array lista dim(1: nr)
+		fi;
+		array SASIEDZI dim (1:nr);    
+		for j:= 1 to nr 
+		do  
+		    (* utworzyc odczytany j-ty wierzcholek *)
+		    (* i wpisac go na liste *)
+		    call decode(W(j),x,y,ile);
+		    aux := new node(x,y,j); 
+		    lista(j) := aux;
+		    SASIEDZI(j) := ile;
+		 od;    
+		 (* jezeli  lista sasiadow j-tego wierz.jest>0 *)
+		 (* odczytac jego sasiadow i wpisac do odp. listy*)
+		 for j := 1 to nr 
+		 do
+		      if SASIEDZI(j)<>0 then
+			    nn := SASIEDZI(j) * intSize;
+			    call seek(G_file,position(G_file),0);
+
+			    getrec(G_file,W,nn);
+			    for i := 1 to SASIEDZI(j)
+			    do
+				call decode(W(i),x,y,ile);
+				aux1 := SZUKAJ(x,y,false);
+				call lista(j).lista.insert (aux1);      
+			    od;
+			fi;
+		    od;
+		kill(G_FILE);
+		 
+		if directed then call warning("THIS IS A DIRECTED GRAPH ") 
+		else  
+		   call warning("THIS IS AN UNDIRECTED GRAPH ") 
+		fi;
+	   end take;
+
+
+	   unit restore : procedure;
+	  (* odnawia stan wierzcholkow  *)
+	   var i : integer;
+	   begin
+		delta := 0;
+		for i := 1 to nr  
+		do
+		    if lista(i).lista<>none 
+		    then call lista(i).lista.restore fi;
+		    lista(i).kolor := c_yellow;
+		    lista(i).father := none
+		od;
+	   end restore;
+
+	   UNIT strzalka : procedure(A,B : node, kol1,kol2:integer);
+	   (* grot strzalki jest skierowany w strone B *)
+	   var r : real, cx,cy,dx,dy,ex,ey,delt,del : integer;  
+	   BEGIN
+	     del := 15; delt:=7; (* decyduja o wielkosci grota *)
+	    
+	     call GUI_line(A.x,A.y,B.x,B.y,kol1);
+	     if directed then
+		(* kol2=kolor grota *)
+		r := sqrt((b.y-a.y)*(b.y-a.y)+(b.x-a.x)*(b.x-a.x));
+		cx := b.x- entier((b.x-a.x)*del/r );
+		cy := b.y- entier((b.y-a.y)*del/r );
+		dx := b.x- entier((b.x-a.x)*(del+delt)/r + (b.y-a.y)*delt/r);
+		dy := b.y- entier((b.y-a.y)*(del+delt)/r - (b.x-a.x)*delt/r);
+		ex := b.x- entier((b.x-a.x)*(del+delt)/r - (b.y-a.y)*delt/r);
+		ey := b.y- entier((b.y-a.y)*(del+delt)/r + (b.x-a.x)*delt/r);
+		call GUI_line(dx,dy,cx,cy,kol2);
+		call GUI_line(ex,ey,cx,cy,kol2);
+	     fi;
+	   END strzalka;                
+
+
+	   unit print : procedure;
+	   var aux, aux1 : node, i : integer;
+	   begin
+		   for i :=1 to nr                 
+		   do   
+			aux := lista(i);
+			call aux.affichage(c_yellow);
+			if  aux.lista<>none
+			then 
+			    call aux.lista.debut;  
+			    aux1 := aux.lista.first;
+			    while  aux1 <> none 
+			    do
+				call strzalka(aux,aux1,c_yellow,c_black);
+				aux1 := aux.lista.next;                                 
+			    od
+			fi;
+		   od;
+		   call warning("")                 
+	   end print;
+
+	   unit directORnot :procedure;
+	   var T: arrayof choix, i,j:integer;
+	   begin
+	       array T dim(1:2);
+	       for i:= 1 to 2 do
+		   T(i) := new choix 
+	       od;
+	       T(1).name:="direct";
+	       T(2).name:="indirect";
+	       j:= choice(100,100,T);
+	       directed:=(j=1) 
+	   end directORnot;
+       begin
+	   array lista dim(1:10);
+	   nr := 0; root:= 1;     
+	   (* ustal czy graf zorientowany czy nie*)
+       end graph;
+
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*    NODE - wierzcholek grafu                                          *)
+(*  x,y pozycja na ekranie, nr  numer wierzcholka                       *)
+(*  lista - lista wierzcholkow incydentnych                             *)
+(*----------------------------------------------------------------------*)
+       unit node  : elem class(x,y,nr: integer);       
+       (* (x,y) pozycja wierzcholka na ekranie, nr =jego numer *)
+       (* dla kazdego nowego wierzcholka w jest w.lista.empty *)
+       var lista  : liste, 
+	   father : node,
+	   kolor  : integer;
+
+	  unit affichage : procedure(c: integer);
+	  begin            
+	    if c= c_lightgrey then
+		 call GUI_ellipse(x,y,5,5,0,360,c_black,c_darkGrey)
+	    else
+		 call GUI_ellipse(x,y,5,5,0,360,c,c)
+	    fi;
+	    call GUI_writeInt(x+5,y+5,nr,c_lightGrey,c_black);           
+	  end affichage;
+
+	  unit wypisz : procedure(i: integer);
+	 (*  wypisz kolejnosc odwiedzania wierzcholkow *)
+	 (* parametr i wyznacza nowy kolor wierzcholka*)
+	  var j : integer;
+	  begin
+	     for j := 1 to 160 do call affichage(j mod 16 ) od;
+	     if (i=8 or i=7)then i:=1 fi;
+	     call affichage(i);              
+	     call GUI_writeInt(piszX+delta,piszY,nr,i,c_lightGrey);
+	     if nr>9 then 
+		delta := delta+2*9 
+	     else  
+		delta := delta+9 
+	     fi;            
+	     call GUI_writetext(piszX+delta,piszY,unpack(","),i,c_lightGrey);   
+	     delta:= delta+8;
+	  end wypisz;
+
+	  unit virtual visite : function : boolean;
+	  (* Czy wierzcholek byl juz odwiedzony  *)
+	  begin
+		if kolor=c_black then result := true else result:= false fi;
+	  end visite;
+
+	  unit virtual use : function : boolean;
+	  (* Czy wierzcholek jest juz zuzyty  *)
+	  begin
+		if kolor=c_lightGrey then result := true else result:= false fi;
+	  end use;
+
+	  unit virtual visite_le : procedure;
+	  (* Wierzcholek odwiedzony dostaje kolor czarny*)     
+	  begin
+	       kolor:= c_black
+	  end visite_le;
+
+	  unit virtual egal : function( e: node) : boolean;
+	  begin
+	      if (x= e.x and y= e.y and nr = e.nr) then 
+		  result := true 
+	      else     
+		  result := false
+	      fi;
+	  end egal;
+       begin
+	   lista := new liste; kolor := c_yellow;
+       end node;
+ (*--------------------------------------------------------------------*)
+
+
+       unit clear : procedure(col : integer);
+       var i,y, sr : integer;
+       begin	    
+	    y := MinY+40;   (* omijam menu *)
+	    sr := (minX+maxX) div 2;
+	    for i := 0 to (maxX - minX) div 2  
+	    do
+		call GUI_line(sr, maxY,sr+i, Y,col);
+		call GUI_line(sr, maxY,sr-i, Y,col); 
+		 
+	    od;
+	    for i := 0 to (maxY - Y)   
+	    do
+		call GUI_Line( sr, maxY,maxX, Y+i,col);
+		call GUI_Line( sr, maxY,minX, Y+i,col);        
+		 
+	    od;
+	    call GUI_Rect(MinX,Y,MaxX,MaxY,c_black,c_LightGrey); 
+                  call GUI_Rect(MinX,StrMinY,MaxX,StrMaxY,c_black,C_lightGrey);       	      
+       end clear;
+
+  
+    unit clear_all : procedure(col : integer);
+    begin	   	    
+          call GUI_Rect(MinX,MaxY,MaxX,MaxY,c_black,c_lightGrey);     
+          call GUI_Rect(MinX,StrMinY,MaxX,StrMaxY,c_black,C_lightGrey);        
+    end clear_all;
+
+    unit waittt : procedure;
+    var x,y,i,l,r,z : integer, boo : boolean;
+    begin
+	call GUI_writetext(maxX-100,maxY-25, 
+                           unpack("continue"),c_lightGrey,c_red);              
+	 
+	while z=0 do call GUI_mousePressed(x,y,z) od;        
+	call GUI_writetext(maxX-100,maxY-25, unpack("        "),c_lightGrey,c_lightgrey);              
+
+    end waittt;
+
+    unit arret : function : boolean;
+    var x,y,z : integer;
+    begin
+	call Gui_writetext(maxX-100,maxY-25,
+                         unpack("STOP? "),c_lightGrey,c_red);              
+	call GUI_MousePressed(x,y,z) ;        
+	if ( z=3) then
+	   result := true;
+	   call GUI_writetext(maxX-100,maxY-25,
+                                     unpack("       "),c_lightGrey,c_lightGrey);              
+	else result := false   
+	fi;
+    end arret;
+     
+    unit YES : function : boolean;
+    var x,y : integer, l : char;
+    begin
+	l:=GUI_ReadChar(x,y,c_green,c_black);
+	if (l= 'y' or l='Y') then 
+		result := true 
+	else 
+	       result := false ;
+	       call warning("")
+	fi;       
+    end YES;     
+
+    unit speed: procedure(n : integer);
+    var j : integer;
+    begin
+                n:= entier(10/n);
+	  for j:=1 to n do j:=j od; 
+    end speed;
+
+    unit sleep: procedure(n : integer);
+    var j : integer;
+    begin
+	  for j:=1 to n do j:=j od; 
+    end sleep;
+
+    unit comment : procedure (s : string);
+    begin
+	call GUI_Rect(comX,comY+12,MaxX-5,comY,c_lightGrey,c_lightGrey);
+	call GUI_writetext(comX,comY,unpack(s),c_white,c_lightGrey);   
+    end comment;
+
+    unit warning : procedure (s : string);
+    begin
+	call GUI_Rect(MinX,StrMinY,MaxX,StrMaxY,c_black,c_lightGrey);    	    
+	call GUI_writetext(wrnX,wrnY,
+                                  unpack(s),c_white,c_lightgrey);   
+    end warning;
+
+    unit choix : class;
+    var uwaga : string, name : string,
+	x,y : integer;
+    end choix;
+
+    unit choice : function(xx,yy : integer, T: arrayof choix) : integer;    
+    var i,j,l,r,z,x,y,n : integer, boo : boolean,
+	IMAGE : arrayof integer; 
+    begin  
+	   n := upper(T);	   
+	   IMAGE := GUI_getImg(xx,yy,100,15*(n+1));
+	   call GUI_Rect(xx,yy,xx+100,yy+15*(n+1),c_white,c_white);   
+	   for i:= 1 to n do 
+	       call GUI_writetext(xx+2,yy+i*15,unpack(T(i).name),c_black,c_lightGrey);              
+	       T(i).x:= xx+2;
+	       T(i).y:= yy+i*15;
+	   od;
+
+	   do    
+		call sleep(2); 
+		z := 0;
+		call GUI_MousePressed(x,y,z) ;        
+	              
+		for j:= 1 to n do
+		     if  ((x>xx and x< (xx+100)) and 
+			(y>T(j).y and y<(T(j).y+15))) 
+		     then
+	                        call GUI_writetext(xx+2,yy+j*15,
+                                       unpack(T(j).name),c_white,c_black);  
+			result:=j;      (* j-ta opcja wybrana*)   
+		     else   
+			call GUI_writetext(xx+2,yy+j*15,
+                                             unpack(T(j).name),c_black,c_lightgrey)
+		     fi;
+
+		od;   
+		if ( z=1) then   
+			   exit ;
+		fi;   
+	   od;	 
+	   call GUI_putImg(xx,yy,IMAGE)
+     end choice;
+
+ 
+(*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+(*                      M E N U                                       *)
+(*--------------------------------------------------------------------*)
+
+
+	unit ramki_menu : procedure;
+	begin	   
+	     call GUI_Rect(MinX,MinY,MaxX,MaxY,c_black,c_lightgrey);                 
+	     call GUI_Rect(MinX,StrMinY,MaxX,StrMaxY,c_black,C_lightGrey);                   
+	end ramki_menu;
+
+	unit option : class(nb : integer);
+	var Nom : arrayof string;
+	unit virtual action : procedure(j : integer);
+	begin
+	end action;
+	begin
+	   array Nom dim (1:nb);
+	   inner;
+	end option;
+ 
+	unit ikona : class(c:integer,p,q: punkt,ss:string);
+	var sub_menu : menu;
+	    unit write_i : procedure;
+	    begin
+	       call GUI_Rect(p.x,p.y,q.x,q.y,c_white,c_lightGrey);	 
+	       call GUI_writetext(p.x,p.y,unpack(ss),c_white,c);	 
+	    end write_i;
+	end ikona;
+ 
+ 
+	unit menu : coroutine(Nom:string,
+			      minX,maxX,MinY,MaxY:integer,OPTIONS:option);
+	var ICONES: arrayof IKONA,
+	    j,i,nb,dl,sz,l,r,w,z,xx,yy : integer,
+	    boo : boolean, p,q : punkt;
+	    (* dl and sz  - wymiary ikon w tym menu *)
+ 
+	    unit instalation : procedure;
+	    var i : integer;
+	    begin
+		call GUI_Rect(MinX+1,7,MaxX-4,45,c_blue,c_lightGrey);
+		for i := 0 to nb
+		do
+		    call ICONES(i).write_i
+		od;
+	    end instalation;
+
+handlers
+   others         call warning(" ERROR press Y to continue or N to stop?");
+		   
+		  boo := YES;            
+		  if not boo then call GROFF; call ENDRUN fi;                                               
+		  call warning("");
+		  wind;                                          
+		  
+end handlers;
+
+	begin
+	   nb := OPTIONS.nb;
+	   dl := (MaxX-Minx) div nb; sz := 18;
+ 
+	   array ICONES dim(0:nb);
+	   p:= new punkt(MinX+2,MinY+2);
+	   q := new punkt(MaxX-2,MinY +sz);
+	   ICONES(0) := new ikona(1,p,q,NOM);
+	   for i := 1 to nb
+	   do
+	      p := new punkt(MinX+2 +(i-1)*dl,minY+sz+2) ;
+	      q := new punkt(p.x+dl-2,p.y+sz);
+	      ICONES(i) := new ikona(c_lightGrey,p,q,OPTIONS.NOM(i));
+	   od;
+	   call ramki_menu;
+	   return;
+	 
+	   do  (* obsluga menu *)
+	       
+	       call instalation;    (* rysowanie ikon z tego menu *)
+	       do
+		  z:=0;  
+		  while not z=1 do
+		      call GUI_MousePressed(xx,yy,z) ;
+		  od;
+		  call sleep(2); (*nie umiem powstrzymac myszy*)
+		  boo := false;
+		  (*szukam gdzie zostal nacisniety klawisz myszki*)
+		  for j :=1 to nb
+		  do
+		      if( ICONES(j).p.x<xx and xx<ICONES(j).q.x
+			 and ICONES(j).p.y<yy  and yy<ICONES(j).q.y)
+		      then
+			 boo := true; exit;
+		       fi;
+		  od;
+		  if boo then
+		       boo := false;
+		       call OPTIONS.Action(j);
+		       if j=1 then detach; exit fi;
+		       if ICONES(j).sub_menu<>none then
+			     attach(ICONES(j).sub_menu);
+			     exit;
+		       fi;
+ 
+		  fi;
+	       od;
+	   od;
+	end menu;
+ 
+(*------------------------------------------------------------------------*)
+(*                  MOJE MENU                                             *)
+(*  menu  jest korutina                                                   *)
+(*  ma swoje opcje, z ktorych kazda moze miec swoje pod-menu              *)
+(*  kazda opcja odpowiada jakiejs akcji, po wykonaniu ktorej              *)
+(*  zostaje uaktywnione pod-menu, o ile istnieje                          *)
+(*------------------------------------------------------------------------*)
+ 
+ 
+ 
+ 
+     unit OPTIONS_MAIN : option class;
+     unit virtual Action : procedure(j : integer);
+     var ss : string;
+     begin
+	 
+	 case j
+	    when 1 : ss :=""; 
+	    when 2 : ss := "Create a new graph or take from a file or memory";                                      
+				       
+	    when 3 : call warning(
+		 "To STOP the execution of an algorithme press BUTTON RIGHT!"); 
+		  call waittt; ss :=""; 
+	    when 4 : ss :="usr/local/examp/graf.txt";
+		     open(help_file,text,unpack(ss));
+		     call reset(help_file);
+	  esac;
+	  call warning(ss);   
+      end;
+      begin
+	   Nom(1) := "exit";
+	   Nom(2) := "graph"; 
+	   Nom(3) := "algorithms";
+	   Nom(4) := "help";
+      end OPTIONS_MAIN;
+
+     unit OPTIONS_GRAPH : option class;
+     unit virtual Action : procedure(j : integer);
+     var ss : string;
+     begin
+	 
+	 case j
+	    when 1 : call warning(""); call comment("");
+	    when 2 : call clear_all(c_lightGrey);
+	    when 3 : call warning("Import a graph from the file or from the memory ");
+	    when 4 : call warning("Modify the existing graph ");
+	    when 5 : 
+		     if GRAF<>none then 
+			    call warning("Saving the recently defined graph.");
+			    call GRAF.save                          
+		     else 
+			    call warning("GRAPH IS EMPTY");
+			    call waittt;
+		     fi;  
+
+	    when 6 : call warning("Create a new graph");      
+		     GRAF := new graph;
+		     call GRAF.directORnot;
+		     call clear(c_red);                      
+
+	  esac;
+      end;
+      begin
+	   Nom(1) := "return";
+	   Nom(2) := "clear"; 
+	   Nom(3) := "import";
+	   Nom(4) := "modify";
+	   Nom(5) := "save";
+	   Nom(6) := "create";
+      end OPTIONS_GRAPH;
+
+      unit OPTIONS_ALGO : option class;
+      unit virtual Action : procedure(j : integer);
+      var i : integer, ch : char;
+      begin
+	   (* miejsce komentarzy *)
+	  case j
+	    when 1 :  call comment("");  call warning(""); 
+	    when 2 :  call comment(
+	    "To STOP the execution of an algorithme press RIGHT BUTTON");
+		     call waittt; call comment("");
+		     if Graf<>none then
+			if GRAF.obraz<> none then 
+			   call GUI_PutImg(MinX+2, MinY+40,Graf.obraz)
+			else call GRAF.print fi; 
+			(* wybor wierzcholka od ktorego zacznamy chodzenie*)
+			call GRAF.change_root;
+		     fi;
+
+	    when 3 :  call WARNING( "");
+	    when 4 :  call comment( "Depth First Search recursive  ");
+		      if graf<> NONE THEN
+			call GRAF.restore;      
+			call traverse_rec(GRAF);
+		      fi;
+	    when 5 :  call comment( "TOPOLOGICAL Sort ");
+		      call warning("This algorithm require a graph without cycl!");
+		      call waittt;
+		      call warning("");
+		      if graf<> NONE THEN
+			call xxxxx(GRAF);
+		      fi;
+	  esac;
+	 
+      end Action;
+      begin
+	   NOM(1) :=  "return";
+	   NOM(2) :=  "search";
+	   NOM(3) :=  "cycls";
+	   NOM(4) :=  "recur";
+	   NOM(5) :=  "top_sort";
+      end OPTIONS_ALGO;
+ 
+ 
+      unit OPTIONS_cycl : option class;
+      unit virtual Action : procedure(j : integer);
+      var i : integer;
+      begin
+	  case j
+	    when 1 :  call comment("");  call warning("");  
+		     
+	    when 2 :  
+		      if graf<> NONE THEN
+			  call cycle_fond(GRAF);
+		      fi;
+		      call warning("ALL the fundamental cycls of the graph"); 
+	    when 3 :  
+		      call warning(""); 
+		      if graf<> NONE THEN
+			   call EULER(GRAF);
+		      fi;
+	    when 4 : 
+		     call warning("Find a Hamilton's cycl");
+		     if graf<> NONE THEN
+			   call HAMILTON(GRAF);
+		     fi;
+
+	    when 5 : 
+		   call warning("");  
+		   call GUI_Rect(MinX,MinY+40,MaxX,MaxY,c_lightGrey,c_LightGrey);
+		   if GRAF<>none  then call GRAF.print fi;
+	  esac;
+	 
+      end Action;
+      begin
+	   NOM(1) :=  "return";
+	   NOM(2) := "fundamental";
+	   NOM(3) := "Euler";
+	   NOM(4) := "Hamilton";
+	   NOM(5) := "restore "
+      end OPTIONS_cycl;
+ 
+
+ 
+      unit OPTIONS_help : option class;
+      var page_nb : integer;
+      unit virtual Action : procedure(j : integer);
+      var i ,x,y: integer, ch : char;
+      begin
+	  case j
+	    when 1 : (* przy powrocie odnawiam ramki dla menu*) 
+		      call ramki_menu;
+	    when 2 :  call GUI_Rect(MinX,MinY+40,MaxX,MaxY,c_black,c_black); 
+		      call warning("");
+		      page_nb := page_nb + 1;
+		                             
+		      for i := 1 to 19
+		(* drukuje tylko 19 linijek bo ekran jest maly*)         
+		      do      x:=MinX+5; y:=MinY+40+13*i;
+			 call  GUI_move(x, y);
+			 while not eof(help_file) 
+			 do
+			    read(help_file,ch); 
+			    if ord(ch)=10 then exit else 
+                                   call GUI_writeChar(x,y,ch,c_white,c_black);
+                                                     x:= x+ 10;
+                                              fi
+			 od
+		      od;
+		      if eof(help_file) then call warning("END OF FILE") fi;                                                       
+		      
+	    when 3 :  page_nb := page_nb - 1; 
+		      (* zresetowac i przewinac o nb stron; strona=19linijek*)
+		      call reset(help_file);
+		      call GUI_Rect(MinX,MinY+40,MaxX,MaxY,c_black,c_black);                         
+		      for i := 1 to 19* page_nb
+		      do 
+			 while not eof(help_file) 
+			 do
+			    read(help_file,ch); 
+			    if ord(ch)=10 then exit fi;
+			 od
+		      od;
+		  
+		      for i := 1 to 19
+		(* drukuje tylko 19 linijek bo ekran jest maly*)         
+		      do 
+			 call  GUI_move(MinX+5, MinY+40+13*i);
+			 while not eof(help_file) 
+			 do
+			    read(help_file,ch); 
+			    if ord(ch)=10 then exit else call HASCII(ord(ch)) fi;
+			 od
+		      od;
+
+	    when 4 : 
+		     call GUI_Rect(MinX,MinY+40,MaxX,MaxY,c_lightGrey,c_lightGrey);
+		     call reset(help_file);
+		     call warning("");
+		     page_nb:= 0;
+	  esac;
+	 
+      end Action;
+      begin
+	   page_nb := 0;
+	   NOM(1) :=  "return";
+	   NOM(2) := "next";
+	   NOM(3) := "prev";
+	   NOM(4) := "reset";
+      end OPTIONS_help;
+ 
+      unit OPTIONS_import : option class;
+      unit virtual Action : procedure(j : integer);          
+      begin               
+	  case j
+	    when 1 :  call comment(""); call warning("");    
+	    when 2 :  call warning("From file c:\loglan95\graf.dta ");               
+		      graf := new graph;
+		      call GRAF.take; call GRAF.print;  
+		
+	    when 3 :  call warning(" Taking current graf from memory ");
+		      if Graf<>none then 
+			  if GRAF.obraz<>none then 
+                                                                call GUI_putImg(MinX+2, MinY+40,Graf.obraz) fi 
+		      else  call warning("Graph is empty")fi;        
+	 esac;
+      end Action;
+      begin
+	   NOM(1) := "return";
+	   NOM(2) := "file";
+	   NOM(3) := "memory"; 
+      end OPTIONS_import;
+ 
+      unit OPTIONS_modify : option class;
+      unit virtual Action : procedure(j : integer);
+      begin      
+	  case j
+	    when 1 : call comment("");  call warning("");    
+	    when 2 : call warning("Add a new node using button RIGHT of the mouse");
+		     if Graf<>none then 
+			call GRAF.createNODE
+		     else call warning(" GRAPH IS EMPTY!") 
+		     fi;                    
+ 
+	    when 3 : call warning("Add a new arc ");          
+		     if GRAF<>none then call GRAF.createARC('i')
+		     else
+			call warning("Graph is empty")
+		     fi;
+
+	    when 4 : if GRAF<>none then call GRAF.DeleteARC('d')
+		     else
+			call warning("Graph is empty")
+		     fi;
+
+	    when 5 : if graf<>none then 
+			call GRAF.print 
+		     else
+			call warning("Graph is empty")
+		     fi; 
+
+	    when 6 : call warning("The current immage of the graph is saved.");
+		     if graf<> none then
+			call move(MinX+2,MinY+40);
+			Graf.obraz := getmap(MaxX-2,MaxY-2)
+		     else call warning("Graph was not yet created")fi;
+
+	    when 7 : call warning(
+			"This is the immage of the graph previously saved");
+		      if Graf<>none then 
+			  call move(MinX+2, MinY+40);
+			  if GRAF.obraz<>none then call putmap(Graf.obraz)fi 
+		      else  call warning("The image of Graph is empty")fi;        
+			    
+	 esac; 
+      end Action;
+
+      begin
+	    Nom(1) := "return";
+	    Nom(2) := "add node";
+	    Nom(3) := "add arc";
+	    Nom(4) := "del arc"; 
+	    Nom(5) := "print";
+	    Nom(6) := "getmap";
+	    Nom(7) := "putmap";
+      end OPTIONS_modify;
+ 
+      unit OPTIONS_go : option class;
+      unit virtual Action : procedure(j : integer);
+      var ss : string;
+      begin
+	   (* miejsce komentarzy *)
+	  case j
+	    when 1 :  call comment( ""); call warning("");    
+	    when 2 :  call comment( "Breadth First Search  ");
+		      if GRAF<> none then
+			call GRAF.restore;
+			call BFS_bis( GRAF);
+		      FI;         
+	    when 3 :  call comment( "Depth First Search  ");
+		      if graf<> NONE THEN
+			call GRAF.restore; 
+			call DFS(GRAF);
+		      fi;
+	    when 4 :  call comment( "STRANGE Search  ");
+		      if graf<> NONE THEN
+			call GRAF.restore; 
+			call WHAT(GRAF);
+		      fi;
+	    when 5 :  call comment( "Breadth First Search_BIS  ");
+		      if GRAF<> none then
+			call GRAF.restore;
+			call BFS_bis( GRAF);
+		      FI;         
+	    when 6 :  call comment( "PILE_FILE SEARCH ");
+		      if GRAF<> none then
+			call GRAF.restore;
+			call PI_FI( GRAF);
+		      FI;         
+		      
+	    when 7 :  if Graf<>none then                                                          
+				call GRAF.print                  
+		      else  call warning("Graph is empty")fi;        
+
+	    when 8 : call clear(c_blue);
+		
+	 esac;
+ 
+      end Action;
+      begin
+	    Nom(1) := "return";
+	    Nom(2) := "BFS";
+	    Nom(3) := "DFS";
+	    Nom(4) := "WHAT?";  
+	    Nom(5) := "BFS_2";
+	    Nom(6) := "DFS_2";
+	    Nom(7) := "print";  
+	    Nom(8) := "clear"
+      end OPTIONS_go;
+
+VAR     i, delta        : integer,                         
+	boo             : boolean,
+	O_main, O_help, O_cycl,
+	O_graph, O_algo, O_import, O_modify, O_go : option,
+	menu_main, menu_aux : menu, 
+	GRAF             : GRAPH, 
+	w                : node,     
+	G_file,help_file : file;
+handlers
+   others         call warning(" ERROR press Y to continue or N to stop?");
+		 
+		  boo := YES;            
+		  if not boo then call GROFF; call ENDRUN fi;                                               
+		  call warning("");
+		  wind;                                          
+		  
+end handlers;
+ 
+begin
+	   (******           program  glowny         ******)
+ 
+	   
+	  
+	    
+	   call  GUI_Rect(MinX,MinY,MaxX,MaxY,c_lightGrey,c_lightGrey);
+	   for i := 1 to 14 do
+	   call GUI_Writetext(150+i*5,100+i*4,
+                  unpack("B R E A D T H   F I R S T   S E A R C H"),i,c_black);                      
+	   call GUI_Writetext(200-i*5,200+i*4,
+                  unpack("D E P T H   F I R S T   S E A R C H"),i,c_black);
+	   od;
+	   call waittt;
+
+	   O_MAIN := new OPTIONS_MAIN(4);
+	   menu_main := new menu("MAIN_MENU",minX,maxX,minY,maxY,O_MAIN);
+ 
+	   O_graph := new OPTIONS_graph(6);   
+	   menu_main.ICONES(2).sub_menu, menu_aux := 
+	      new menu("CREATE or TAKE A GRAPH",minX,maxX,minY,maxY,O_graph);    
+
+	   O_import := new OPTIONS_import(3);
+	   menu_aux.ICONES(3).sub_menu := 
+	      new menu("TAKE GRAPH from a file or from memory",minX,maxX,minY,maxY,O_import);  
+ 
+	   O_modify := new OPTIONS_modify(7);
+	   menu_aux.ICONES(4).sub_menu := 
+		new menu("MODIFY THE GRAPH",minX,maxX,minY,maxY,O_modify);
+ 
+	   menu_aux.ICONES(6).sub_menu := 
+		new menu("MODIFY THE GRAPH",minX,maxX,minY,maxY,O_modify);
+ 
+
+	   O_algo := new OPTIONS_algo(5);   
+	   menu_main.ICONES(3).sub_menu,menu_aux := 
+	      new menu("ALGORITHMES on GRAPHS",minX,maxX,minY,maxY,O_algo);    
+ 
+
+	   O_go := new OPTIONS_go(8);
+	   menu_aux.ICONES(2).sub_menu :=    
+	     new menu("BREDTH FIRST SEARCH or DEPTH FIRST SEARCH",minX,maxX,minY,maxY,O_go);     
+		  
+	   O_cycl := new OPTIONS_cycl(5);
+	   menu_aux.ICONES(3).sub_menu :=    
+	       new menu("RECHERCHE the CYCLS",minX,maxX,minY,maxY,O_cycl);     
+
+
+	   O_help := new OPTIONS_help(4);
+	   menu_main.ICONES(4).sub_menu := 
+			new menu("HELP",minX,maxX,minY,maxY,O_help);    
+
+ 
+	   attach(menu_main);
+
+	   
+	   while true  do
+		call warning("DO YOU REALY LIKE TO EXIT (Y/N)?");
+		boo := YES;
+		if boo then exit fi;
+		call warning("");
+		attach(menu_main);  
+	   od;  
+	   call GROFF;
+       end;
+    end
+ end graf;
+
+
+
+
+
+
+
+ (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+ (*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*)
+  

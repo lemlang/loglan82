@@ -1,0 +1,61 @@
+1997.11.26
+
+ loggraph: Dodany nowy komunikat GRAPH_MAGIC (magiczna grafika!!)
+ logint: HFONT8 wysyla GRAPH_MAGIC
+ logedit: zmiana czcionki w menu
+
+1997.11.27
+
+ loggraph:1) poprawione odczytywanie znaku z klawiatury, poprzednio
+           gubil znaki !!!
+          2) poprawione readln
+ logedit: rozbudowany edytor- dodane "find", "copy", "paste","save as"
+
+1997.12.01
+
+ loggraph: 1) skrocona MESSAGE dla graph - G_MESSAGE
+           2) poprawione inkey - wczesniej blokowalo!
+
+1997.12.03
+  logedit: wypisuje pozycje kursora
+  logint: wypisywanie bledow na zasobie graficznym a nie na stderr
+
+1997.12.05
+  logcomp: preprocesor dla kompilatora, mozna uzywac #include
+  logedit: poprawiony wskaznik pozycji kursora
+
+1997.12.12
+  logker: zmienione dlugosci cmd dla funkcji 'system' (byly za male!)
+  logker: zrobione opcje "Connect" i "Info"
+  logedit: wyrzucona opcja 'Help' i dodana do logker
+  loghelp: mikro- przegladarka do HTML, 
+
+1997.12.15
+  inkey: zwraca kody klawiszy funkcyjnych
+  klasa "Machine": klasa funkcji zwracajacych informacje o Maszynie
+  Wirtualnej
+  dokumentacja: uzupelniona dokumentacja do klasy Machine, ANSI i inkey
+
+1998.01.07
+  Zmieniona koncepcja modulu GRAPH, teraz kazdy interpreter ma swoj
+  wlasny modul GRAPH !!!
+
+1998.01.09
+  Poczatek klasy GUI: Read/Write Int, Text, Real, Char
+
+1998.01.10
+ Dodane: PutImgFile do klasy GUI kopiuje .BMP,.XPM .GIF
+
+1998.01.12
+ Zrobiona klasa GUI
+
+1998.01.13
+ Poprawione accept() w cint.c, bo Linux ma tu blad!
+
+1998.01.14
+  Zmieniony sposob transmisji pliku z kodem, w zwiazku z tym
+  zmniejszenie dlugosci struktury MESSAGE
+
+1998.01.15
+  Dolaczona opcja TCP_NODELAY do wszystkich gniazdek, chyba chodzi
+  szybciej!

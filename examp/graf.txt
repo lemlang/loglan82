@@ -1,0 +1,119 @@
+       H E L P   -   D O C U M E N T A T I O N
+( do programu GRAF.log kwiecien/maj 97)
+
+
+CONTENTS
+
+ 0. AIMS
+ 1. THE STATIC STRUCTURE OF THE PROGRAM 
+ 2. DATA STRUCTURES  
+      2.1 LISTS
+      2.2 QUEUES
+      2.3 STACKS
+      2.4 GRAPH
+
+ 3. ALGORITHMES
+        3.1 Search algorithmes 
+        3.2 
+
+
+ 4. MAIN PROCEDURES AND FUNCTIONS
+       4.1
+       4.2
+ 
+ 5. MENU STRUCTURE
+
+ 6. USER MANUAL
+      6.1 System Configuration
+      6.2 Files used by the program:
+               c:/loglan95/graf.txt
+               c:/loglan95/graf.dta
+
+
+
+AD.0  
+
+ The aim of the program was to show the possibility  to reuse
+ the procedure Traverse twice in two different environments: 
+ Stacks and Queues.
+
+ Traverse+Stacks => Depth First Search 
+ Traverse+Queues => Breadth First Search
+
+ The restriction imposed was:
+                   TO NOT DUPLICATE THE TEXT OF TRAVERSE!
+
+AD.1 
+
+ The static structure of the program:
+
+ program GRAF;
+  begin pref mouse block
+  begin  pref IIUWGRAPH block
+       (*  DECLARATIONS*)
+       unit LISTE: class; end liste;
+       unit STRUCTURE: class ; end STRUCTURE;
+       unit QUEUES : STRUCTURE class; end QUEUES;
+       unit STACKS : STRUCTURE class; end STACKS;
+       unit BST : QUEUES procedure; end BST;
+       unit DFS : STQCKS procedure; end DFS;
+       unit GRAPH : class; 
+           (* graph is represented as an 
+              Array of LISTE *)
+       end GRAPH;
+       unit MENU : coroutine; end menu;
+       begin (* main program *)
+          (*CREATION of the menu-OPTIONS *)
+          attach(main_menu)
+      end
+   end
+ end GRAF; 
+
+
+ AD 5.
+
+ Type Menu is implemented as a coroutine which have as attributes
+       (a) the list of possible options and
+       (b) a sub_menu
+ This imply that the different menus form an arbre; 
+ It is fixed, in this implementation, that the first option is always 
+ a step to the previous menu. 
+ Menu was generated in the main program; The structure of it is as follows:
+
+
+                      main menu
+
+                 /           !
+             graph        algorithms               help
+              /                                    /  !   )
+  clear  import  modify  create                next  prev  reset  
+           /              !
+      file  memory       add_node  add_arc  del_arc  save  print  getmap  
+
+
+
+          algorithmes
+         /        !
+     search      path       
+
+
+ 6
+ AD 6.1 
+
+ Before executing the program make sure that an appropriate 
+ driver was selected. 
+ In order to do so execute a batch file
+        exec
+ (Do not forget to leave Norton Commander!)
+ The ecran dimention is 640x480.
+
+ The auxiliary files 
+                       graf.txt
+                       graf.dta
+                       graf1.dta etc
+ are supposed to be in c:/loglan95/   
+ This can be obiously changed bz programer (in the text of the program).
+     
+ The  is supposed to be QWERTZ.
+
+  

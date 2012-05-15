@@ -1,0 +1,12 @@
+#!/bin/sh
+
+cat Dir graph/mfile > graph/Makefile
+cat Dir net/mfile > net/Makefile
+cat Dir kernel/mfile > kernel/Makefile
+cat Dir lgconfig/mfile > lgconfig/Makefile
+cat Dir edit/mfile > edit/Makefile
+cat Dir preproc/mfile > preproc/Makefile
+cat Dir help/mfile > help/Makefile
+cat Dir int/mfile > int/Makefile
+cat Dir ./mfile > ./Makefile
+

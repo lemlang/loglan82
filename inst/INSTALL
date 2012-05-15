@@ -1,0 +1,10 @@
+To make your VLP run, you should copy QT library files, to your
+/usr/lib (or to any place your programs are looking for shared libraries)
+
+QT files are located at "lib" directory of this package, it should contain:
+
+libqt.so.1.30 - main library file 
+libqt.so.1 - symlink to libqt.so.1.30
+libqt.so - symlink to libqt.so.1.30
+
+All binaries were compiled under Linux 2.0.0

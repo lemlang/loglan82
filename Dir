@@ -1,0 +1,14 @@
+###   Includes for QT library
+QINC=/usr/include/qt3
+
+###   QT library directory
+QLIB=/usr/lib/qt3/
+
+###   moc compiler directory
+MOCDIR=/usr/bin
+
+###  Install directory
+INSTALLDIR=/usr/local/vlp
+
+###  QT Library linking phrase
+QLINK=-lqt-mt

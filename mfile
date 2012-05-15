@@ -1,0 +1,63 @@
+
+
+all:
+	cd graph; $(MAKE)
+	cd net; $(MAKE)
+	cd kernel; $(MAKE)
+	cd int; $(MAKE)
+	cd edit; $(MAKE)
+	cd lgconfig; $(MAKE)
+	cd preproc; $(MAKE)
+	cd help; $(MAKE)
+
+clean:
+	cd graph; $(MAKE) clean
+	cd net; $(MAKE) clean
+	cd kernel; $(MAKE) clean
+	cd int; $(MAKE) clean
+	cd edit; $(MAKE) clean
+	cd lgconfig; $(MAKE) clean
+	cd preproc; $(MAKE) clean
+	cd help; $(MAKE) clean
+
+install:
+	rm -r -f $(INSTALLDIR)
+	mkdir $(INSTALLDIR)
+	mkdir $(INSTALLDIR)/doc
+	mkdir $(INSTALLDIR)/pics
+	mkdir $(INSTALLDIR)/modules
+	mkdir $(INSTALLDIR)/config
+	mkdir $(INSTALLDIR)/compile
+	mkdir $(INSTALLDIR)/doc/lang
+	mkdir $(INSTALLDIR)/examp
+	cp -r examp/* $(INSTALLDIR)/examp
+	cp inst/loglan $(INSTALLDIR)/compile
+	cp inst/gen $(INSTALLDIR)/compile
+	cp preproc/logcomp $(INSTALLDIR)/compile
+	cp inst/logo.bmp $(INSTALLDIR)/config
+	cp lgconfig/lgconfig $(INSTALLDIR)/config
+	cp -r doc/* $(INSTALLDIR)/doc
+	cp net/lognet $(INSTALLDIR)/modules
+	cp int/logint $(INSTALLDIR)/modules	
+	cp graph/loggraph $(INSTALLDIR)/modules
+	cp edit/logedit $(INSTALLDIR)/modules
+	cp inst/close.bmp $(INSTALLDIR)/pics
+	cp kernel/logker $(INSTALLDIR)
+	cp help/loghelp $(INSTALLDIR)/modules
+	cp inst/LICENSE.GNU $(INSTALLDIR)
+	cp inst/LICENSE.QT $(INSTALLDIR)
+	echo node_number=1 > $(INSTALLDIR)/vlp.cfg
+	echo type=explicit >> $(INSTALLDIR)/vlp.cfg
+	echo homedir=$(INSTALLDIR) >> $(INSTALLDIR)/vlp.cfg
+	echo progdir=./ >> $(INSTALLDIR)/vlp.cfg
+	chmod a+rwx $(INSTALLDIR)
+	chmod a+rx $(INSTALLDIR)/doc
+	chmod a+rx $(INSTALLDIR)/pics
+	chmod a+rwx $(INSTALLDIR)/modules
+	chmod a+rx $(INSTALLDIR)/config
+	chmod a+rwx $(INSTALLDIR)/compile
+	chmod a+rx $(INSTALLDIR)/doc/lang
+	chmod a+rwx $(INSTALLDIR)/examp
+	chmod a+rx $(INSTALLDIR)/logker
+	chmod a+rx $(INSTALLDIR)/modules/*
+	chmod a+rx $(INSTALLDIR)/compile/*	

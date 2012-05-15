@@ -1,0 +1,35 @@
+program mtest;
+
+#include "classes/machine.inc"
+
+unit Info: Machine procedure;
+var i:integer,t:array_of char, pom,pom1:NodeInfo;
+begin
+i:=LocalNode;
+writeln("Local node number: ",i);
+i:=NodesNum;
+writeln("Number of nodes: ",i);
+pom:=MachineInfo;
+if pom<>none then
+pom1:=pom;
+while pom1<>none do write(pom1.num,":");
+                   if pom1.addr<>none then 
+                  for i:=lower(pom1.addr) to upper(pom1.addr) do
+                     write(pom1.addr(i)); od;
+                  fi;
+                  writeln;
+                  pom1:=pom1.Next;           
+                            od;
+else
+writeln("t==none");
+fi;
+
+if NodeExists(5) then writeln("Node 5 exists");
+else writeln("There is no node number 5");
+fi;
+writeln;
+end Info;
+
+begin
+call Info;
+end.€€
