@@ -1,0 +1,1952 @@
+program pr;
+(*********************************************************************)
+(*                                                                   *)
+(*                    L O G D E B                                    *)
+(*                                                                   *)
+
+(*$D-*)
+(*$L-*)
+
+UNIT logdeb : CLASS;
+
+(*====================================================================*)
+(*								      *)
+(*		   L O G D E B					      *)
+(*								      *)
+(*	    D E B U G G E R	F O R	 L O G L A N		      *)
+(*								      *)
+(*		 WERSJA 2 ( 1985 )				      *)
+(*								      *)
+(*		TERESA PRZYTYCKA				      *)
+(*								      *)
+(*====================================================================*)
+
+(*====================================================================*)
+(*								      *)
+(*     Adapted to the Loglan interpreter.				*)
+(*   Uses special standard procedures DB01OX, SCCD01OX, SCND01OX,     *)
+(*    DB01OF for communication with the interpreter.		      *)
+(*   Uses auxilliary files  name.deb (name - file name of the source  *)
+(*     loglan program) and temp.deb.				      *)
+(*   The copy of output is printed to the file debug.ech	      *)
+(*								      *)
+(*			 June 1986, D.Szczepanska		      *)
+(*====================================================================*)
+
+(*============================================*)
+(* WYDRUKI KOTROLNE :	STRUMIEN LO	      *)
+(*		       +i  - PRZED INSTRUKCJA *)
+(*		      ++i  - PO INSTRUKCJI    *)
+(*   i - szczegolowosc wydrukow kontrolnych   *)
+(*============================================*)
+
+
+VAR LINENR:INTEGER,   (* NR LINII MIEJSCA WYSTAPIENA PZETWANIA	    *)
+    LINENR1:INTEGER,  (* NR LINII Z OSTATNIM PRZERWANIEM	    *)
+    linenr2:integer,  (* nr linii do ktorej ciagnie sie "do"        *)
+    DISPNR :INTEGER,  (* DISPNR OBIEKTU,KTOREGO WYKONYWANIE ZOSTALO *)
+    UNITCASE : INTEGER,(*     TYP JEDNOSTKI SYNTAKTYCZNEJ PUNKTU    *)
+		       (*	    OBSERWACJI			    *)
+		      (* PRZERWANE A POZNIEJ ZMIENNA ROBOCZA DO     *)
+		      (* PRZECHOWYWANIA WYNIKU Z PROCEDURY FIND     *)
+    BREAKT	      (* TABLICA Z NUMERAMI LINII PUNKTUW LAMIACYCH *)
+	      :ARRAYOF INTEGER,
+
+   BREAKTL:ARRAYOF BR, (* TABLICA INFORMACJI O PUNKTACH LAMIACYCH   *)
+		       (* ODPOWIADAJACA TABLICY BREAKT		    *)
+  MOV :MOVEL,	       (* POCZATEK LISTY ZMIAN PONKTOW OBSERWACJI   *)
+  CADR, 	       (*     ADRES OBIEKTU, KTOREG OBLICZENIA	    *)
+		       (*	ZOSTALY PRZERWANE		    *)
+  OBSADR,	       (*    ADRES OBIEKTU BEDACEGO PUNKTEM	    *)
+		       (*	    OBSERWACJI			    *)
+		       (*  PRZERWANE				    *)
+  CCOR : ARRAYOF INTEGER, (*		 AKTYWNA  COROUTINA	    *)
+  ctxt : arrayof integer, (* bufor na biezaca lnie wejsciowa	    *)
+   protf   :FILE  ,    (* PLIK O DOSTEPIE sekwencyjnym,binarny	    *)
+		       (* zawierajacy breakt i prototypy debuggera  *)
+   CO	   :FILE  ,    (* PLIK NA KTORY WYSYLA WYNKI DEBUGGER	    *)
+   LO	   :FILE  ,    (* KOPIA WYNIKOW PRZY WLACZONYM ECHU	    *)
+   PROTNR  :INTEGER ,  (*  NR PROTOTYPU OBIEKTU BEDACEGO	    *)
+		       (* PUNKTEM OBSERWACJI			    *)
+   SINGLESTEP:boolean, (* CZY PRZERWANIE JEST GENEROWANE PO KAZDEJ  *)
+		       (* INSTRUKCJI LOGLANOWEJ 		    *)
+   GGO :integer,       (* GO = TRUE POWODUJE WYKONYWANIE PROGRAMU   *)
+		       (* BEZ PRZERWAN, JEDYNIE Z SYGNALIZACJA	    *)
+		       (* PUNKTOW LAMIACYCH W POSTACI SLADU	    *)
+   ECHO  : BOOLEAN,    (* CZY JEST PISANA KOPIA WYNKOW NA LO	    *)
+   CBR	:BR	    ,  (* PUNKT LAMIACY OBSLUGIWANY W BIEZACYM	    *)
+		       (*	   PRZERWANIU			    *)
+   CIND  : INTEGER,    (* INDEKS W TABLICY BIEZACEGO PRZERWANIA     *)
+		       (* STRUKTURU DANYCH DO KOMUNIKACJI Z BAZA    *)
+		       (* DANYCH PROTOTYPOW			    *)
+   IDICT ,	       (* slownik prototypow debuggera		    *)
+   prot 	       (* tablica zawierajaca prototypy debuggera   *)
+	   : arrayof integer,
+
+   GOTXT : ARRAYOF INTEGER,	(* TEKST INSTRUKCJI GO *)
+
+   first:boolean,     (* true for the first interrupt *)
+   lastbr:integer,    (* last used in breakt *)
+   DECL : DEC ;       (* LISTA BANKOW INSTRUKCJI *)
+
+
+CONST  MAXBR=500,  (* MAKSYMALNA LICZBA PUNKTOW LAMIACYCH *)
+       MAXIDICT = 499; (* ROZMIAR TABLICY IDICT *)
+VAR   I:INTEGER ; (* GLOBaLNA POMOCNICZA *)
+var glovirt:arrayof integer, gloreal:real; (*globalne pomocnicze *)
+var   maxprot:integer; (* rozmiar tablicy PROT *)
+
+(*=====================================================================*)
+(*     S T R U K T U R Y       D A N Y C H			       *)
+(*=====================================================================*)
+
+UNIT INSTR : CLASS ;  (* ELEMENT LISY INSTRUKCJI *)
+VAR MARK:INTEGER,
+    TXT :ARRAYOF INTEGER,
+    NEXT :INSTR;
+END;
+
+UNIT KILLI :PROCEDURE(INOUT I:INSTR);
+VAR J :INSTR;
+BEGIN
+  J:=I;
+  WHILE J=/= NONE DO J:=J.NEXT;KILL(I.TXT);KILL(I);I:=J OD;
+END;
+
+(*---------------------------------------------------------------------*)
+
+UNIT  BR : CLASS ;    (* OPIS PUNKTU PRZERYWAJACEGO *)
+VAR MARK : INTEGER,
+    CONDTXT : ARRAYOF INTEGER,
+    INS     : INSTR ;
+END;
+
+UNIT KILLB :PROCEDURE(INOUT B:BR);
+BEGIN
+   KILL(B.CONDTXT);CALL KILLI(B.INS) ; KILL(B)
+END;
+
+(*-------------------------------------------------------------------*)
+
+UNIT DEC :CLASS;      (* ELEMENT LIST BANKOW INSTRUKCJI *)
+VAR ID :INTEGER,
+    INS : INSTR,
+    NEXT : DEC;
+END;
+
+(*----------------------------------------------------------------*)
+
+UNIT MOVEL : CLASS(MARK,PROT :INTEGER,ADR,COR : ARRAYOF INTEGER);
+
+(* ELEMENT LISTY ZMIAN PUNKTOW OBSERWACJI		       *)
+(* ZNACZENIE ATRYBUTOW : MARK - ETYKIETA INSTRUKCJI MOVE       *)
+(*			 PROT - NR PROTOTUPU PUNKTU OBSERWACJI *)
+(*			 ADR  - ADRES PUNKTU OPSERWACJI        *)
+(*			 COR  - OBSERWOWANA COROUTINA	       *)
+VAR  NEXT :MOVEL;
+END;
+(*------------------------------------------------------------------*)
+
+(*===================================================================*)
+(*  CONTROL - PREFIX DLA COROUTIN UZYTKOWNIKA, KTORE MOGA BYC	     *)
+(*  OBSERWOWANE PO EWENTUALNYN BLEDZIE WYKONANIA		     *)
+(*===================================================================*)
+
+(*===================================================================*)
+(*								     *)
+(*			 S T R I N G S				     *)
+(*								     *)
+(*===================================================================*)
+
+const
+   t1 = " RUNERROR",
+   T2 = " CONERROR",
+   T3 = " LOGERROR",
+   T4 = " TYPERROR",
+   T5 = " SYSERROR",
+   T6 = " NUMERROR",
+   T7 = " MEMERROR",
+   T8 = " UNHANDLED",
+   T9 = " BREAK POINT : ",
+   T10 = " INSTANCE OF ",
+   T11 = " BLOCK",
+   T12 = " HANDLER",
+   T13 = " DECLARED IN LINE",
+   T14 = "     ---   END OF LIST ---",
+   T15 = " NOT IMPLEMENTED",
+   T16 = " ARRAY OF",
+   T17 = " OF ",
+   T18 = " FORMAL TYPE",
+   T19 = " NONE VALUE OF FORMAL TYPE",
+   T20 = " INTEGER",
+   T21 = " BOOL",
+   T22 = " CHAR",
+   T23 = " REAL",
+   T24 = " STRING",
+   T25 = " TRUE",
+   T26 = " FALSE",
+   T27 = " !!! ERROR NR",
+   T28 = " LINENR :",
+   t29 = " OBSERVATION POINT:";
+
+
+(*============================================================*)
+(*  CONTROL - prefix for user's coroutines                    *)
+(*============================================================*)
+
+UNIT CONTROL:CLASS;
+
+HANDLERS
+WHEN ACCERROR : writeln(co,t1); call runerror;
+WHEN CONERROR : writeln(co,t2); call runerror;
+WHEN LOGERROR : writeln(co,t3); call runerror;
+WHEN TYPERROR : writeln(co,t4); call runerror;
+WHEN SYSERROR : writeln(co,t5); call runerror;
+WHEN NUMERROR : writeln(co,t6); call runerror;
+WHEN MEMERROR : writeln(co,t7); call runerror;
+OTHERS : WRITELN(CO,t8);CALL RUNERROR;
+END HANDLERS;
+BEGIN END;
+
+(*=====================================================================*)
+
+(*******************************************************************)
+(*								   *)
+(*	       B R E A K L					   *)
+(*								   *)
+(*-----------------------------------------------------------------*)
+(*  PROCEDURA WYWOLYWANA PRZEZ PROCEDURE RUNING SYSTEMU :TRACE	   *)
+(*  SPRAWDZA CZY W DANEJ LINI WYKONYWANEGO PROGRAMU JEST	   *)
+(*  ZADEKLAROWANY BREAK POINT.JESLI TAK WYWOLUJE PROCEDURE INTERPR *)
+(*******************************************************************)
+
+UNIT BREAKL:PROCEDURE;
+
+VAR BREAKP: BOOLEAN,
+    K:INTEGER;
+
+BEGIN
+   (* linenr := line of the break point, dispnr := number of interrupted
+       object, cadr := address of interrupted object *)
+   call db01ox(28,glovirt, linenr, cadr, gloreal, dispnr);
+if ggo=4 then call endrun fi;
+if ggo=/=3 then
+  cind := 0; cbr := none;
+(*+ WRITELN(LO," LINENR",LINENR," LINENR1",LINENR1); ++*)
+  if linenr1=0 then first:=true; fi;
+  IF SINGLESTEP OR LINENR1=0 THEN BREAKP:=TRUE
+  ELSE
+  IF LINENR =/= LINENR1 THEN
+     K:=0;
+     FOR I:=1 TO lastbr DO
+       IF BREAKT(I)=LINENR THEN K:=LINENR ; CIND:=I;EXIT FI;
+     OD;
+     IF K =/= 0 THEN CBR:=BREAKTL(CIND);
+		BREAKP:=TRUE
+     FI
+  FI;
+  FI;
+  LINENR1:=LINENR;
+  IF BREAKP THEN (* jest przerwanie w lnii linenr *)
+    if ggo=1 andif linenr > linenr2 then ggo := 0 fi;
+    if ggo = 0 then
+     (* ccor - address of  an active coroutine head *)
+     call db01ox (0,ccor,i,glovirt,gloreal,i);
+     CALL INTERPR;
+    else
+      writeln(co,t9,linenr);
+      if echo then writeln(lo,t9,linenr) fi;
+    FI;
+  FI;
+fi;
+END;(* BREAKL *)
+
+
+(************************************************************)
+(*							    *)
+(*	       I N I C B R				    *)
+(*							    *)
+(*----------------------------------------------------------*)
+(*  PROCEDURA INICJALIZUJACA DZIALANIE DEBUGGERA.	    *)
+(*  WYKONUJE KOLEJNO NASTEPUJACE KROKI :		    *)
+(*   1.ZNAJDUJE ADRES PROTOTYPU INSTRUKCJI BREAKL	    *)
+(*     I EXPORTUJE GO DLA PROCEDURY RAN. SYS. TRACE	    *)
+(*   2.KOPIUJE ZE STRUMIENIA SC TABLICE HASHU,		    *)
+(*     OTWIERA STRUMIEN SC DLA PROCEDUR LOGLANOWYCH,	    *)
+(*     OTWIERA STRUMIEN CI ,INICJALIZUJE ZMIENNE SCANERA    *)
+(*   3.INICJALIZUJE TABLICE BREAKT I DISPT,		    *)
+(*     OTWIERA STRUMIENI SC ORAZ CO			    *)
+(************************************************************)
+
+UNIT INICBR:PROCEDURE;
+  var i, brnr : integer;
+BEGIN
+   (* files  openning *)
+    open(protf,integer, unpack("debug.tmp"));
+    call reset(protf);
+   (* copy of the debugger output *)
+    open(lo,text,unpack( "debug.ech"));
+    call rewrite(lo);
+    open (co,text,unpack("SYS$OUTPUT")); (* output of the debugger *)
+    call rewrite(co);
+ (*  breakt *)
+    array breakt dim (1:maxbr);
+    get (protf, brnr);
+    array breaktl dim (1:maxbr);
+    for i:=1 to brnr do
+       get (protf, breakt(i));
+    od;
+    for i := brnr+1 to maxbr do
+       breakt(i) := 0;
+    od;
+ (* initialization of lastbr *)
+    lastbr := 1;
+    while lastbr <= maxbr do
+       if breakt(lastbr) = 0 then exit fi;
+       lastbr := lastbr+1;
+    od;
+    lastbr := lastbr-1;    
+  (* idict *)
+    array idict dim (0:maxidict);
+    for i:=0 to maxidict do
+        get(protf,idict(i));
+    od;
+  (* maxprot *)
+     get(protf,maxprot);
+  (* prot *)
+    array prot dim (1:maxprot);
+    for i:=1 to maxprot do
+        get(protf,prot(i));
+    od;
+ (* protf must be removed from directory *)
+ (* killing of protf and transferring the variable lo to the interpreter *)
+    call db01of(protf,lo);
+end  inicbr ;
+
+(*********** PROCEDURY	TESTUJACE ***************************)
+
+UNIT TEST1:PROCEDURE (INPUT T:ARRAYOF INTEGER );
+
+(* PROCEDURA DRUKUJE ZAWARTOSC TABLICY T  *)
+
+VAR I,J:INTEGER;
+BEGIN
+J:=0;
+WRITELN(LO);
+FOR I:=LOWER(T) TO UPPER(T) DO
+	IF J=10 THEN WRITELN(LO); J:=0 FI;
+	WRITE (LO,T(I));
+	J:=J+1;
+OD;
+WRITELN(LO);
+END (* TEST1 *) ;
+
+UNIT OUTREF:PROCEDURE(ADRES:ARRAYOF INTEGER);
+VAR I,J:INTEGER;
+BEGIN
+  (* (i,j) := virtual address refval *)
+  call db01ox(30,adres,i,glovirt,gloreal,j);
+(*+  writeln(lo,"refval",i,j); ++*)
+END;
+
+(************************************************************)
+(*							    *)
+(*	      I N T E R P R				    *)
+(*							    *)
+(*----------------------------------------------------------*)
+(* PROCEDURA CZYTA I INTERPROTUJE INSTRUKCJE WYSYLANE PRZEZ *)
+(* UZYTKOWNIKA DO DEBUGGERA .				    *)
+(* WYJSCIE DLA INSTRUKCJI - STRUMIEN CI 		    *)
+(* WYNIKI		  - STRUMIEN CO 		    *)
+(* EWENTUALNA KOPIA	  - STRUMIEN LO 		    *)
+(************************************************************)
+
+UNIT INTERPR :PROCEDURE ;
+
+SIGNAL DEBERROR(NR :INTEGER);
+
+VAR  S,K,ADRES : INTEGER ,  (* ZMIENNE NA WYNIKI PROCEDURY SCAN  *)
+     STP : BOOLEAN,	    (* CZY NAPOTKANO INSTRUKCJE GO *)
+			    (* BUFORY DLA WARTASCI ZMIENNYCH *)
+			    (* 1 -DLA WYNIKOW CZESCIWYCH PRZY ASSIGN *)
+     INTVAL,INTVAL1 : INTEGER,
+     RELVAL,RELVAL1 : REAL  ,
+     CHAVAL,CHAVAL1 : CHAR   ,
+     REFVAL,REFVAL1 : ARRAYOF INTEGER,
+     R,R1	    : INTEGER,		(* BUFORY NA LICZBE ARRAYOF *)
+     REFFVAL : ARRAYOF INTEGER,
+     PROTDEB,PROTDEB1,OFFSET1,OFFSET,MODE,MODE1:INTEGER,
+
+     HELP:INSTR,
+     MA:INTEGER;    (* MARKER INTERPRETOWANEJ INSTRUKCJI *)
+
+(*------   TYPY PREDEFINIOWANE -----------------*)
+
+CONST  INTT = -2,
+       BOOLT =-8,
+       RELT  =-5,
+       CHT   =-11,
+       STRT  =-35,
+       NONT = -12,
+       FORT  =-10,
+       filt = -14,
+       cortt = -24,
+       proctt = -33;
+
+(*     TYPY JEDNOSTEK SYNTAKTYCZNYCH	       *)
+
+CONST  VART =  5 ,   (* ZMIENNA   *)
+       CORT = 11 ,   (* COROUTINA *)
+       RECT = 12 ,   (* REKORD	  *)
+       BLCT=  1 ,   (* BLOCK	 *)
+       HANT = 14 ;   (* HANDLER   *)
+
+(*   KODY ZNAKOW  *)
+CONST	ELN=13,
+	bl = 32,
+	SR =59;
+
+
+(*   S T A L E	     S C A N E R A			   *)
+
+(* IDENTYFIKATORY : S=1,ADRES =    *)
+CONST  ADELETE = 2393,
+       ASTORE  = 7803,
+       AGO     = 79  ,
+       AREMOVE = 7809,
+       ASSIGN  = 1337,
+       AMOVE   = 2279,
+       ADECLARE= 7817,
+       AMARK   = 7821,
+       AWITH   = 7831,
+       AREPORT = 7827;
+const
+(* SLOWA KLUCZOWE S = *)
+       sident = 1,
+       SOUTPUT = 95,
+       SOR     = 68,
+       SAND    = 67,
+       SNOT    = 66,
+       STO     = 104,
+       SWHEN   = 109,
+       SWRITE  = 19,
+       SBREAK  = 33,
+       SRETURN = 4 ,
+       SSTEP   =102,
+       SDO    = 14,
+       SCALL   = 9 ,
+       SEND    = 80,
+       SEOF    = 70,
+       SNONE   = 1002,
+       SBOL    = 1001, (* ADRES = 1 DLA FALSE 2 TRUE *)
+       SCOLON  = 47,
+       SEMICOL = 45,
+       SLPAR   = 52,
+       SART    = 51,
+		     adlt = 5,
+		     adle = 6,
+		     adeq = 3,
+		     adne = 4,
+		     adgt = 7,
+		     adge = 8,
+       SRPAR   = 53,
+       SCOM    = 42,
+       SDOT    = 38,
+       SAST    = 50,  (* *-ADRES= ,- -ADRES=4*)
+		     adast = 5,
+		     admin = 4,
+		     adadd = 3,
+       SCONST  =1000,
+		     kint = 3,
+		     kch  = 6;
+
+(*==================================================================*)
+(*		  KOMUNIKACJA Z UZYTKOWNIKIEM			    *)
+(*		  ----------------------------			    *)
+(* ODBYWA SIE LINIAMI ZA POSREDNICTWEM BUFORA SCANNERA		    *)
+(*==================================================================*)
+
+UNIT INTEX : PROCEDURE (OUTPUT TX:ARRAYOF INTEGER);
+(* PROCEDURA CZYTA LINE Z BUFORA SCANNERA DO TABLICY TX *)
+VAR CH,MAX:INTEGER;
+BEGIN
+(*+ WRITELN(LO); ++*)
+(*+ WRITELN(LO," INTEX"); ++*);
+  (* max := max from scanner *)
+  call sccd01ox(0,max,i,tx);
+ARRAY TX DIM(1:MAX+1);
+  (* TX := bufor from scanner *)
+  call sccd01ox(1,max,max,tx);
+(*+ for i:=1 to max do	++*)
+(*+ IF(I MOD 10) =1 THEN WRITELN(LO);WRITE(LO," "); FI;++*)
+(*+ WRITE(LO,TX(I));++*)
+(*+ od; ++*)
+  ch := 0; i := 1;
+  do
+    if i >= max then exit fi;
+    if tx(i) = eln then exit fi;
+    ch := tx(i); i := I+1
+  od;
+  if ch=/=sr then
+    tx(i) := sr; i := i+1;
+  fi;
+  tx(i) := eln;
+  I:=I+1;
+  WHILE I<MAX DO tx(i) := bl;I:=I+1 OD;
+END(* INTEX*);
+
+UNIT OUTEX : PROCEDURE (TX:ARRAYOF INTEGER);
+(* PROCEDURA WPISUJE ZAWARTOSC TABLICY TX DO BUFORA SCANERA *)
+  var pom:integer;
+BEGIN
+(*+ WRITELN(LO) ++*);
+(*+ WRITELN(LO," OUTEX"); ++*);
+  (* bufor from scanner:=tx, max form scanner:=upper(tx),lp from scanner:=1 *)
+  i := 1; pom := upper(tx);
+  call sccd01ox(2,pom,i,tx);
+(*+FOR I:=1 TO UPPER(TX) DO ++*)
+(*+ IF (I MOD 10)=1 THEN WRITELN(LO);WRITE(LO," ") FI; ++*)
+(*+ WRITE(LO,TX(I)) ++*);
+(*+ OD;++*)
+END(* OUTEX *);
+
+(*---------------------------------------------------------*)
+(*	       S C A N					   *)
+(* WYWOLUJE PROCEDURE ASSEMBLERA SCAN . WYNIK NA ZMIENNYCH *)
+(* GLOBALNYCH S,K,ADRES 				   *)
+(* W PRZYPADKU BLEDU S OTRZYMYJE WARTOSC -1 A K -NUMER	   *)
+(*	 BLEDU SYGNALIZOWANY PRZEZ SCANER		   *)
+(*---------------------------------------------------------*)
+
+UNIT SCAN :PROCEDURE;
+   begin
+     call scnd01ox(s,k,adres);
+(*+ WRITELN(LO," S= ",S," K= ",K," ADRES=",ADRES);++*)
+IF S < 0 THEN RAISE DEBERROR(0) FI;
+END  (**** SCAN ******);
+
+UNIT NEWLIN :PROCEDURE;
+(* PRZEJSCIE DO NOWEJ LINII *)
+BEGIN
+  (* scanner variables: sy1:=45; k1:=6; okey:=false;lp:=max+1 *)
+  call sccd01ox(4,i,i,refval);
+END;
+
+(*-----------------------------------------------------------*)
+(*	     WRID ,WRCH ,WRLIN				     *)
+(*-----------------------------------------------------------*)
+UNIT WRID:PROCEDURE (I:INTEGER; num : integer);
+
+(* WYPISANIE IDENTYFIKATORA		  *)
+(* I- ADRES IDENTYFIKATORA W TABLICY HASH *)
+(* num - na tylu miejsach ma byc wypisany identyfikator *)
+
+VAR J,L,K:INTEGER;
+BEGIN
+j := 0;
+DO
+  (* k, l := hash(i), hash(i+1) *)
+  call sccd01ox(3,i,k,refval );
+  i := i+1;
+  call sccd01ox(3,i,l,refval);
+  CALL WRCH(K);
+  IF L<0 THEN I:=-L;J:=J+2;REPEAT FI;
+  EXIT
+OD;
+FOR I:=J+2 TO num DO WRITE(CO," ");
+	       IF ECHO THEN WRITE(LO," ") FI;
+	       OD;
+END wrid;
+
+UNIT WRCH:PROCEDURE(I:INTEGER);
+(* I- SLOWO ZAWIERAJACE DWA ZNAKI DO WYPISANIA *)
+VAR K:INTEGER,
+    BOO:BOOL;
+BEGIN
+K:=I DIV 64;
+DO
+  CASE K
+    WHEN 0:IF  BOO THEN WRITE(CO,"0");
+		      IF ECHO THEN WRITE(LO,"0") FI FI;
+    WHEN 60:IF NOT BOO THEN WRITE(CO,"0");
+		       IF ECHO THEN WRITE(LO,"0") FI FI;
+    WHEN 46:WRITE(CO," "); IF ECHO THEN WRITE(LO," ") FI;
+    WHEN 1,2,3,4,5,6,7,8,9:WRITE(CO,CHR(48+K));
+			 IF ECHO THEN WRITE(LO,CHR(48+K)) FI;
+    OTHERWISE WRITE(CO,CHR(55+K));IF ECHO THEN WRITE(LO,CHR(55+K)) FI;
+  ESAC;
+  IF BOO THEN EXIT FI;
+  K:=I MOD 64;
+  BOO:=TRUE
+OD;
+END wrch;
+
+UNIT WRLIN:PROCEDURE (TXT:ARRAYOF INTEGER);
+VAR J:INTEGER;
+BEGIN WRITE(CO," ");
+IF ECHO THEN WRITE(LO," ") FI;
+I:=1;
+WHILE TXT(I)=/=eln DO
+    WRITE(CO,CHR(TXT(I)));
+    IF ECHO THEN WRITE(LO,CHR(TXT(I))) FI;
+    I:=I+1;
+OD;
+WRITELN(CO) ;IF ECHO THEN WRITELN(LO) FI;
+END wrlin;
+
+(*-----------------------------------------------------------*)
+(*		 T A K E				     *)
+(*							     *)
+(* GRUPA PROCEDUR UMAZLIWIAJACA ODCZYRANIE WARTOSCI OKRESLO- *)
+(* TYPU PRZY OKRESLONYM SPOSOBIE ADRESOWANIA.		     *)
+(* WYNIKI NA ZMINNYCH INTVAL,RELVAL,CHVAL,REFVAL ODPOWIEDNIO *)
+(* DO TYPU ( BOOL NA INTVAL 0 LUB -1 )			     *)
+(*-----------------------------------------------------------*)
+
+
+UNIT TAKEREF :PROCEDURE(OFFSET,TYP : INTEGER );
+
+(* ODCZYTUJE WARTSC O  DANYM OFFSECIE W OBIEKCIE WSKAZYWANYM PREZ REF *)
+(* relval/chaval/intval/refval - value from memory  *)
+(* refval,offset - address in the memory *)
+BEGIN
+IF REFVAL=NONE THEN RAISE DEBERROR(15) FI;
+CASE TYP
+
+WHEN RELT:
+    (* relval := value of the address (refval,offset) *)
+    call db01ox(1,refval,offset,glovirt,relval,intval);
+(*+ WRITELN(LO," TAKEREF RELVAL ",RELVAL)++*);
+
+WHEN BOOLT,INTT :
+     (* intval := value of the address (refval,offset) *)
+     call db01ox(2,refval,offset,glovirt,relval,intval );
+
+WHEN CHT:
+     (* chaval := value of the address (refval,offset ) *)
+     call db01ox(3,refval,offset,glovirt, relval, i);
+     chaval := chr(i);
+(*+ WRITELN(LO," TAKEREF CHAVAL ",CHAVAL)++*);
+
+ WHEN STRT : WRITELN(CO,t15);
+
+OTHERWISE
+    (* refval := value of the address (refval,offset) *)
+    call db01ox(4,refval,offset,glovirt,relval, intval);
+(*+ WRITELN(LO," TAKEREF REFVAL ")++*)
+ESAC
+END takeref;
+
+(*-------------------------------------------------------------*)
+UNIT TAKEARR :PROCEDURE(IND,TYP : INTEGER );
+(* TO CO TAKEREF ALE DLA TABLIC *)
+(* refval/intval/relval/chaval := value of an array element   *)
+(*  ind - real offset in an array object, refval - address of the array *)
+VAR AP,I :INTEGER;
+BEGIN
+IF REFVAL=NONE THEN RAISE DEBERROR(15) FI;
+CASE TYP
+  WHEN RELT : IND:=IND*2;I:=2;
+  WHEN INTT,BOOLT,CHT,STRT :I:=1;
+  OTHERWISE IND:=IND*2;I:=2;
+ESAC;
+(* ind - offset, i - appetite of an array element *)
+(* ap := appetite of the array object, intval := lower*element appetite -3 *)
+    call db01ox(5,refval,intval,glovirt,relval, ap);
+INTVAL:=INTVAL+3; (* LOWER*APPETITE *)
+IF IND < INTVAL OR IND >AP-3+I-INTVAL THEN RAISE DEBERROR(33) FI;
+
+CASE TYP
+WHEN RELT:
+   (* relval := array element *)
+   call db01ox(6,refval,ind,glovirt,relval,intval);
+(*+ WRITELN(LO," TAKEARR IND RELVAL",IND,RELVAL)++*);
+
+WHEN INTT,BOOLT :
+    (* intval := array element *)
+    call db01ox(7,refval,ind,glovirt,relval,intval);
+(*+ WRITELN(LO,"TAKEARR IND, INTVAL ",IND,INTVAL )++*);
+
+WHEN CHT:
+    (* chaval := array element *)
+    call db01ox(8,refval,ind,glovirt,relval,i);
+    chaval := chr(i);
+(*+ WRITELN(LO," TAKEARR IND ,CHAVAL",IND,CHAVAL )++*);
+
+ WHEN STRT :WRITELN(CO,t15);
+
+OTHERWISE
+   (* refval := array element *)
+   call db01ox(9,refval,ind,glovirt,relval,intval);
+(*+ WRITELN(LO," TAKEARR REFVAL ")++*);
+ESAC;
+END (* TAKEARR *);
+
+
+(*-----------------------------------------------------------*)
+(*	 E N D	 P R O C E D U R    T A K E  ...	     *)
+(*-----------------------------------------------------------*)
+
+(*================   I N F ==================================*)
+
+UNIT INF:PROCEDURE;
+BEGIN
+   WRITE(CO,t10);IF ECHO THEN WRITE(LO,t10) FI;
+   i := idict(protnr);
+   unitcase := prot(i);
+   IF UNITCASE=BLCT (* BLOCK *) THEN WRITE(CO,t11);
+	       IF ECHO THEN WRITE(LO,t11) FI;
+   ELSE
+     IF UNITCASE=HANT THEN WRITE(CO, t12);
+	 IF ECHO THEN WRITE(LO,t12) FI
+     ELSE
+     CALL WRID(prot(I-1), 10);
+     FI
+   FI;
+   WRITE(CO,t13);IF ECHO THEN WRITE(LO,t13) FI;
+   I:=I+2;
+   WRITELN(CO,prot(I));IF ECHO THEN WRITELN(LO,prot(I)) FI;
+END inf;
+
+(*===========================================================*)
+
+(* ----------------------------------------------------------*)
+(*							     *)
+(*		       F I N D L I N			     *)
+(*  reads line number, label or dot			     *)
+(*  returns index (in breakt) of the line identified by the  *)
+(*	       given symbol				     *)
+(*-----------------------------------------------------------*)
+
+   unit findlin:function:integer;
+    var i:integer;
+   begin
+     if s=sdot then result:=cind
+     else
+       if s=sident then
+       for i:=1 to lastbr do
+	 if breakt(i)=/=0 andif breaktl(i)=/=none andif
+	    breaktl(i).mark = adres then result := i;
+					 exit;
+	 fi;
+       od
+       else
+	 if s=/=sconst or k=/=kint then raise deberror(1) fi;
+	 (* searching for the index in breakt *)
+	 for i:=1 to lastbr do
+	    if breakt(i) = adres then exit fi;
+	 od;
+	 if  i<=lastbr andif breakt(i) = adres then result := i fi;
+       fi
+    fi;
+    if result=0 then raise deberror(18) fi;
+    (*+  writeln(lo,"  findlin :", result); ++*)
+  end findlin;
+
+(*-----------------------------------------------------------*)
+(*							     *)
+(*	       D    E	  L	       (DELETE )	     *)
+(*							     *)
+(*  PROCEDURA USUWA PUNKT PRZERYWAJACY OKRESLAONY PRZEZ      *)
+(*  ETYKIETE LUB NUMER LINII				     *)
+(*-----------------------------------------------------------*)
+
+UNIT DEL : PROCEDURE;
+VAR I:INTEGER;
+BEGIN
+  CALL SCAN;
+  i := findlin;
+  if i=cind then raise deberror(39) fi;
+  if breaktl(i) =/= none then call killb(breaktl(i)) fi;
+  breakt(i) := breakt(lastbr);
+  if cind = lastbr then cind := i fi;
+  breaktl(i) := breaktl(lastbr);
+  lastbr := lastbr-1;
+END (* DEL *)
+
+(*-------------------------------------------------------------*)
+(*							       *)
+(*		B   R	E	 (BREAK)		       *)
+(*							       *)
+(* DEKLARACJA PUNKTU PRZERYWAJECEGO. PUNKT TEM MOZE BYC        *)
+(* OZNACZONY ETYKIETA. MOZE BYC TO WARUNKOWY PUNKT PRZERYWAJACY*)
+(*-------------------------------------------------------------*)
+
+UNIT BRE : PROCEDURE;
+VAR I:INTEGER;
+BEGIN
+  CALL SCAN;  (* CZYTAMY NR LINII  *)
+  IF S =/= SCONST or K<>kint THEN RAISE DEBERROR(1) FI;
+  FOR  I:=1 TO lastbr DO IF BREAKT(I)=ADRES THEN RAISE DEBERROR(17) FI OD;
+  IF lastbr = maxbr THEN RAISE DEBERROR(16) fi;
+   (* NO SPACE IN BREAK POINTS TABLE *) 
+  lastbr := lastbr+1;
+  BREAKT(lastbr):=ADRES;
+  BREAKTL(lastbr):=NEW BR;
+  if adres = linenr then cind := lastbr fi;
+  CALL SCAN;   (* CZY JEST TO WARUNKOWY PUNKT ? *)
+  IF S=SWHEN THEN CALL INTEX(BREAKTL(lastbr).CONDTXT);  (* TAK-ZAPAMIETUJEMY *)
+						  (* TEKST Z WARUNKIEM *)
+	   (* PRZESKAKUJEMY TEKST WARUNKU *)
+	   WHILE S=/=SEMICOL AND NOT(S=sident AND ADRES=AWITH) DO CALL SCAN OD
+  FI;
+  IF S=sident AND ADRES = AWITH THEN CALL SCAN;  (* BEDZIE ETYKIETA *)
+       IF S=/=sident THEN RAISE DEBERROR(1) (*IDENTIFIER EXPECTED *) FI;
+       BREAKTL(lastbr).MARK:=ADRES;
+       call scan;
+  FI;
+END (* BRE *);
+
+(*--------------------------------------------------------------------*)
+(*								      *)
+(*			     M A R K				      *)
+(*								      *)
+(*--------------------------------------------------------------------*)
+
+   unit mark:procedure;
+    (* marks the given break point *)
+   begin
+     call scan;
+     i := findlin;
+     call scan;
+     if s=/= sident then raise deberror(1) fi;
+     if breaktl(i)=none then breaktl(i):=new br fi;
+     breaktl(i).mark:=adres;
+   end mark;
+
+(*--------------------------------------------------------------------*)
+(*								      *)
+(*			     G O O				      *)
+(*								      *)
+(*   return to user program execution				      *)
+(*    -  without parameters - standard execution		      *)
+(*    -  * - execution with trace, without breaks		      *)
+(*    -  line number - execution with traceand without breaks	      *)
+(*		       up to the given line, then standard execution  *)
+(*    -  + - execution without trace and without breaks 	      *)
+(*    -  -  - abort						      *)
+(*--------------------------------------------------------------------*)
+
+  unit goo:procedure;
+    var pom:movel;
+    begin
+       stp := true; (* stop ! *)
+       call scan;
+       if s=sconst and k=3 then
+	 ggo:=1; linenr2:=adres
+       else
+	  if s=sast then
+	  case adres
+	    when adast:  ggo:=2 (* * *);
+	    when adadd:  ggo:=3 (* + *);
+	    when admin:  ggo:=4 (* - *);
+	    otherwise  raise deberror(34)
+	  esac
+	  else
+	    if s=/= semicol then raise deberror(10) fi
+	  fi
+	fi;
+       (* deallocation *)
+	pom := mov.next;
+	while pom=/=none do
+	   kill(mov); mov:=pom; pom:=pom.next
+	od;
+	kill (mov)
+    end goo;
+
+(*--------------------------------------------------------------------*)
+(*								      *)
+(*			R E P O R T				      *)
+(*								      *)
+(*--------------------------------------------------------------------*)
+UNIT REPORT : PROCEDURE;
+VAR POM:INSTR,
+     P2:DEC,
+    M,I,K1:INTEGER;
+BEGIN
+CALL SCAN;
+IF S=SBREAK THEN (* REPORT BREAK *)
+   CALL SCAN;
+   IF S=SAST THEN (* REPORT BREAK *  *)
+       writeln(co);
+       WRITELN(CO,"         LIST OF BREAK POINTS");
+       WRITELN(CO,"   LINE NR /        MARKER          / INSTR. LIST ");
+       FOR I:=1 TO lastbr DO
+	  IF BREAKT(I)=/=0 THEN
+	     WRITELN(CO," ");WRITE(CO,BREAKT(I):8); write(co, "    ");
+	     IF BREAKTL(I)=/=NONE THEN
+		IF BREAKTL(I).MARK=/=0 THEN
+			 WRITE(CO,"        ");
+			 CALL WRID(BREAKTL(I).MARK, 17)
+		ELSE WRITE(CO,"                         ") FI;
+		IF BREAKTL(I).INS=/=NONE THEN WRITE(CO,"    YES")
+		ELSE WRITE(CO,"    NO") FI
+	     ELSE WRITE(CO,"                             NO") FI
+	 FI
+       OD;
+       WRITELN(CO," ");
+       WRITELN(CO, " ");
+   ELSE (* REPORT BREAK - IDENTYFIKATOR , NR LINII  lub kropka *)
+       i := findlin;
+       if i=0 then raise deberror(18) fi; (* break point doesn't exist *)
+       if breaktl(i)=/=none then m:=breaktl(i).mark fi;
+       writeln(co);
+       write(co," BREAK POINT - LINE :", breakt(i));
+       if m=/=0 then write(co,"    MARKER :"); call wrid(m, 10) fi;
+       writeln(co);
+       if breaktl(i) =/= none then
+	 pom := breaktl(i).ins;
+	 while pom=/=none do
+	    call wrlin(pom.txt);
+	    pom := pom.next;
+	 od;
+       fi;
+       writeln(co)
+    fi;
+    call scan
+ ELSE (* OCZEKUJEMY REPORT DECLARE *)
+IF ADRES=ADECLARE THEN
+    CALL SCAN;P2 := DECL;
+  IF S =/= sident THEN
+      IF S = SAST THEN (* LISTA WSZYSTKICH BANKOW INSTRUKCJI *)
+	WRITELN(CO,"       LIST OF DELCARED BANKS :");
+	WHILE P2 =/= NONE DO
+	  WRITE(CO," ");CALL  WRID(P2.ID, 10);WRITELN(CO);
+	  P2 := P2.NEXT;
+	OD;
+	WRITELN(CO)
+    ELSE RAISE DEBERROR(1)
+    FI
+  ELSE (* LISTA INSTRUKCJI BANKU O PODANUM IDENTYFIKATORZE *)
+    WHILE P2=/=NONE DO
+      IF P2.ID = ADRES THEN EXIT FI;P2:=P2.NEXT;
+    OD;
+    IF P2=NONE THEN RAISE DEBERROR(13)
+    ELSE
+     POM := P2.INS;
+     WHILE POM =/= NONE DO
+	CALL WRLIN(POM.TXT);
+	POM := POM.NEXT
+     OD;
+     WRITELN(CO);
+    FI
+  FI;
+  call scan
+else
+  if s=semicol then (* report; *)
+     writeln(co,t9,linenr);write(co,t29);
+     if echo then writeln(lo,t9,linenr); write(lo,t29) fi;
+     call inf;
+   ELSE RAISE DEBERROR(14) FI
+FI
+fi;
+END report;
+
+(*----------------------------------------------------------*)
+(*							    *)
+(*		     S T O R E				    *)
+(*							    *)
+(* ZWIAZANIE  listy INSTRUKCJI Z podanym PUNKTEM	    *)
+(*	     przerywajacym				    *)
+(*----------------------------------------------------------*)
+
+UNIT STORE :PROCEDURE;
+VAR POM,POM1:INSTR,
+	lin : integer;
+BEGIN
+CALL SCAN;
+lin := findlin;
+call scan;
+if s =/= semicol then raise deberror(10) fi;
+if breaktl(lin)=none then breaktl(lin) := new br fi;
+pom,pom1 := breaktl(lin).ins;
+while pom=/=none do pom1:=pom; pom:=pom.next od;
+do
+   call newlin;
+   call scan;
+   if s = send then exit fi;
+   pom := new instr;
+   call intex(pom.txt);
+   if s=sident then pom.mark:=adres fi;
+   if pom1=none then breaktl(lin).ins:=pom
+     else pom1.next:=pom fi;
+   pom1 := pom
+ od
+end store;
+
+(*----------------------------------------------------------*)
+(*							    *)
+(*		      R E M O V E			    *)
+(*							    *)
+(* USUNIECIE INSTRUKCJI ZWIAZANEJ Z AKTUALNYM PUNKTEM	    *)
+(* PRZERYWAJECYM. (PODAJE SIE ETYKIETE USUWANEJ INSTRUKCJI) *)
+(*----------------------------------------------------------*)
+
+UNIT REMOVE :PROCEDURE;
+VAR POM,POM1:INSTR;
+var ok:boolean;
+BEGIN
+  CALL SCAN;
+  i := findlin;
+  call scan;
+  if i=0 then raise deberror(18) fi;
+ (* ODCZYTALISMY ETYKIETE ,SZUKAMY INSTRUKCJI DO USUNECIA *)
+  IF BREAKTL(i)=NONE THEN POM:=NONE
+    ELSE POM:=BREAKTL(i).INS
+  FI;
+  pom1 := pom;
+  WHILE POM =/= NONE DO
+     (*+ writeln(lo," marker :", pom.mark); ++*)
+     IF POM.MARK = ADRES THEN (* ZNALEZLISMY, KOPIUJEMY *)
+	ok := true;
+	if pom.next=/= none then
+	   if pom = pom1 then
+	    (* element jest na poczatku listy *)
+	    breaktl(i).ins:=pom.next
+	  else
+	    pom1.next:=pom.next
+	  fi;
+	  pom.next := none;
+	fi;
+	CALL KILLI (POM)
+     ELSE POM1:=POM;POM:=POM.NEXT
+     FI
+  OD;
+  if not ok then raise deberror(38) fi;
+END;
+
+(*---------------------------------------------------*)
+(*						     *)
+(*	    D E C L A R E			     *)
+(*						     *)
+(* DEKLARACJA BANKU INSTRUKCJI			     *)
+(*---------------------------------------------------*)
+
+UNIT DECLARE :PROCEDURE;
+VAR POM : DEC,
+    P1,P2 : INSTR;
+BEGIN
+   CALL SCAN;
+   IF S =/= sident THEN RAISE DEBERROR(1) FI;
+   (* PRZECZYTALISMY IDENTYFIKATOR PRZYSZLEGO BANKU *)
+   POM := NEW DEC;
+   POM.ID := ADRES;
+   POM.NEXT:=DECL;
+   (* DOLACZYLISMY INFORMACJE O  NOWYM BANKU DO LISTY BANKOW *)
+   DECL := POM; CALL NEWLIN;CALL SCAN;
+   WHILE S =/= SEND DO
+     (* KOPIUJEMY INSTRUKCJE *)
+     P1 := NEW INSTR;
+     CALL INTEX(P1.TXT);
+     CALL NEWLIN;
+     IF P2 = NONE THEN POM.INS := P1
+     ELSE P2.NEXT := P1  FI;
+     p2 := p1;
+     CALL SCAN
+   OD
+END declare;
+
+(*----------------------------------------------*)
+(*						*)
+(*	     C A L				*)
+(*						*)
+(* WYKONANIE INSTRUKCJI Z BANKU INSTRUKCJI	*)
+(*----------------------------------------------*)
+
+UNIT CAL : PROCEDURE;
+VAR POM : DEC,
+     MC : INTEGER,
+    P2 :INSTR;
+BEGIN
+   MC := MA;
+   CALL INTEX(ctxt);
+   (* PRZECHOWANIE BUFORA SCANERA *)
+   CALL SCAN ;IF S =/= sident THEN RAISE DEBERROR(1) FI;
+   POM := DECL;
+   WHILE POM =/= NONE DO
+     IF POM.ID = ADRES THEN EXIT FI;
+     POM := POM.NEXT;
+   OD;
+   IF POM = NONE THEN RAISE DEBERROR(13)
+   ELSE
+     P2 := POM.INS;
+     WHILE P2 =/= NONE DO
+	CALL OUTEX(P2.TXT);
+	CALL WRLIN(P2.TXT);
+	CALL SCAN;
+	CALL INTLIN;
+	P2 := P2.NEXT
+     OD;
+   FI;
+   MA :=MC;
+   CALL NEWLIN;
+END cal;
+
+(*---------------------------------------------------------*)
+(*							   *)
+(*		A S S I G N				   *)
+(*							   *)
+(* INTERPRERACJA INSTRUKCJI PODSTAWIENIA		   *)
+(*---------------------------------------------------------*)
+
+UNIT ASSIG :PROCEDURE;
+BEGIN
+  CALL SCAN;
+  CALL FIND(FALSE);
+  (* ODCZYTANE WARTOSCI prawej STRONY PODSTAWIENIA *)
+  MODE1:=MODE; PROTDEB1:=PROTDEB; INTVAL1:= INTVAL;
+  (* ZAPAMIETANIE WAROTSCI WYNIKOW PROCEDURY FIND *)
+  REFVAL1:=REFVAL; RELVAL1:= RELVAL; CHAVAL1:= CHAVAL;
+ (*+ WRITELN(LO," ",MODE,PROTDEB,INTVAL,RELVAL); ++*)
+  IF  S=/= STO THEN RAISE DEBERROR(11) FI;
+  CALL SCAN;
+  CALL FIND(TRUE);
+  (* ODCZYTANIE PRAWEJ STRONY WYRAZENIA *)
+  (*+ WRITELN(LO," ",MODE,PROTDEB,INTVAL,RELVAL,OFFSET); ++*)
+  IF PROTDEB1=INTT AND PROTDEB=RELT THEN RELVAL1:=INTVAL1 FI;
+  IF PROTDEB1=RELT AND PROTDEB=INTT THEN INTVAL1:=RELVAL1 FI;
+  IF PROTDEB1*PROTDEB<0 THEN RAISE DEBERROR(19) FI;
+  IF PROTDEB=NONT THEN RAISE DEBERROR(15) FI;
+  IF PROTDEB1=NONT THEN PROTDEB1:=1 FI;
+  (*+WRITELN(LO," ",MODE,RELVAL1,INTVAL1);++*)
+  IF MODE1>3 THEN IF MODE<3 THEN RAISE DEBERROR(19) FI FI;
+  CALL OUTREF(REFFVAL);
+  CALL OUTREF(REFVAL);
+  CALL OUTREF(REFVAL1);
+
+CASE MODE
+(* PODSTAWIENIE WARTOSCI PRZEBIEGA ROZNIE W ZALEZNOSCI	*)
+(* OD SPOSOBU ADRESACJI I TYPU ZMIENNEJ 		*)
+ WHEN 1,2,5,6 : (* assign an object attribute *)
+      IF REFFVAL=NONE THEN RAISE DEBERROR(15) FI;
+      IF MODE1>3 OR PROTDEB>0 THEN
+       (* refval1 --> address (refval,offset) *)
+	 call db01ox(10,refval,offset,refval1,relval,intval);
+      ELSE
+
+      case protdeb
+       WHEN INTT,BOOLT:
+	  (* intval1 --> address(refval,offset) *)
+	  call db01ox(11,refval,offset,glovirt,relval,intval1);
+       WHEN CHT :
+	  (* chaval1 --> address (refval,offset) *)
+	  i := ord(chaval1);
+	  call db01ox(12,refval,offset,glovirt,relval,i);
+      WHEN RELT :
+	  (* relval1 --> address (refval,offset) *)
+	  call db01ox(13,refval,offset,glovirt,relval1,intval);
+      esac
+   FI;
+
+  WHEN 3,4: (* assign an array element *)
+     IF REFFVAL = NONE THEN RAISE DEBERROR(15) FI;
+     IF MODE1>3 OR PROTDEB>0 THEN
+       OFFSET:=OFFSET*2;
+	(* refval1 ---> array element of an address (refval,offset) *)
+	call db01ox(14,refval,offset,refval1,relval,intval);
+
+    ELSE CASE PROTDEB
+       WHEN INTT,BOOLT :
+	 (* intval1 --> array element *)
+	 call db01ox(15,refval,offset,glovirt,relval,intval1);
+       WHEN CHT :
+	  (* chaval1 --> array element *)
+	  i := ord(chaval1);
+	  call db01ox(16,refval,offset,glovirt,relval,i);
+     WHEN RELT :
+	  (* relval1 --> array element *)
+	  OFFSET:=OFFSET*3;
+	   call db01ox(17,refval,offset,glovirt,relval1,intval);
+     ESAC
+   FI
+ESAC
+END assig;
+
+(*========================================================*)
+(*							  *)
+(*		 O U T P	  ( OUTPUT )		  *)
+(*							  *)
+(* WYPISANIE WARTOSCI WYRAZENIA LUB JEGO TYPU		  *)
+(*========================================================*)
+
+UNIT OUTP : PROCEDURE;
+  var i,j:integer;
+BEGIN
+CALL SCAN;
+CALL FIND(FALSE);
+IF S=SAST AND ADRES=adast then
+(* WYPISANIE TYPU WYRAZENIA		*)
+   IF R=/=0 THEN
+       WRITE(CO,t16,R,t17);
+       IF ECHO THEN WRITE(LO,t16,R,t17) FI;
+       IF PROTDEB=FORT THEN WRITELN(CO,t18);
+	       IF ECHO THEN WRITELN(LO,t18) FI;RETURN
+       FI;
+   FI;
+IF PROTDEB=FORT or protdeb =cortt or protdeb = proctt THEN
+ IF REFVAL=NONE THEN WRITELN(CO,t19);
+		   IF ECHO THEN WRITELN(LO,t19) FI; RETURN FI;
+(* protdeb := dispnr of the object refval *)
+ call db01ox(18,refval,i,glovirt,gloreal,protdeb);
+FI;
+   IF PROTDEB<0 THEN
+   CASE -PROTDEB
+     WHEN 2:WRITE(CO,t20); IF ECHO THEN WRITE(LO,t20) FI;
+     WHEN 8:WRITE(CO,t21);IF ECHO THEN WRITE(LO,t21) FI;
+     WHEN 11:WRITE(CO,t22);IF ECHO THEN WRITE(LO,t22) FI;
+     WHEN 5:WRITE(CO,t23);IF ECHO THEN WRITE(LO,t23) FI;
+     WHEN 35:WRITE(CO,t24);IF ECHO THEN WRITE(LO,t24) FI;
+     OTHERWISE ;
+     ESAC;
+   ELSE
+     i := idict(protdeb);
+     WRITE(CO," "); IF ECHO THEN WRITE(LO," ") FI;
+     CALL WRID(prot(I-1), 10)
+  FI;
+  WRITELN(CO); IF ECHO THEN WRITELN(LO) FI;
+  call scan;
+ELSE
+(* WYPISANIE WARTOSCI WYRAZENIA 		 *)
+IF S=/=SEMICOL THEN RAISE DEBERROR(10) FI;
+IF MODE >= 4 THEN RAISE DEBERROR(20) FI;
+IF PROTDEB=INTT THEN WRITELN(CO," ",INTVAL);
+		 IF ECHO THEN WRITELN(LO," ",INTVAL) FI;
+ELSE
+IF PROTDEB=RELT THEN WRITELN (CO," ",RELVAL);
+		IF ECHO THEN WRITELN(LO," ",RELVAL) FI
+ELSE
+IF PROTDEB=CHT THEN WRITELN(CO," ",CHAVAL);
+	       IF ECHO THEN WRITE(LO," ",CHAVAL) FI
+ELSE
+IF PROTDEB=BOOLT THEN IF INTVAL = -1 THEN WRITELN(CO,t25);
+			 IF ECHO THEN WRITELN(LO,t25) FI;
+		  ELSE WRITELN(CO,t26);
+		       IF ECHO THEN WRITELN(LO,t26) FI
+		  FI
+ELSE
+  call db01ox(30,refval,i,glovirt,gloreal,j);
+  writeln(co, " virtual address  ",i,j);
+  if echo then writeln(lo," virtual address ",i,j) fi;
+FI FI FI FI
+FI
+END;
+
+(*-----------------------------------------------*)
+(*						 *)
+(*	    M O V E				 *)
+(*						 *)
+(* ZMIANA PUNKTU OBSERWACJI			 *)
+(*-----------------------------------------------*)
+
+UNIT MOVE :PROCEDURE;
+VAR M:MOVEL, C:ARRAYOF INTEGER;
+
+BEGIN
+CALL SCAN;C:=MOV.COR;
+i := idict(protnr);
+(*+ CALL OUTREF(MOV.ADR); CALL OUTREF(C); ++*)
+IF S=SAST AND ADRES=adast  THEN
+   (* IDZIEMY PO PREFIKSIE *)
+   IF PROTNR<0 THEN RAISE DEBERROR(31) FI;
+   CALL SCAN;IF S=/=SART OR ADRES=/=adgt THEN RAISE DEBERROR (28) FI;
+   I:=I+4;   (* ADRES numeru PROTOTYPU PREFIKSU *)
+   PROTDEB:=prot(I);
+   (* protdeb - adres prototypu prefiksu *)
+   (* ODCZYTANIE PROTOTYPU DEBUGGERA PREFIKSU *)
+   IF PROTDEB=0 (* NIE MA PREFIKSU *) THEN RAISE DEBERROR(31) FI;
+   M:=NEW MOVEL(MA,PROTDEB,MOV.ADR,MOV.COR);
+   M.NEXT:=MOV ; MOV:=M; PROTNR:=PROTDEB; CALL INF;
+   call scan; (* przeczytanie ';' *)
+  RETURN
+FI;
+if s=/= 1 then (* poruSZAMY SIE PO SL LUB DL LUB CL *)
+      IF UNITCASE=RECT THEN RAISE DEBERROR(35) FI;
+      IF S=SART AND ADRES=adeq THEN (* = *)  (* SL  *)
+      IF PROTNR=0 THEN RAISE DEBERROR(30) FI; (* main block *)
+      CALL SCAN;
+      IF S=/=SART OR ADRES=/=7 THEN RAISE DEBERROR(28) FI;
+      I:=I+1; PROTDEB:=prot(I);(* SL *)
+      (* ODCZYTANIE  ADRESU OBIEKTU WSKAZYWANEGO PRZEZ SL *)
+      (* refval := address of the SL of mov.adr *)
+      call db01ox(19,mov.adr,offset,refval,relval,intval);
+       C:=FINDCR(REFVAL);
+       call scan; (* wczytanie ';' *)
+   ELSE
+   IF S=SAST AND ADRES= admin THEN (* - *)   (*  DL *)
+      IF PROTNR=0 THEN RAISE DEBERROR(30) FI; (* main block *)
+      IF UNITCASE=CORT (* COROUTINE *) THEN RAISE DEBERROR(32) FI;
+      CALL SCAN;
+      IF S=/=SART OR ADRES=/=adgt THEN RAISE DEBERROR(28) FI;
+      (* ODCZYTENIE OBIEKTU WSKAZYWNEGO PRZEZ DL *)
+      (* refval := address of the DL of the object mov.adr *)
+      call db01ox(20,mov.adr,offset,refval,relval,intval);
+      IF MOV.ADR=REFVAL THEN RAISE DEBERROR(36) FI;
+      call scan; (* wczytanie srednika *)
+       (* MOVE DL W IBIEKCIE STERMINOWANYM *)
+     ELSE   (*	 CL  *)
+	IF S=/=SART OR ADRES =/= adgt THEN RAISE DEBERROR(28) FI;
+	CALL SCAN;
+	IF S =/= SART OR ADRES =/= adgt THEN RAISE DEBERROR(28) FI;
+	(* ODCZYTUJEMY CL *)
+	IF MOV.COR=NONE THEN RAISE DEBERROR(37) FI;
+	(*  JESTESMY W OBIEKCIE NALEZACYM DO LANCUCHA COROUTINY *)
+	(* refval := address of the CL of the object mov.cor *)
+	call db01ox(21,mov.cor,offset,refval,relval,intval);
+	 C:=REFVAL;
+	IF REFVAL=NONE THEN RAISE DEBERROR(15) FI;
+	IF CCOR=REFVAL THEN (* WRACAMY DO AKTYWNEJ COROUTINY *)
+	   REFVAL:=CADR;
+	ELSE  (* ODCZYTUJEMY ADRES OBJEKTU WSKAZYWANEGO PRZEZ DL GLOWY *)
+	   (* refval := address of DL of the object C *)
+	   call db01ox(22,c,offset,refval,relval,intval);
+       FI;
+       call scan; (* wczytanie srednika *)
+  FI;
+  (*+ CALL OUTREF(REFVAL); ++*)
+   IF REFVAL=NONE THEN RAISE DEBERROR(15) FI;
+   (* ODCZYTUJEMY DISPNR NOWEGO PUNKTU OBSERWACJI *)
+   (* protdeb := dispnr of the object refval *)
+   call db01ox(23,refval,offset,glovirt,relval,protdeb);
+   (*+ WRITELN(LO," PR=",PROTDEB)++*);
+FI
+ELSE
+(* MOVE DO OBIEKTU OKRESLONEGO PRZEZ WYRAZENIE *)
+(*+ WRITELN(LO," MOVE DO OBIEKTU"); ++*)
+CALL FIND(TRUE);
+if refval=none then raise deberror(15) fi;
+IF PROTDEB<0 THEN RAISE DEBERROR(21) FI;
+i := idict(protdeb); UNITCASE:=prot(I);
+IF UNITCASE=/=RECT THEN C:=FINDCR(REFVAL) ELSE C:=NONE FI;
+FI;
+PROTNR:=PROTDEB;
+(* UAKTUALNIENIE LISTY BREAKL *)
+M:=NEW MOVEL(MA,PROTDEB,REFVAL,C); M.NEXT:=MOV; MOV:=M;
+(*+ WRITELN(LO," NOWY PUNKT OBSERWACJI"); ++*)
+(*+ CALL OUTREF(REFVAL); ++*)
+OBSADR:=REFVAL; (* adres obiektu bedacego punktem obserwacji *)
+CALL INF;
+END move;
+
+
+(*--------------------------------------------------*)
+(*						    *)
+(*	       R E T	 (RETURN)		    *)
+(*						    *)
+(* POWROT DO POPRZEDNIEGO PUNKTU OBSERWACJI	    *)
+(*--------------------------------------------------*)
+
+UNIT RET :PROCEDURE;
+VAR P1,POM :MOVEL;
+BEGIN
+CALL SCAN;
+(*+ CALL OUTREF(MOV.ADR); ++*)
+POM:= MOV;
+IF S=SAST and adres = adast THEN (* KASUJ WSZYSTKIE ZMIANY *)
+	  WHILE POM.NEXT=/=NONE DO MOV:=MOV.NEXT; KILL(POM); POM:=MOV OD;
+	  call scan
+ELSE IF S=SEMICOL THEN (* COFAMY SIE JEDEN KROK *)
+	  IF MOV.NEXT=NONE THEN RAISE DEBERROR(22) FI;
+	  MOV:=MOV.NEXT; KILL (POM)
+     ELSE (* COFAMY SIE DO PUNKTU OBSERWACJI, KTORY OBOWIAZYWAL *)
+	  (* PRZED INSTRUKCJA MOVE O ETYKIECI = ADRES		*)
+     IF S=/=sident THEN RAISE DEBERROR(1) FI;
+	WHILE POM=/=NONE DO
+	   IF POM.MARK=ADRES THEN EXIT FI;
+	   POM:=POM.NEXT;
+	OD;
+	IF POM=NONE THEN RAISE DEBERROR(22) FI;
+	P1:=MOV;
+	WHILE MOV=/=POM DO MOV:=MOV.NEXT; KILL(P1); P1:=MOV OD;
+	MOV:=MOV.NEXT; KILL (P1);
+	call scan;
+     FI
+FI;
+(* AKTUALIZUJEMY PUNKT OBSERWACJI  *)
+OBSADR:=MOV.ADR;
+PROTNR:=MOV.PROT;
+i := idict(protnr); unitcase := prot(i);
+CALL INF;
+END;
+
+(*--------------------------------------------------------------------*)
+(*								      *)
+(*			     F I N D				      *)
+(*								      *)
+(*--------------------------------------------------------------------*)
+(* PROCEDURA ODCZYTUJE WARTOSC ZMIENNEJ A DLA LEXPR ROWNIEZ JEJ ADRES *)
+(* WYNIKI ZWRACA NA ZMIENNYCH GLOBALNYCH protdeb,DISPNR,OFFSET,R      *)
+(* (LICZBA ARRAY OF ) I MODE - SPOSOB ADRESOWANIA		      *)
+(* WARTOSCI LICZBOWE NA INTVAL ,REFVAL ,CHAVAL,RELVAL W ZALEZNOSCI    *)
+(* OD TYPU WARTOSCI						      *)
+(*--------------------------------------------------------------------*)
+
+UNIT FIND : PROCEDURE (LEXPR :BOOLEAN);
+
+(*  mode = 0  - nie zmienna (stala)		       *)
+(*	   1 - zmienna czytana jako offset w obiekcie  *)
+(*	   2 -	   j.w. 			       *)
+(*	   3 - zmienna czytana jako element tablicy    *)
+(*	   4 - tablica czytana jako element tablicy    *)
+(*	   5 - tablica czytana jako element w obiekcie *)
+(*	   6 - tablica czytana jako offset w obiekcie  *)
+
+
+UNIT SZUKATR:PROCEDURE(ADRES:INTEGER;INOUT ADRPROT:INTEGER;
+			OUTPUT OFFSET,R:INTEGER;OUTPUT TAK:BOOLEAN);
+
+(*  SZUKA W PROTOTYPIE O ADRESIE ADRPROT ZMIENNEJ O ADRESIE		    *)
+(*  W TABLICY HASH ROWNYM ADRes 					    *)
+(* WYNIK: OFFSET-OFFSET ZMIENNEJ,R-LICZBA ARRAYOF TYPU ZMIENNEJ,TAK-WSKAZUJE*)
+(*     CZY ZNALEZIONO ZMIENNA,ADRPROT- JEST TYPEM ZMIENNEJ*)
+
+VAR L,ADR,PROTDEB:INTEGER;
+
+BEGIN
+(*+WRITELN(LO," SZUATR ADRES=",ADRES,"ADRPROT = ",ADRPROT)++*);
+OFFSET:=(ADRES-1)/2;(*+WRITELN(LO," L1",OFFSET)++*);
+OFFSET:=OFFSET MOD 8;
+(*+  WRITELN(LO," L2",OFFSET)++*);
+OFFSET:=OFFSET+5;
+L:=ADRPROT+OFFSET;
+(*+ WRITELN(LO," L3",L)++*);
+ADR:=prot(L);
+(*+  WRITELN(LO," ADR",ADR)++*);
+ (* ADR-POCZATEK LISTY HASHU*)
+DO
+   r := prot(adr);
+  (* r - kolejny element listy *)
+   IF R = -100 THEN EXIT FI;
+   IF ADRES = R THEN  (*TO JEST NASZA ZMIENNA*)
+	 ADR:=ADR+2;
+	 adrprot := -prot(adr);
+	 if adrprot <= 15 then (* to nie jest zmienna *)
+	     raise deberror(29) fi;
+	 (* zmienna lub stala *)
+	 EXIT
+   ELSE ADR:=ADR+3
+   FI
+OD;
+IF R =/= -100 THEN (* ZNALEZLISMY PROTOTYP ZMIENNEJ*)
+     TAK:=TRUE;
+    IF prot(ADRPROT)=VART THEN (*JEST TO ZMIENNA LUB PARAMETR*)
+	       ADR:=ADRPROT+1;
+	       R:= prot(ADR); (* R:= LICZBA ARRAY OF *)
+	       ADR:=ADR +1;
+	       ADRPROT:=prot(ADR);
+	       ADR:=ADR+1;
+	       OFFSET:=prot(ADR);
+    ELSE  (*CASE=/=5*)	 RAISE DEBERROR(29) FI;
+ELSE (* NIE ZNALEZLISMY ZMIENNEJ*)
+TAK:=FALSE
+FI;
+END SZUKATR;
+
+UNIT SEP :FUNCTION:BOOLEAN;
+(* SPREWDZA CZY PRZECZYTANY PRZEZ SCANER SYMBOL JEST SEPERATOREM *)
+(*  DLA WYRAZENIA						 *)
+BEGIN RESULT:= S=SEMICOL OR S=STO OR S=SRPAR OR S=SLPAR OR S=SCOM
+	   OR S=SART	OR S=SAST AND ADRES=adast OR S=SOR  OR S=SAND  OR S=SNOT
+	   OR S=SWHEN OR (S=1 AND ADRES=AWITH)
+    OR PROTDEB<0 AND PROTDEB =/=FORT and protdeb <> cortt and protdeb <> proctt
+END sep;
+
+VAR ADRPROT,A,LINDEKSOW : INTEGER,
+    BOL,SL,POKROPCE:BOOLEAN,
+    CURADR : ARRAYOF INTEGER,
+    MIN : INTEGER;
+
+BEGIN (* of find *)
+MIN:=1;
+(* ZAKLADAMY ,ZE JEST PRZECZYTANY SYMBOL *)
+(*PROTNR-NR PROTOTYPU DEBUGGERA AKTUALNEGO OBIEKTU*)
+IF S=/=sident THEN  MODE:=0;
+   IF  LEXPR THEN RAISE DEBERROR(1) FI;
+   IF S=SNONE THEN PROTDEB:=NONT;CALL SCAN;REFVAL:=NONE ;RETURN FI;
+   IF S=SBOL THEN PROTDEB:=BOOLT;
+		 IF ADRES=1 THEN INTVAL:=0 ELSE INTVAL:=-1 FI;
+		 CALL SCAN; RETURN FI;
+   IF S=SAST AND ADRES=admin THEN(* MINUS*) MIN:=-1;CALL SCAN FI;
+   IF S=/=SCONST THEN RAISE DEBERROR(1) FI;
+   CASE K
+    WHEN kint : PROTDEB:=INTT;INTVAL:=ADRES*MIN;
+    WHEN 4,5 :RAISE DEBERROR(23);
+    WHEN kch : PROTDEB:=CHT;
+	       chaval := chr(adres);
+   ESAC;
+   CALL SCAN;
+   RETURN;
+FI;
+A,PROTDEB:=PROTNR;
+CURADR:=OBSADR;
+DO
+(*+WRITELN(LO," OUTP IN DO ")++*);
+adrprot := idict(protdeb);
+IF SL THEN A:=PROTDEB FI; (*A JEST PROTOTYPEM ZMIENIAJACYM SIE TYLKO DLA
+			    MODULOW PO SL*)
+SL:=FALSE;
+I:=ADRPROT+3; DISPNR:=prot(I);
+(*+WRITELN(LO," DISPNR = ",DISPNR," ADRPROT = ",ADRPROT)++*);
+(* ODCZYTANIE NR DISPLAYA Z PROTOTYPU AKT OBIEKTU*)
+CALL SZUKATR(ADRES, ADRPROT, OFFSET,  R, BOL);
+   (*PO WYWOLANIU ADRPROT JEST NR TYPU PIERWOTNEGO LUB NR PROTOTYPU *)
+   (*O ILE ZNALEZIONO ZMIENNA *)
+   (* W P.P. ADRPROT SIE NIE ZMIENIA*)
+IF BOL THEN (*ZNALEZLISMY ZMIENNA*)
+   POKROPCE:=FALSE;
+   DO  (*PETLA DO WYPISANIA ZMIENNEJ a wlasciwie do rozpoznania wyr. do konca*)
+   LINDEKSOW:=0;
+   PROTDEB:=ADRPROT;
+   IF R=0 AND NOT POKROPCE THEN (*JEST TO ZMIENNA NIEABLICOWA BEZ KROPKI*)
+	      (*+WRITELN(LO," ***LICZYMY WARTOSC PIERWSZEGO IDENT")++*);
+	      REFFVAL,REFVAL:=CURADR;
+	      CALL TAKEREF(OFFSET,ADRPROT);
+              PROTDEB:=ADRPROT;
+	      MODE:=1;CALL SCAN;
+   FI;
+  IF R=0 AND POKROPCE THEN (*REFVAL JEST ADRESEM OBIEKTU PRZED KROPKA*)
+	    (*+WRITELN(LO," ***LICZYMY WARTOSC IDENT PO KROPCE")++*);
+	    REFFVAL:=REFVAL;
+	    CALL TAKEREF(OFFSET,ADRPROT);PROTDEB:=ADRPROT;
+	    MODE:=2;
+	    CALL SCAN;
+   FI;
+  IF R=/=0 AND NOT POKROPCE AND LINDEKSOW=0 THEN (* PIERWSZY INDEKS *)
+	  (*+WRITELN(LO," ***LICZYMY WARTOSC ZMIENNEJ INDEKSOWANEJ")++*);
+	  REFFVAL,REFVAL:=CURADR;
+	  CALL TAKEREF(OFFSET,1);
+	  MODE:=5;
+	  CALL SCAN;
+	  IF S=/=SLPAR THEN EXIT EXIT
+	    ELSE
+	    CALL SCAN;	 (*CZYTA INDEKS,TO MUSI BYC STALA*)
+	    MIN:=1;
+	    IF S=SAST AND ADRES=admin THEN MIN:=-1;CALL SCAN FI;
+	    (*+  WRITELN(LO," ***CZYTA INDEKS")++*);
+	    IF S=SCONST AND K=3 THEN LINDEKSOW:=1;
+		(*+WRITELN(LO," ***LICZY WARTOSC TABLICY")++*);
+		REFFVAL:=REFVAL;
+		IF R=1 THEN CALL TAKEARR(ADRES*MIN,ADRPROT)
+		       ELSE CALL TAKEARR(ADRES*MIN,1) FI;
+		OFFSET:=ADRES;MODE:=4;
+		(*+ WRITELN(LO," ***WARTOSC ZMIENNEJ INDEKSOWANEJ") ++*);
+	    ELSE RAISE DEBERROR(1)   (*INDEKS NIE JEST STALA*)
+	    FI;
+	    CALL SCAN;	  (* OGRANICZNIKI LUB ")"*)
+	    IF S=/=SRPAR THEN (*S=/=")"*)
+			 IF S =/=SCOM THEN RAISE DEBERROR(5) FI;
+	    ELSE (*S=")" *)
+	       (*+WRITELN(LO," ***PRZECZYTALISMY PRAWY NAWIAS")++*);
+	       IF R=1 THEN MODE:=3 FI;
+	       CALL SCAN;
+	       IF SEP THEN R:=R-LINDEKSOW FI;
+	    FI
+     FI;   (*S=/=52 0R ADRES=/=3 *)
+FI;
+
+IF R>1 OR R=1 AND POKROPCE THEN
+DO    (*PETLA OBSLUGUJE ZMIENNE TABLICOWE PO KROPCE LUB O WIECEJ NIZ
+	JEDNYM INDEKSIE*)
+	 (*S- WARTOSC INDEKSU*)
+     CALL SCAN;
+     MIN:=1;
+     IF S=SAST AND ADRES=admin (*MINUS*) THEN MIN:=-1; CALL SCAN FI;
+     IF S=SCONST AND K=kint THEN LINDEKSOW := LINDEKSOW+1;
+	IF LINDEKSOW=R THEN
+	   REFFVAL:=REFVAL;CALL TAKEARR(ADRES,ADRPROT);
+	   MODE:=4;OFFSET:=ADRES;
+	ELSE
+	   REFFVAL:=REFVAL;
+	   CALL TAKEARR(ADRES, 1);	 (*ADRES=WARTOSC(S)*)
+	   MODE:=3;
+	   (* TYP DANY JAKO 1 OZNACZA TYP REFERENC.*)
+       FI;
+     ELSE RAISE DEBERROR(1) (*INDEKS NIE JEST STALA*)
+     FI;
+     CALL SCAN;       (*OGRANICZNIKI*)
+     IF S=SRPAR THEN IF R=LINDEKSOW THEN MODE:=3 FI;
+     CALL SCAN ; IF SEP THEN R:=R-LINDEKSOW;EXIT FI;
+     ELSE
+		 IF LINDEKSOW < R THEN
+		   IF S =/= SCOM THEN RAISE DEBERROR(5) FI
+		 ELSE RAISE DEBERROR(6);  (*ZA DLUGIE WYRAZENIE INDEKSOWE *)
+		 FI
+     FI;
+if lindeksow=r then exit fi;
+OD;
+FI;
+  if protdeb > 0 or protdeb = fort or protdeb = proctt or protdeb = cortt then
+    (* TRZEBA ZNALESC PROTOTYP TYPU AKTUALNEGO *)
+    IF REFVAL=NONE THEN RAISE DEBERROR(15) FI;
+    (* protdeb := protnumber of the actual type *)
+    call db01ox(24,refval,offset,glovirt,relval,protdeb);
+   (*+ WRITELN(LO," PROTDEB =",PROTDEB);++*)
+  fi;
+IF SEP THEN EXIT EXIT FI;
+IF S=SDOT THEN
+IF R=/=0 AND LINDEKSOW=/=R OR PROTDEB <0 THEN RAISE DEBERROR(24) FI;
+	 (*+ WRITELN(LO," ***CZYTAMY KROPKE") ++*);
+	 POKROPCE:=TRUE;
+	 CALL SCAN; (*CZYTA ZMIENNA PO KROPCE*)
+	 (*+ WRITELN (LO," ***CZYTAMY IDENT PO KROPCE")++*);
+	 adrprot := idict(protdeb);
+	 CALL SZUKATR(ADRES,ADRPROT,OFFSET,R,BOL);
+	 (*ZNAJDUJE ZMIENNA ZAPISANA W ADRES I BEDACA
+	   ATRYBUTEM PROTOTYPU ADRPROT*)
+	 IF NOT BOL THEN RAISE DEBERROR(7)  FI;
+	 IF R=/=0 THEN (* ATRYBUTEM JEST TABLICA *)
+	   CALL SCAN;
+	   IF S=/=SLPAR THEN
+	      IF S=/=SEMICOL and S=/=STO THEN RAISE DEBERROR(10) FI;
+	      MODE:=6;EXIT EXIT;
+	   FI;
+	REFFVAL:=REFVAL;
+	CALL TAKEREF(OFFSET,1);
+	MODE:=4;
+	FI;
+FI
+OD
+ELSE (*NIE ZNALEZLISMY ZMIENNEJ, TRZEBA ISC DO PREFIKSU*)
+   adrprot := idict(protdeb);
+   I:=ADRPROT+4; (* ADRPROT+4 =ADRES PROTOTYPU PREFIKSU *)
+   PROTDEB:=prot(I);
+   (*+WRITELN(LO," **** PROTDEB",PROTDEB)++*);
+   IF PROTDEB<=0 (*NIE MA PREFIKSU WIEC IDZIEMY PO SL*) THEN
+   IF A=0 THEN (* MODUL GLOWNY *) RAISE DEBERROR(9) FI;
+   SL:=TRUE;
+   (*+WRITELN(LO," A =",A)++*);
+   adrprot := idict(a);
+   I:=ADRPROT+1; (* BUFFP(I) = NUMER PROTUTYPU SL *)
+      IF UNITCASE=RECT THEN RAISE DEBERROR(9) FI;
+      (* SZUKAMY DALEJ TYLKO WTEDY, GDY NIE JEST TO REKORD *)
+      PROTDEB:=prot(I);
+      (* curadr := address of SL of the object curadr *)
+      glovirt := curadr;
+     call db01ox(25,glovirt,offset,curadr,relval,intval);
+   (*+WRITELN(LO," +++ PROTDEB",PROTDEB)++*);
+FI
+FI
+OD;
+END FIND;
+
+(* ------------------------------------------------------------------- *)
+
+UNIT FINDCR:FUNCTION( INPUT C1:ARRAYOF INTEGER):ARRAYOF INTEGER;
+(* SZUKA GLOWY COROUTINY DLA INSTANCJI O ADRESIE C1 *)
+VAR J:INTEGER;
+BEGIN
+  (*+WRITELN(LO," FINDCR");++*)
+DO
+  IF C1=NONE THEN EXIT	FI;;
+  (*+ CALL OUTREF(C1); ++*)
+  RESULT:=C1;
+  (*  i := dispnr of the object c1 *)
+  call db01ox(26,c1,offset,refval,relval,i);
+  (*+ WRITELN(LO," I=",I); ++*)
+  IF I=0 THEN EXIT FI;
+  J:=I;
+  DO (* SZUKAMY W CIAGU PREFIKSOWYM COROUTINY *)
+     j := idict(j);
+      (*+ WRITELN(LO," J=",J); ++*)
+      IF prot(J)=11 THEN EXIT EXIT FI;
+      J:=J+4; J:=prot(J);
+      (*+ WRITELN(LO," J=",J); ++*)
+      IF J<=0 THEN EXIT FI;
+  OD;
+  (* PORUSZAMY SIE PO DL *)
+  (* c1 := DL of the object c1 *)
+  glovirt := c1;
+  call db01ox(27,glovirt,offset,c1,relval,intval);
+  IF RESULT=C1 THEN RESULT:=NONE ; EXIT FI;
+  (* ZAPETLENIE DL WSKAZUJE NA OBIEKT STERMINOWANY *)
+OD;
+END;
+
+(*-------------------------------------------------------*)
+(*							 *)
+(*	       C O N D					 *)
+(*							 *)
+(* SPRAWDZENIE WARUNKU BOOLOWSKIEGO PRZY WARUNKOWYM	 *)
+(* PUNKCIE PRZERYWAJACYM				 *)
+(*-------------------------------------------------------*)
+UNIT COND :FUNCTION:BOOLEAN;
+VAR BL:BOOLEAN;
+BEGIN
+CALL SCAN;WHILE S=/=SWHEN DO CALL SCAN OD;
+(* ROZPOCZYNAMY INTERPRETACJE WARUNKU  *)
+RESULT:=TRUE;
+DO (* PETLA PO "AND" *)
+   CALL SCAN;
+   IF S = SNOT THEN CALL SCAN;RESULT:=NOT COND1 AND RESULT
+   ELSE IF S=/=SLPAR THEN RESULT:=COND1 AND RESULT
+	ELSE
+	   (* PETLA PO "OR" *)
+	  DO BL:=FALSE;CALL SCAN;
+	     IF S= SNOT THEN CALL SCAN;BL:=BL OR NOT COND1
+			ELSE BL:=BL OR COND1 FI;
+	     IF S=SRPAR THEN CALL SCAN; EXIT FI;
+	     IF S =/= SOR THEN RAISE DEBERROR(25) FI;
+	  OD;
+	RESULT:=RESULT AND BL;
+	FI
+     FI;
+     IF ADRES=AWITH OR S=SEMICOL THEN EXIT FI;
+     IF S =/= SAND THEN RAISE DEBERROR(26) FI;
+     IF NOT RESULT THEN EXIT FI;
+OD
+END cond;
+
+UNIT COND1 : FUNCTION:BOOLEAN;
+(* WARUNEK - WYRAZENIE *)
+VAR OPER :INTEGER;
+BEGIN
+CALL FIND(FALSE);
+(* ZAKLADAMY ,ZE JEST PRZECZYTANY SYMBOL *)
+(*+WRITELN(LO," ",PROTDEB,INTVAL,RELVAL,CHAVAL,MODE) ++*);
+IF S=/=SART THEN
+    IF PROTDEB=BOOLT THEN RESULT:=INTVAL=/=0
+    ELSE RAISE DEBERROR(8) FI
+ELSE OPER:=ADRES;PROTDEB1:=PROTDEB;MODE1:=MODE;REFVAL1:=REFVAL;
+     INTVAL1:=INTVAL;CHAVAL1:=CHAVAL;RELVAL1:=RELVAL;
+     CALL SCAN;
+     CALL FIND(FALSE);
+     (*+WRITELN(LO," ",PROTDEB,INTVAL,RELVAL,CHAVAL,MODE) ++*);
+     IF (PROTDEB=INTT OR PROTDEB=RELT) AND MODE<4 AND
+	(PROTDEB1=INTT OR PROTDEB1=RELT) AND MODE1<4 THEN
+	IF PROTDEB=INTT THEN RELVAL:=INTVAL FI;
+	IF PROTDEB1=INTT THEN RELVAL1:=INTVAL1 FI;
+	CASE OPER
+	  WHEN adeq :RESULT:=RELVAL1=RELVAL;
+	  WHEN adne :RESULT:=RELVAL1=/=RELVAL;
+	  WHEN adgt :RESULT:=RELVAL1>RELVAL ;
+	  WHEN adge :RESULT:=RELVAL1>=RELVAL ;
+	  WHEN adlt :RESULT:=RELVAL1<RELVAL;
+	  WHEN adle :RESULT:=RELVAL1<=RELVAL;
+       ESAC
+     ELSE
+       IF (PROTDEB=NONT OR PROTDEB>0 OR MODE>4) AND
+	  (PROTDEB1=NONT OR PROTDEB1>0 OR MODE1>4)
+	   OR	PROTDEB1=PROTDEB AND MODE1<4 AND MODE<4 THEN
+	 IF PROTDEB=BOOLT THEN
+	   CASE OPER
+	      WHEN adeq: RESULT:=INTVAL1=INTVAL;
+	      WHEN adne: RESULT:=INTVAL1=/=INTVAL;
+	      OTHERWISE RAISE DEBERROR(8)
+	    ESAC
+	  ELSE
+	    IF PROTDEB=CHT THEN
+	      CASE OPER
+		WHEN adeq:RESULT:=CHAVAL1=CHAVAL;
+		WHEN adne:RESULT:=CHAVAL1=/=CHAVAL;
+		OTHERWISE RAISE DEBERROR(8)
+	      ESAC
+		ELSE
+		  CASE OPER
+		    WHEN adeq:RESULT:=REFVAL1=REFVAL;
+		    WHEN adne:RESULT:=REFVAL1=/=REFVAL;
+		    OTHERWISE RAISE DEBERROR(8)
+		  ESAC
+		 FI
+	      FI
+      ELSE RAISE DEBERROR(8) FI
+   FI
+FI
+END COND1;
+
+
+(*===========================================*)
+UNIT INTLIN :PROCEDURE;
+
+(* INTERPRETACJA LINII	      *)
+
+VAR POM: MOVEL;
+
+BEGIN
+MA := 0;
+DO
+IF S= SEMICOL THEN CALL SCAN FI;
+IF S=sident THEN (* IDENTYFIKATOR *)
+  IF ADRES=AGO THEN call goo; exit else
+  IF ADRES=AREPORT THEN CALL REPORT  ;EXIT ELSE
+  IF ADRES=AREMOVE THEN CALL REMOVE  ;call scan;EXIT ELSE
+  IF ADRES=ASTORE THEN CALL STORE  ;call scan;EXIT ELSE
+  IF ADRES=AMOVE THEN CALL MOVE;EXIT ELSE
+  IF ADRES=ASSIGN THEN CALL ASSIG;EXIT ELSE
+  IF ADRES=ADELETE THEN CALL DEL  ;call scan;EXIT ELSE
+  IF ADRES=ADECLARE THEN CALL DECLARE;call scan;EXIT ELSE
+  IF ADRES=AMARK THEN call mark;call scan; exit else
+MA :=ADRES; CALL SCAN;
+IF S=/= SCOLON THEN RAISE DEBERROR(4)
+FI;CALL SCAN;
+FI FI FI FI FI FI FI FI FI
+ELSE (* SLOWO KLUCZOWE *)
+   CASE S
+   WHEN SOUTPUT  : CALL OUTP ; EXIT ;
+   WHEN SWRITE	 : ECHO:=NOT ECHO ;call scan;EXIT;
+   WHEN SBREAK	: CALL BRE ;EXIT;
+   WHEN SRETURN: CALL RET; EXIT ;
+   WHEN SCALL	: CALL CAL ;EXIT;
+   WHEN SSTEP : call scan;
+		SINGLESTEP:=NOT SINGLESTEP;EXIT ;
+   OTHERWISE RAISE DEBERROR(3); EXIT
+  ESAC
+FI;
+OD;
+END;
+
+HANDLERS
+WHEN DEBERROR :
+	    if nr<>0 then
+	    WRITE(CO," !!! ERROR NR ",NR, "  -  ");
+		 case nr
+	 when 1: writeln(co,"IDENTIFIER EXPECTED");
+	 when 2: writeln(co,"INTEGER CONSTANT EXPECTED");
+	 when 3: writeln(co,"INCORRECT INSTRUCTION NAME");
+	 when 4: writeln(co,"':' EXPECTED");
+	 when 5: writeln(co,"',' EXPECTED");
+	 when 6: writeln(co,"TOO MANY INDICES");
+	 when 7: writeln(co,"IDENTIFIER AFTER '.' MUST BE AN ATTRIBUTE");
+	 when 8: writeln(co,"INCORRECT CONDITION");
+	 when 9: writeln(co,"UNDECLARED IDENTIFIER");
+	 when 10: writeln(co,"';' EXPECTED");
+	 when 11: writeln(co,"'TO' EXPECTED");
+	 when 12: writeln(co,"UNRECOGNIZED INSTRUCTION");
+	 when 13: writeln(co,"UNRECOGNIZED BANK");
+	 when 14: writeln(co,"ERROR IN REPORT PARAMETER");
+	 when 15: writeln(co,"REFERENCE TO NONE");
+	 when 16: writeln(co,"TOO MANY BREAK POINTS");
+	 when 17: writeln(co,"BREAK POINT DECLARED TWICE");
+	 when 18: writeln(co,"UNRECOGNIZED BREAK POINT");
+	 when 19: writeln(co,"INCOMPATIBLE TYPES IN ASSIGN STATEMENT");
+	 when 20: writeln(co,"TRY TO OUTPUT A REFERENCE TYPE VARIABLE");
+	 when 21: writeln(co,"MOVE ARGUMENT IS NOT OF A REFERENCE TYPE");
+	 when 22: writeln(co,"UNRECOGNIZED MOVE INSTRUCTION");
+	 when 23: writeln(co,"REAL AND STRING CONSTANTS ARE FORBIDDEN");
+	 when 24: writeln(co,"'.' AFTER AN ARRAY");
+	 when 25: writeln(co,"'OR' EXPECTED");
+	 when 26: writeln(co,"'AND' EXPECTED");
+	 WHEN 27: WRITELN(co,"';' OR '*' OR IDENTIFIER EXPECTED");
+	 when 28: writeln(co,"'->' OR '=>' OR '>>' OR '*>' EXPECTED");
+	 when 29: writeln(co,"VARIABLE EXPECTED");
+	 when 30: writeln(co,"TRY TO GO OUTSIDE THE MAIN BLOCK");
+	 when 31: writeln(co,"EMPTY PREFIX");
+	 when 32: writeln(co,"MOVE -> IN COROUTINE HEAD");
+	 when 33: writeln(co,"INDEX OUT OF RANGE");
+	 when 34: writeln(co,"WRONG PARAMETER OF GO");
+	 when 35: writeln(co,"MOVE IN RECORD OBJECT");
+	 when 36: writeln(co,"MOVE '->' IN TERMINATED OBJECT");
+	 when 37: writeln(co,"THIS IS NOT A COROUTINE");
+	 when 38: writeln(co,"WRONG MARK");
+         when 39: writeln(co,"TRY TO DELETE CURRENT BREAK POINT");
+      esac;
+      fi;
+
+ CALL NEWLIN;
+      WIND;
+END HANDLERS;
+
+
+(*=============================================*)
+BEGIN  (***** INTERPR ******)
+PROTNR:=dispnr;
+(*+CALL OUTREF(CADR);++*)
+OBSADR:=CADR;
+IF CBR=NONE THEN HELP:=NONE
+ELSE
+    if cbr.condtxt =/= none then call outex(cbr.condtxt);
+       if not cond then return fi;
+    fi;
+    help := cbr.ins;
+    IF CBR.MARK =/=0 THEN WRITE(CO," ");
+		     IF ECHO THEN WRITE(LO," ") FI;
+		     CALL WRID(CBR.MARK, 10)
+    FI;
+FI;
+if first then  (* first interrupt *)
+   writeln(co,' ');
+   writeln(co,"                        LOGLAN DEBUGGER ");
+   writeln(co,' ');
+if echo then  writeln(lo,' ');
+	       writeln(lo,"                         LOGLAN DEBUGGER ");
+		 writeln(lo,' '); fi;
+   first := false;
+   writeln(co,"INITIAL BREAK AT LINE ",linenr)
+else
+   writeln(co,t9,linenr);
+   if echo then writeln(lo,t9,linenr) fi;
+fi;
+
+mov := new movel(0,protnr,cadr,findcr(cadr));
+(*+WRITELN(LO," DISPNR      :",DISPNR)++*);
+CALL INF;
+CALL NEWLIN;
+(*   SCANER CZYTA TEREAZ TEREAZ OD NOWEJ LINII	     *)
+WHILE NOT STP DO
+IF HELP =/= NONE THEN (* WYKONANIE INSTRUKCJI ZWIAZANYCH *)
+   CALL OUTEX(HELP.TXT);
+   CALL WRLIN(HELP.TXT);
+   CALL SCAN;
+   CALL INTLIN;
+   (* NASTEPNA INSTRUKCJA Z LISTY *)
+   HELP:=HELP.NEXT
+ELSE
+ call sccd01ox(5,i,i,ctxt); (* prompt *)
+  CALL SCAN;WHILE S=SEMICOL DO
+		  call sccd01ox(5,i,i,ctxt);
+		  call scan
+			    od;
+  CALL INTEX(ctxt);
+  IF ECHO THEN CALL WRLIN(ctxt) FI; CALL INTLIN;
+FI;
+OD;
+
+END    (***** INTERPR ******);
+
+UNIT RUNERROR :PROCEDURE;
+BEGIN
+(* ODTWARZMY SRODOWISKO MODULU W KTORYM WYSTAPIL BLAD *)
+(* OBIEKT TEN JEST WSKAZYWANY PRZEZ DL HANDLERA       *)
+  (* dispnr := number of interrupted object,
+     obsadr := address of interrupted object *)
+   call db01ox(29,glovirt,linenr,obsadr,gloreal,dispnr);
+   cadr := obsadr;
+ (* ccor - address of an active coroutine head *)
+  call db01ox(0,ccor,dispnr,glovirt,gloreal,dispnr);
+(* linenr = line of the last break = (sometimes) line of the error occurrence *)
+  write(co,t28,linenr);
+  if echo then write(lo,t28,linenr) fi;
+  cind := 0;
+  call interpr;
+  call endrun
+END  runerror;
+
+HANDLERS
+WHEN ACCERROR : writeln(co,t1); call runerror;
+WHEN CONERROR : writeln(co,t2); call runerror;
+WHEN LOGERROR : writeln(co,t3); call runerror;
+WHEN TYPERROR : writeln(co,t4); call runerror;
+WHEN SYSERROR : writeln(co,t5); call runerror;
+WHEN NUMERROR : writeln(co,t6); call runerror;
+WHEN MEMERROR : writeln(co,t7); call runerror;
+OTHERS : WRITELN(CO,t8);CALL RUNERROR;
+END HANDLERS;
+
+BEGIN (**** MAIN DEBUGGER *****)
+  CALL INICBR;
+(*+WRITELN(LO," RETURN AFTER INICBR ")++*);
+  inner;
+  call db01oe;  (* end of block prefixed by LOGDEB *)
+END logdeb;
+(*******************************************************************)
+begin
+  pref logdeb 
+(*$d+*)
+(*$l+*) 
+  block
+    var ix : integer;
+    begin
+      ix := 100;
+    break;
+    writeln("  ok ");
+  end;  
+end
+ 

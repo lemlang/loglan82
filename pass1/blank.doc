@@ -1,0 +1,60 @@
+C    Loglan82 Compiler&Interpreter
+C     Copyright (C) 1981-1993 Institute of Informatics, University of Warsaw
+C     Copyright (C)  1993, 1994 LITA, Pau
+C     
+C     This program is free software; you can redistribute it and/or modify
+C     it under the terms of the GNU General Public License as published by
+C     the Free Software Foundation; either version 2 of the License, or
+C     (at your option) any later version.
+C     
+C     This program is distributed in the hope that it will be useful,
+C     but WITHOUT ANY WARRANTY; without even the implied warranty of
+C     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+C     GNU General Public License for more details. File: LICENSE.GNU
+C  ===============================================================     
+
+c
+      COMMON /BLANK/ COM(278),
+     X	      LMEM  , LPMEM , IRECN , ISFIN , LPMSYS, LPML  , LPMF  ,
+     X	      NRINT , NRRE  , NRBOOL, NRCHR , NRCOR , NRPROC, NRTEXT,
+     X	      NRUNIV, NATTR , NRNONE, NBLSYS, NBLUS , NEMPTY, INSYS ,
+     X	      LOCAL , OWN   , OBJECT,
+     X	      IPMEM(5000)
+C
+C	      COM    - OBSZAR KOMUNIKACYJNY STRUMIENI
+C	      LMEM   - (=5000) ROZMIAR CALEJ PAMIECI GLOWNEJ
+C	      LPMEM  - PODZIAL PAMIECI NA CZESCI  IPMEM  I  ISMEM
+C	      IRECN  - INDEKS SZCZYTU STOSU STALYCH REAL
+C	      ISFIN  - INDEKS SZCZYTU SLOWNIKA PROTOTYPOW
+C
+C	      LPMSYS - INDEKS PIERWSZEGO SLOWA W IPMEM OBSZARU NIEPRZEZ-
+C		       NACZONEGO NA PROTOTYPY SYSTEMOWE
+C	      LPML   - INDEKS PIERWSZEGO SLOWA OBSZARU WOLNEGO W IPMEM
+C	      LPMF   - INDEKS OSTATNIEGO SLOWA WOLNEGO OBSZARU W IPMEM
+C
+C     IDENTYFIKATORY PROTOTYPOW SYSTEMOWYCH
+C	      NRINT  - IDENTYFIKATOR PROTOTYPU	INTEGER
+C	      NRRE   -				REAL
+C	      NRBOOL -				BOOLEAN
+C	      NRCHR  -				CHARACTER
+C	      NRCOR  -				COROUTINE
+C	      NRPROC -				PROCESS
+C	      NRTEXT -				STRING (TEXT)
+C	      NRUNIV - IDENTYFIKATOR PROTOTYPU UNIWERSALNEGO
+C	      NATTR  - IDENTYFIKATOR PSEUDO-ATRYBUTU (Z NUMEREM -1)
+C	      NRNONE - IDENTYFIKATOR PROTOTYPU TYPU NONE (UNIWERSALNY
+C		       REFERENCYJNY)
+C	      NBLSYS - IDENTYFIKATOR BLOKU SYSTEMOWEGO
+C	      NBLUS  -		     BLOKU GLOWNEGO UZYTKOWNIKA
+C
+C	      INSYS  - FLAGA SPOSOBU REZERWACJI (PRZEZ	MGETM) PAMIECI
+C		       W IPMEM - .TRUE. JESLI REZERWACJA W CZESCI SYSTE-
+C		       MOWEJ
+C	      LOCAL  - FLAGA DOSTEPU DO OBIEKTOW - 2 JESLI OBIEKT
+C	  BYL LOKALNY, 1 - GDY Z SL, 0 - GDY Z BLOKU GLOWNEGO
+C	      OWN    - FLAGA DOSTEPU DO OBIEKTOW - .TRUE. JESLI OBIEKT NIE
+C		       POCHODZI Z PREFIKSOW (TYLKO Z WLASCIWEGO OBIEKTU)
+C	      OBJECT - PROTOTYP OBIEKTU, Z KTOREGO POCHODZIL OSTATNIO
+C		      SZUKANY IDENTYFIKATOR (OBIEKT POCHODZACY Z CIAGU SL)
+C
+
