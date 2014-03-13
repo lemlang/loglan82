@@ -38,11 +38,11 @@ OBJ=gen.o mainvar.o genio.o lists.o genprot.o oxen.o back.o logen.o deb.o lcode.
 
 #CC=cl -Oelsgc -DSMALL -DTALK=0 -AC -Fo$*.o     # MSC small
 #CC=cl -Oelsgc -DLARGE -DTALK=0 -AC -Fo$*.o     # MSC large
-CC=gcc -O  -DHUGE -DTALK=20                       # GCC
+CC=gcc -O  -DHUGE -DTALK=20 -m32                      # GCC
 #CC=cc -DHUGE -DNO_PROTOTYPES -DTALK=0          # SUN
 #CC=cc -Oactl -CSON -W2 -DHUGE -DTALK=0         # SCO
 
-target : gen32.exe
+target : gen
 
 # UNIX 32-bit version
 gen : $(OBJ)
