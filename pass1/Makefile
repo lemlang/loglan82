@@ -66,7 +66,7 @@ loglan32.exe : $(OBJ)
 	rm loglan.out
 
 loglan : $(OBJ)
-	$(CC) $(OBJ) -o loglan -lf2c
+	$(CC) $(OBJ) -o loglan -lf2c -lm
 #	strip loglan
 #	mv loglan $(HOME)/bin
 
