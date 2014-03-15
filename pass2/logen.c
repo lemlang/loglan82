@@ -17,7 +17,6 @@
 */
 
 #include "glodefs.h"
-#include <unistd.h>
 
 #ifndef NO_PROTOTYPES
 

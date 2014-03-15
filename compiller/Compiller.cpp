@@ -39,6 +39,7 @@ bool Compiller::OnCmdLineParsed(wxCmdLineParser& parser) {
 }
 
 bool Compiller::OnInit() {
+	delete wxLog::SetActiveTarget(new wxLogStderr(NULL));
     this->result = 0;
     if (!wxAppConsole::OnInit()) {
         this->result = 1;
@@ -60,9 +61,9 @@ bool Compiller::OnInit() {
     wxFileName executablesDir(wxPathOnly(wxStandardPaths::Get().GetExecutablePath()));
 
     wxFileName temporaryDirectory(wxFileName::CreateTempFileName("loglan"));
-    wxLogDebug("cwd: %s executable dir: %s filename: %s filename without ext: %s tempfilename: %s",
+    wxLogMessage("cwd: %s executable dir: %s filename: %s filename without ext: %s tempfilename: %s",
             cwd.GetFullPath(), executablesDir.GetFullPath(), filename, filenameNoExt, temporaryDirectory.GetFullPath());
-
+	temporaryDirectory.SetExt("");
     wxString temporaryNoEXt = temporaryDirectory.GetFullPath();
     temporaryDirectory.SetExt("log");
     wxString temporaryLog = temporaryDirectory.GetFullPath();
@@ -146,7 +147,7 @@ bool Compiller::OnInit() {
             executablesDir.GetFullPath(),
             wxFileName::GetPathSeparator(),
             temporaryLog, temporaryErr);
-    wxLogDebug(_("System command: %s"),systemCommand);
+    wxLogMessage(_("System command: %s"),systemCommand);
     if (wxExecute(systemCommand, wxEXEC_SYNC) == -1) {
         wxLogError(_("Cannot execute pass1"));
         this->result = 1;
@@ -154,19 +155,19 @@ bool Compiller::OnInit() {
     }
 
     if (wxFile::Exists(temporaryLcd.ToAscii())) {
-        wxLogDebug(_("Compile ok"));
-        systemCommand.sprintf("%s%cgen %s",
+        wxLogMessage(_("Compile ok"));
+        systemCommand.sprintf("%s%cloglangen %s",
                 executablesDir.GetFullPath(),
                 wxFileName::GetPathSeparator(),
                 temporaryNoEXt);
-        wxLogDebug(_("System command: %s"),systemCommand);
+        wxLogMessage(_("System command: %s"),systemCommand);
         if (wxExecute(systemCommand, wxEXEC_SYNC) == -1) {
             wxLogError(_("Cannot execute pass2"));
             this->result = 1;
             return false;
         }
-        wxRenameFile(temporaryLcd, filenameLcd);
-        wxRenameFile(temporaryPcd, filenamePcd);
+        wxCopyFile(temporaryLcd, filenameLcd);
+        wxCopyFile(temporaryPcd, filenamePcd);
         //todo remote temporary files
     } else {
 
@@ -213,7 +214,9 @@ bool Compiller::OnInit() {
     if (!this->noCleanUp) {
         wxRemoveFile(temporaryLcd.ToAscii());
         wxRemoveFile(temporaryPcd.ToAscii());
-        wxRemoveFile(temporaryErr.ToAscii());
+        if( wxFileExists(temporaryErr.ToAscii()) ) {
+			wxRemoveFile(temporaryErr.ToAscii());
+		}
         //todo clear all temporary files
     }
     return false;

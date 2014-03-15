@@ -33,8 +33,8 @@ static int fgetint();
 int wordswritten = 0 ;
 
 void setfiles(name) char *name;{
- char work[80];
- 
+ char work[300] ;
+
  strcpy(work, name) ;
  strcat(work, ".lcd") ;
  lfile = fopen(work, "rb");
