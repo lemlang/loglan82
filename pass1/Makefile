@@ -69,7 +69,8 @@ loglan : $(OBJ)
 	$(CC) $(OBJ) -o loglan -lf2c -lm
 #	strip loglan
 #	mv loglan $(HOME)/bin
-
+loglan.exe : $(OBJ)
+    $(CC) $(OBJ) -o loglan -llibf2c -lm 
 
 .ff.o :
 	$(CPP) $(CCPARS) $(CPPMEM) -DWORDS_IN_REAL=$(WORDS_IN_REAL) -DDISABLE_H=$(DISABLE_H) $*.ff > $*.f
