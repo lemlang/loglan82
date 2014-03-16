@@ -8,11 +8,7 @@
 
 /* Pataud le 13-06-1995
 #if !NO_GRAPH ||!DJE
-#if MSDOS
-#include "graf\graf.h"
-#else
 #include "graf/graf.h"
-#endif
 #endif
 */
 
@@ -42,17 +38,6 @@ int exception;
         } *
     }
     */
-    
-/* A. Salwicki 27-10-2002
-#if MSDOS && !NO_GRAPH
-    {
-	extern bool graphmode;
-
-	if (graphmode) groff();
-	graphmode = FALSE;
-    }
-#endif
-*/
 
     putc('\n', stderr);
     switch (exception)

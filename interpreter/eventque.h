@@ -126,12 +126,7 @@ typedef struct {
 /*
  * prototypes
  */
-#if defined(__TURBOC__) && defined(FOR_GO32)
-EventQueue *EventQueueInit(int qsize,int ms_stksize,void (*msdraw)(void),int,int);
-#else
 EventQueue *EventQueueInit(int qsize,int ms_stksize,void (*msdraw)(void));
-#endif
-
 void   EventQueueDeInit(void);
 int    EventQueueNextEvent(EventQueue *q,EventRecord *e);
 
@@ -140,5 +135,3 @@ int    EventQueueNextEvent(EventQueue *q,EventRecord *e);
 #endif
 
 #endif /* whole file */
-
-

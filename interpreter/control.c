@@ -36,13 +36,8 @@ or             Andrzej Salwicki
 
 /* Transfer of control routines */
 
-#ifndef NO_PROTOTYPES
 static void att2(virtaddr *, word, word);
 static void back1(word, word, virtaddr *, word *);
-#else
-static void att2();
-static void back1();
-#endif
 
 /* Transfer control to the newly created object.
  */
@@ -417,5 +412,3 @@ word level;
 	if (level == t1-1) ic = ptr->codeaddr;
 	else ic = prototype[ M[ ptr->preflist+level ] ]->codeaddr;
 }
-
-

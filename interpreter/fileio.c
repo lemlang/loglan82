@@ -319,11 +319,7 @@ FILE *fp;
 word directio(buf, len, action, fp)     /* Perform direct access read/write */
 virtaddr *buf;                          /* buffer array */
 word len;                               /* number of bytes to transfer */
-#ifndef NO_PROTOTYPES
 int (*action)(char *,int,int,FILE *);   /* fread() or fwrite() */
-#else
-int (*action)();                        /* fread() or fwrite() */
-#endif
 FILE *fp;                               /* stream pointer */
 {
     word am, t1, result;
@@ -353,4 +349,3 @@ FILE *fp;                               /* stream pointer */
     }
     else errsignal(RTEREFTN);
 } /* end directio */
-

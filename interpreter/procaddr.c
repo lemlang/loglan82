@@ -105,16 +105,10 @@ bool isprocess(v) virtaddr *v; {
 
 /* hash entry is a word pointing to dictionary or 0 if empty */
 
-#ifndef NO_PROTOTYPES
 static int hash_check_item( word, procaddr * );
 static void hash_new_item( virtaddr *, procaddr * );
 static int hash_mess( procaddr * );
 static int hash_2( int );
-#else
-static int hash_check_item();
-static void hash_new_item();
-#endif
-
 void hash_create(p,size) procdescr *p; int size;{
    /* create hash table for p process */
    int i;
@@ -209,4 +203,3 @@ static int hash_mess( mess ) procaddr *mess;{
 static int hash_2( hash_1 ) int hash_1;{
    return thisp->hash_size -2 - ( hash_1 % ( thisp->hash_size -2 ) );
 }
-

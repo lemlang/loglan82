@@ -36,22 +36,13 @@ or             Andrzej Salwicki
 
 /* Type checking routines */
 
-
 /* Determine if prot occurs in the prefix sequence of object am
  */
 
-#ifndef NO_PROTOTYPES
 static bool pref(word,word);
 static bool typep0(word,word,bool,word *,word *);
 static bool prefh(word,word);
 static bool typef(word,word,word,word);
-#else
-static bool pref();
-static bool typep0();
-static bool prefh();
-static bool typef();
-#endif
-
 
 static bool pref(am, prot)
 word am, prot;
@@ -380,4 +371,3 @@ word nr;
 	}
     }
 }
-

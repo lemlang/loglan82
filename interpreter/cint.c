@@ -13,19 +13,11 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
-#include <qthread.h>
+//#include <qthread.h>
 
-#ifndef NO_PROTOTYPES
 static void load(char *);
 static void initiate(int,char **);
 int main(int,char **);
-#else
-static void load();
-static void initiate();
-int main();
-#endif
-
-
 
 int internal_sock,graph_sock,net_sock,connected=0;
 struct sockaddr_un svr;
@@ -125,20 +117,25 @@ static void load(_filename)     /* Load code and prototypes from file */
     }
 } /* end load */
 
-
-static void initiate(argc, argv)        /* Establish configuration parameters */
-int argc;
-char **argv;
-{
+/* Establish configuration parameters */
+static void initiate(int argc, char **argv) {
+    if( argc < 3) {
+        printf("FATAL ERROR: Bad number of arguments %d\nNeed 2 or 3\n",argc-1);
+        exit(8);
+    }
     long m;
     int len,i,on;
-    char filename[80];
+    char filename[300];
     int sock;
     fd_set rset,wset;
 
      ournode = 0;
      network = TRUE;
-    if ( (argc==4) && (strcmp(argv[3],"r") == 0) ) remote = TRUE;else remote=FALSE;
+    if ( (argc==4) && (strcmp(argv[3],"r") == 0) ) { 
+        remote = TRUE;
+    } else {
+        remote=FALSE;
+    }
       for(i=0;i<255;i++)
       {
         RInstance[i] = -1;
@@ -707,13 +704,9 @@ void send_ready()
  fcntl(DirConn[parent_ctx.node], F_SETFL,O_NONBLOCK | fcntl(DirConn[parent_ctx.node], F_GETFL,0));
 }
 
-int main(argc, argv)
-int argc;
-char **argv;
-{
+int main(int argc, char **argv) {
     initiate(argc, argv);             /* initialize executor */
     runsys();              /* initialize running system */
-    init_scheduler();
     GraphRes = get_graph_res();
     if ( GraphRes < 0 ) exit(12); 
      
@@ -735,4 +728,3 @@ char **argv;
     }
     return 0;
 } /* end main */
-

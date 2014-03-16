@@ -6,14 +6,8 @@
 
 /* Memory management routines */
 
-#ifndef NO_PROTOTYPES
 static void compandtake(word, word *, word *, word *, bool);
 static void sinsert(word);
-#else
-static void compandtake();
-static void sinsert();
-#endif
-
 
 int compactify_allowed=1;
 #define space 400 /* words */

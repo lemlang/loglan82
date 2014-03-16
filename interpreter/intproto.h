@@ -1,4 +1,3 @@
-#ifndef NO_PROTOTYPES
 
 unsigned alarm( unsigned );
 double prandom( void );
@@ -50,7 +49,6 @@ void abend(char *);
 void addext(char *,char *);
 void usage( void );
 void decode( void );
-void init_scheduler( void );
 void runsys( void );
 void schedule( void );
 void msginterrupt( message * );
@@ -101,106 +99,3 @@ void write_str(char*);
 void write_char(char);
 char read_char();
 void read_str(char*);
-
-
-
-#else
-
-unsigned alarm();
-int unlink();
-int ioctl();
-
-void openrc();
-void raise_signal();
-void openobj();
-void slopen();
-void errsignal();
-void typep();
-void copy();
-void qua();
-void standard();
-void disp();
-void gkill();
-void typref();
-void go();
-void goloc();
-void typed();
-void term();
-void wind();
-void trace();
-void inner();
-void backhd();
-void backbl();
-void backpr();
-void back();
-void detach();
-void attach();
-void fin();
-void heads();
-void resume();
-void passivate();
-void enable();
-void evaluaterpc();
-void disable();
-void rpc_accept();
-void rpc3();
-void popmask();
-void askprot();
-bool member();
-word virtprot();
-word loadt();
-bool is();
-bool inl();
-word shift();
-void execute();
-void abend();
-void addext();
-void usage();
-void decode();
-void init_scheduler();
-void runsys();
-void schedule();
-void msginterrupt();
-void loosen();
-void update();
-void compactify();
-void moveparams();
-void sendmsg();
-word getnode();
-void endprocess();
-word entier();
-char *asciiz();
-void ranset();
-double prandom();
-void moveblock();
-void request();
-word memavail();
-void newarry();
-void initprocess();
-void activate();
-void pushmask();
-void trapmsg();
-void rpc2();
-void endrun();
-void loadfile();
-word directio();
-void nonstandard();
-void genfileobj();
-void reset();
-void rewrite();
-void delete();
-bool testeof();
-bool testeoln();
-char *tempfilename();
-word readint();
-double readreal();
-void writeint();
-void writereal();
-void writestring();
-void readln();
-void senderr();
-void rpcend();
-void rpc1();
-
-#endif
-

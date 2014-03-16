@@ -57,14 +57,6 @@ void runsys()
     ready = qinit();         /* initialize Round-Robin queue */
     ranset();              /* init pseudo-random no. generator */
 
-#if OS2
-    {
-        SEL gsel, lsel;
-        DosGetInfoSeg(&gsel, &lsel);
-        ginf = MAKEPGINFOSEG(gsel);
-    }
-#endif
-
     if (!remote)                     /* create main process */
     {
         father.node = 0;     /* dummy DL for generated process */
@@ -94,9 +86,6 @@ void runsys()
         thisp =  &process[ thispix ];/*  process for first
 transfer() */
     }                     /* (must save 'context' somewhere) */
-#if DLINK
-    net_attention();
-#endif
 }
 
 

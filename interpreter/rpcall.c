@@ -4,19 +4,10 @@
 #include	"process.h"
 #include	"intproto.h"
 
-
-#ifndef NO_PROTOTYPES
 static bool isenabled(word,word);
 static bool rpcready(word);
 static void bitaccess(word,word,int *,char *);
 static void dupmask(word);
-#else
-static bool isenabled();
-static bool rpcready();
-static void bitaccess();
-static void dupmask();
-#endif
-
 
 void rpc1(msg)				/* preprocess RPC request */
 message *msg;
@@ -261,5 +252,3 @@ word prot;
     if (virtnr != -1) prot = M[ prototype[ thisp->prot ]->virtlist+virtnr ];
     if (sign) return(-prot);  else return(prot);
 }
-
-

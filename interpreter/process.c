@@ -4,12 +4,6 @@
 #include "process.h"
 #include "intproto.h"
 
-#if DLINK
-#  include "dlink.h"
-#elif TCPIP
-#  include "tcpip.h"
-#endif
-
 #include <assert.h>
 
 
@@ -28,9 +22,6 @@ word console;                        /* console node number              */
 bool remote = FALSE;                 /* TRUE if remote node              */
 bool reschedule = TRUE;              /* TRUE if must re-schedule         */
 
-
-
-#ifndef NO_PROTOTYPES
 static void ansprot(message *);
 static void localkill(message *);
 void transfer(word);
@@ -40,76 +31,16 @@ static void localerror(message *);
 static void killprocess(word);
 static void mkglobal(word);
 word pix, ref;
-#else
-static void ansprot();
-static void localkill();
-void transfer();
-static void backcreate();
-static void createprocess();
-static void localerror();
-static void killprocess();
-static void mkglobal();
-#endif
-
-
-
-#if OS2
-PGINFOSEG ginf;                         /* pointer to Global Info Segment */
-#endif
-
-
-#if USE_ALARM
-#  include <signal.h>
-#  ifndef NO_PROTOTYPES
-      static void signal_catch( void );
-#  else
-      static void signal_catch();
-#  endif
-   static void signal_catch(){   reschedule=TRUE;   }
-#endif
-
-
-void init_scheduler(){
-#if USE_ALARM
-   signal(SIGALRM,signal_catch);
-   alarm(1);
-#endif
-}
 
 void schedule()                      /* Choose next ready process to exec */
 { 
-  trapmsg();                                   /* STRONGLY machine dependent        */
-#if USE_ALARM
-    if(reschedule){
-        alarm(0);
-        signal(SIGALRM,signal_catch);
-        alarm(1);
-#elif USE_CLOCK
+  trapmsg();
     static char last;
     char c;
     c = clock() >> 5;                   /* the most expensive method */
     if (reschedule || c != last)        /* context switch is needed  */
     {
-        last = c;
-#elif MSDOS && ( WORD_16BIT || DWORD_16BIT ) /* DOS real memory model */
-    static char last;
-    char c;
-    static char *clk = (char *) 0x0040006CL;
-    c = *clk >> 1;
-    if (reschedule || c != last)        /* context switch is needed */
-    {
-        last = c;
-#elif OS2
-    static char last;
-    char c;
-    c = ginf->hundredths >> 3;
-    if (reschedule || c != last)        /* context switch is needed */
-    {
-        last = c;
-#else
-#error Scheduler time counting method not implemented !
-#endif
-        
+        last = c;        
         if (!(qempty(ready)))     /* wait for event if no processes  */
          {  
         ready = qrotate(ready);        /* find another ready process */
@@ -654,4 +585,3 @@ void show_m( char *s, message *msg ){
 #endif
 }
 */
-

@@ -37,8 +37,6 @@ or             Andrzej Salwicki
 #include <assert.h>
 
 
-#ifndef NO_PROTOTYPES
-
 static word get_pointer(word,word);
 static void phase1(void);
 static void phase2(void);
@@ -53,26 +51,6 @@ static void nonefy(virtaddr *);
 static void relocate(virtaddr *);
 static void traverse(word,void (*)(virtaddr *));
 static void what_we_have(virtaddr *);
-
-#else
-
-static word get_pointer();
-static void phase1();
-static void phase2();
-static void phase2a();
-static void phase3();
-static void phase4();
-static void phase5();
-static void phase6();
-static void curtain();
-static void heap_walk();
-static void nonefy();
-static void relocate();
-static void traverse();
-static void what_we_have();
-
-#endif
-
 
 #ifdef CDBG
 FILE *ff;
@@ -153,11 +131,7 @@ static void relocate(va) virtaddr *va; {
 
 static void traverse(am, action)
    word am;
-#ifndef NO_PROTOTYPES
    void (*action)(virtaddr *);
-#else
-   void (*action)();
-#endif
 {
     word t1, t2, t3, length;
     protdescr *ptr;
@@ -759,5 +733,3 @@ void compactify()                       /* Compactification */
 #endif
 
 } /* end compactify */
-
-

@@ -8,7 +8,6 @@ struct queuelem { qelem elem;
 typedef struct queuelem *queue;
 typedef queue stack;
 
-#ifndef NO_PROTOTYPES
 queue qinit(void);
 stack push(stack,selem);
 qelem qfront(queue);
@@ -16,15 +15,6 @@ queue qremove(queue);
 queue qdelete(queue,qelem);
 queue qrotate(queue);
 void qfree(queue);
-#else
-queue qinit();
-stack push();
-qelem qfront();
-queue qremove();
-queue qdelete();
-queue qrotate();
-void qfree();
-#endif
 
 #define qinsert(q, e)	(((queue) push((stack) (q), (selem) (e)))->next)
 #define qempty(q)	((q) == NULL)

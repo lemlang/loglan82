@@ -107,25 +107,9 @@ extern word console;            /* console node number                   */
 extern bool remote;             /* TRUE if remote node                   */
 extern bool reschedule;         /* TRUE if rescheduling is mandatory     */
 
-#if OS2
-extern PGINFOSEG ginf;          /* pointer to Global Info Segment */
-#endif
-
-
-
-#ifndef NO_PROTOTYPES
 void obj2mess(word *,virtaddr *,procaddr*);
 void mess2obj(procdescr *,procaddr *,virtaddr*);
 bool isprocess(virtaddr *);
 void hash_find(procaddr *,virtaddr *);
 void hash_create(procdescr *,int);
 void hash_set(procaddr *,word);
-#else
-void obj2mess();
-void mess2obj();
-bool isprocess();
-void hash_find();
-void hash_create();
-void hash_set();
-#endif
-

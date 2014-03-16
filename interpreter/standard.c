@@ -455,5 +455,3 @@ word nrproc;
 #   endif
     if (absent) errsignal(RTEUNSTP);
 }
-
-
