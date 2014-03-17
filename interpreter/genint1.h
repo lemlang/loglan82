@@ -1,17 +1,17 @@
 /*     Loglan82 Compiler&Interpreter
      Copyright (C) 1993 Institute of Informatics, University of Warsaw
      Copyright (C)  1993, 1994 LITA, Pau
-     
+
      This program is free software; you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
      the Free Software Foundation; either version 2 of the License, or
      (at your option) any later version.
-     
+
      This program is distributed in the hope that it will be useful,
      but WITHOUT ANY WARRANTY; without even the implied warranty of
      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      GNU General Public License for more details.
-     
+
              You should have received a copy of the GNU General Public License
              along with this program; if not, write to the Free Software
              Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -37,7 +37,7 @@ or             Andrzej Salwicki
 #define APINT           1     /* integer,boolean,string,char */
 #define APREAL          sizeof(real)/sizeof(word)    /* real */
 #define APVIRT          4     /*  TO TELL APART A VIRTUAL ADDRESS            */
-                              /*   (ANY REFERENCE TYPE)  FROM ANY OTHER TYPE */
+/*   (ANY REFERENCE TYPE)  FROM ANY OTHER TYPE */
 #define APREF           2     /* ACTUAL SIZE OF REFERENCE TYPE               */
 #define APFMTYPE        2     /* FORMAL TYPE VALUE                           */
 #define APFMPROC        3     /* FORMAL PROCEURE OR FUNCTION VALUE, = APREF+1*/
@@ -113,7 +113,7 @@ typedef int bool;
 
 #if GEN
 typedef   int   protaddr ;   /* mainblock..maxprot ; mainblock = 0; */
-                             /* INDIRECT ADDRESS OF PROTOTYPE       */
+/* INDIRECT ADDRESS OF PROTOTYPE       */
 typedef   int   dprotaddr ;  /* PROTADDR + DUMMY                    */
 typedef   int   protkind ;
 #else
@@ -127,15 +127,15 @@ typedef   int   protkind ;
 
 typedef struct {
     dprotaddr slprototype ;   /* PROTOTYPE OF SYNTACTIC FATHER */
-                              /* OR DUMMY FOR THE MAIN BLOCK   */
+    /* OR DUMMY FOR THE MAIN BLOCK   */
     word codeaddr;            /* address of code */
     word appetite;            /* object's total length */
     word span;                /* distance from beginning of object to */
-                              /* temporary reference variables */
+    /* temporary reference variables */
     word reflist;             /* beginning and length of table with */
 
     int lthreflist;           /* offsets of reference values in object; */
-                              /* without SL, DL, CL and temporary values */
+    /* without SL, DL, CL and temporary values */
     word parlist;             /* beginning and length of table with */
     int lthparlist;           /* offsets of parameters */
 
@@ -145,7 +145,7 @@ typedef struct {
     word lastwill;            /* lastwill code address */
     word handlerlist;         /* list of handlers, 0 if empty */
     word virtlist;            /* address of table for conversion: */
-                              /*     virtual number --> prototype */
+    /*     virtual number --> prototype */
 
     /* only for processes : */
     protaddr  maskbase ;      /* lowest procedure prototype number */

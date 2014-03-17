@@ -1,17 +1,17 @@
 /*     Loglan82 Compiler&Interpreter
      Copyright (C) 1993 Institute of Informatics, University of Warsaw
      Copyright (C)  1993, 1994 LITA, Pau
-     
+
      This program is free software; you can redistribute it and/or modify
      it under the terms of the GNU General Public License as published by
      the Free Software Foundation; either version 2 of the License, or
      (at your option) any later version.
-     
+
      This program is distributed in the hope that it will be useful,
      but WITHOUT ANY WARRANTY; without even the implied warranty of
      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      GNU General Public License for more details.
-     
+
              You should have received a copy of the GNU General Public License
              along with this program; if not, write to the Free Software
              Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -27,11 +27,9 @@ or             Andrzej Salwicki
 
 =======================================================================
 */
-
 #if GEN
 #define word address
 #endif
-
 
 /* Appetites of values : */
 #define APINT           1     /* integer,boolean,string,char */
@@ -43,11 +41,7 @@ or             Andrzej Salwicki
 #define APFMPROC        3     /* FORMAL PROCEURE OR FUNCTION VALUE, = APREF+1*/
 #define APOPCODE	(sizeof(extopcode)+sizeof(word)-1)/sizeof(word)
 
-
-
-
 /* Values identifying types and formal parameters : */
-
 #define FORMFUNC        7       /* parameter "function" */
 #define FORMPROC        8       /* parameter "procedure" */
 #define FORMTYPE        9       /* parameter "type", also formal type */
@@ -60,9 +54,7 @@ or             Andrzej Salwicki
 #define CLASSTYPE       17      /* class type */
 #define FILETYPE        18      /* file type */
 
-
 /* Values to identify kinds of array elements : */
-
 #define AINT            -1      /* arrayof integer */
 #define AREAL           -3      /* arrayof real */
 #define AVIRT           -2      /* arrayof reference */
@@ -70,14 +62,11 @@ or             Andrzej Salwicki
 #define FILEOBJECT      -11     /* file object */
 #define SKILLED         -99     /* killed object, only for compactification */
 
-
 #define DUMMY           -1      /* dummy unit or prefix : SL for main block */
 #define MAINBLOCK       0       /* main block prototype number */
 #define MAXPROT         500     /* limit for the number of prototypes */
 
-
 /* L-code instruction addressing modes : */
-
 #define GLOBAL          0       /* M[ N ]                */
 #define LOCAL           1       /* M[ c1+N ]             */
 #define TEMPLOCAL       2       /* M[ c2+N ]             */
@@ -88,9 +77,7 @@ or             Andrzej Salwicki
 #define DOTACCESS       7       /* M[ M[ display+K ]+N ] */
 #define NOARGUMENT      8       /* ------                */
 
-
 /* Prototype kind : */
-
 #define CLASS           0
 #define RECORD          1
 #define COROUTINE       2
@@ -107,32 +94,23 @@ or             Andrzej Salwicki
 #define LPROCEDURE PROCEDURE
 #endif
 
-
 #if GEN
 typedef   int   protaddr ;   /* mainblock..maxprot ; mainblock = 0; */
                              /* INDIRECT ADDRESS OF PROTOTYPE       */
 typedef   int   dprotaddr ;  /* PROTADDR + DUMMY                    */
 typedef   int   protkind ;
-
-
-
 #else
 #define protaddr  int
 #define dprotaddr int
 #define protkind  int
 #endif
 
-
-
 #define TRUE	1
 #define FALSE	0
 
-
 typedef	int word;
 
-
 /* Prototype : */
-
 typedef struct {
     dprotaddr slprototype ;   /* PROTOTYPE OF SYNTACTIC FATHER */
                               /* OR DUMMY FOR THE MAIN BLOCK   */
@@ -173,5 +151,3 @@ typedef struct {
     word finaltype;  /* type of result */
 
 } protdescr,*pointprdsc;
-
-

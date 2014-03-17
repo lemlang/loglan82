@@ -21,8 +21,7 @@
 
 /* Process descriptor : */
 
-typedef struct
-{
+typedef struct {
     bool used;           /* TRUE if in use by some process */
     word mark;           /* process mark for proper detecting of none */
     int status;                /* process state */
@@ -71,8 +70,7 @@ typedef struct {
     word mark;
 } procaddr;
 
-struct ctrlmsg
-{
+struct ctrlmsg {
     procaddr sender;       /* address of the sender and */
     procaddr receiver;   /* receiver of the message */
     int type;      /* message type */
@@ -81,8 +79,7 @@ struct ctrlmsg
 
 #define MAXPROCPAR      (MSGLENGTH-sizeof(struct ctrlmsg))
 
-typedef struct
-{
+typedef struct {
     struct ctrlmsg control;
     char params[ MAXPROCPAR ];
 } message;
@@ -107,9 +104,9 @@ extern word console;            /* console node number                   */
 extern bool remote;             /* TRUE if remote node                   */
 extern bool reschedule;         /* TRUE if rescheduling is mandatory     */
 
-void obj2mess(word *,virtaddr *,procaddr*);
-void mess2obj(procdescr *,procaddr *,virtaddr*);
-bool isprocess(virtaddr *);
-void hash_find(procaddr *,virtaddr *);
-void hash_create(procdescr *,int);
-void hash_set(procaddr *,word);
+void obj2mess ( word *,virtaddr *,procaddr* );
+void mess2obj ( procdescr *,procaddr *,virtaddr* );
+bool isprocess ( virtaddr * );
+void hash_find ( procaddr *,virtaddr * );
+void hash_create ( procdescr *,int );
+void hash_set ( procaddr *,word );

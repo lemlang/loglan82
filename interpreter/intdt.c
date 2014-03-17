@@ -25,51 +25,49 @@ int offset[] = { DUMMY, SL, DL, CL, CHD, VIRTSC };
 /* signal to number conversion table */
 /* -1 stands for an unrecoverable error which cannot be serviced by handler */
 
-int scot[] =
-{
-		20,		/* RTESLCOF */
-		20,		/* RTEUNSTP */
-		20,		/* RTEILLAT */
-		20,		/* RTEILLDT */
-		20,		/* RTECORTM */
-		20,		/* RTECORAC */
-		23,		/* RTEINVIN */
-		23,		/* RTEILLAB */
-		21,		/* RTEINCQA */
-		24,		/* RTEINCAS */
-		20,		/* RTEFTPMS */
-		20,		/* RTEILLKL */
-		20,		/* RTEILLCP */
-		24,		/* RTEINCHS */
-		-1,		/* RTEHNDNF */
-		22,		/* RTEMEMOV */
-		22,		/* RTEFHTLG */
-		-1,		/* RTEILLRT */
-		21,		/* RTEREFTN */
-		01,		/* RTEDIVBZ */
-		02,		/* RTESYSER */
-		02,		/* RTEILLIO */
-		02,		/* RTEIOERR */
-		02,		/* RTECNTOP */
-		02,		/* RTEBADFM */
-		20,		/* RTEILLRS */
-		02,		/* RTETMPRC */
-		02,		/* RTEINVND */
-                23,		/* RTENEGST */
-                -1		/* RTENONGL */
+int scot[] = {
+    20,		/* RTESLCOF */
+    20,		/* RTEUNSTP */
+    20,		/* RTEILLAT */
+    20,		/* RTEILLDT */
+    20,		/* RTECORTM */
+    20,		/* RTECORAC */
+    23,		/* RTEINVIN */
+    23,		/* RTEILLAB */
+    21,		/* RTEINCQA */
+    24,		/* RTEINCAS */
+    20,		/* RTEFTPMS */
+    20,		/* RTEILLKL */
+    20,		/* RTEILLCP */
+    24,		/* RTEINCHS */
+    -1,		/* RTEHNDNF */
+    22,		/* RTEMEMOV */
+    22,		/* RTEFHTLG */
+    -1,		/* RTEILLRT */
+    21,		/* RTEREFTN */
+    01,		/* RTEDIVBZ */
+    02,		/* RTESYSER */
+    02,		/* RTEILLIO */
+    02,		/* RTEIOERR */
+    02,		/* RTECNTOP */
+    02,		/* RTEBADFM */
+    20,		/* RTEILLRS */
+    02,		/* RTETMPRC */
+    02,		/* RTEINVND */
+    23,		/* RTENEGST */
+    -1		/* RTENONGL */
 };
 
 /* Primitive type appetites for moveparams() : */
 
-int primapet[] =
-{
-		APINT,		/* INTEGER */
-		APREAL,		/* REAL */
-		APINT,		/* BOOLEAN */
-		APINT,		/* CHAR */
-		APREF,		/* COROUTINE */
-		APREF,		/* PROCESS */
-		APINT		/* STRING */
+int primapet[] = {
+    APINT,		/* INTEGER */
+    APREAL,		/* REAL */
+    APINT,		/* BOOLEAN */
+    APINT,		/* CHAR */
+    APREF,		/* COROUTINE */
+    APREF,		/* PROCESS */
+    APINT		/* STRING */
 };
 
 word ic; 			/* instruction counter */

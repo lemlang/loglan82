@@ -24,7 +24,7 @@
 #define FNAME           5       /* file name pointer */
 #define FFILE           (FNAME+sizeof(char *)/sizeof(word)) /*file handle */
 #define APFILE          (FFILE+sizeof(FILE *)/sizeof(word)) /*appetite of file*/
-							    /* object */
+/* object */
 
 /* Offsets from the first address after object : */
 #define SL              -2      /* static link */
@@ -40,23 +40,23 @@
 /* Virtual address (also formal type) : */
 
 typedef struct {
-		word addr;      /* address of dictionary item */
-				/* (node and process index for processes) */
-				/* (or for formal types - number of arrayof) */
-		word mark;      /* address mark */
-				/* (negative for processes) */
-				/* (or for formal types - actual type) */
-	       } virtaddr;
+    word addr;      /* address of dictionary item */
+    /* (node and process index for processes) */
+    /* (or for formal types - number of arrayof) */
+    word mark;      /* address mark */
+    /* (negative for processes) */
+    /* (or for formal types - actual type) */
+} virtaddr;
 
 #define loadvirt(v, a)  { word ta;              \
-			  ta = (a);             \
-			  (v).addr = M[ ta++ ]; \
-			  (v).mark = M[ ta ]; }
+            ta = (a);             \
+            (v).addr = M[ ta++ ]; \
+            (v).mark = M[ ta ]; }
 #define storevirt(v, a) { word ta;              \
-			  ta = (a);             \
-			  M[ ta++ ] = (v).addr; \
-			  M[ ta ] = (v).mark; }
-			
+            ta = (a);             \
+            M[ ta++ ] = (v).addr; \
+            M[ ta ] = (v).mark; }
+
 #define MF(a)           (*( (FILE **) (M+(a)) ))
 #define MN(a)           (*( (char **) (M+(a)) ))
 #define MR(a)            *( (real *) (M+(a)) )
@@ -126,17 +126,16 @@ typedef struct {
 #define RTENONGL        29      /* only process may be global */
 
 union value {
-		unsigned int xint;
-		word xword;
-		real xreal;
-		virtaddr xvirt;
-		word xbool;
-	    };
+    unsigned int xint;
+    word xword;
+    real xreal;
+    virtaddr xvirt;
+    word xbool;
+};
 
 #define MAXINSTANCE	255
 
 /* Variables : */
-
 extern memory M;                /* main memory for code and data */
 extern union value *param;      /* pointer to standard proc. param list */
 extern int offset[];            /* offset conversion table for compact. */
@@ -158,7 +157,6 @@ extern word c1, c2;             /* pointers to current object */
 extern word mainprog;           /* main block object */
 extern word mnoff;              /* offset of variable main */
 
-
 extern bool infmode;            /* TRUE if compactification message printed */
 extern bool debug;              /* TRUE if trace is printed */
 extern FILE *tracefile;         /* output file for trace */
@@ -166,7 +164,7 @@ bool graphics;			/* is graphics active ? */
 
 extern jmp_buf contenv;         /* for continue execution */
 
-extern int internal_sock,graph_sock,net_sock;
+extern int internal_sock, graph_sock, net_sock;
 extern int connected;
 extern int GraphRes;
 extern int fcol;
@@ -175,8 +173,9 @@ extern int curx;
 extern int cury;
 extern char ProgName[255];
 extern ctx_struct my_ctx;
-extern void send_to_graph(G_MESSAGE*);
-extern int read_from_graph(G_MESSAGE*);
-extern int read_from_net(MESSAGE*);
+extern void send_to_graph ( G_MESSAGE* );
+extern int read_from_graph ( G_MESSAGE* );
+extern int read_from_net ( MESSAGE* );
 extern char mygname[80],mykname[80],mynname[80];
 extern int DirConn[MAXINSTANCE];
+

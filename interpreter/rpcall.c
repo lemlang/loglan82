@@ -4,12 +4,12 @@
 #include	"process.h"
 #include	"intproto.h"
 
-static bool isenabled(word,word);
-static bool rpcready(word);
-static void bitaccess(word,word,int *,char *);
-static void dupmask(word);
+static bool isenabled ( word,word );
+static bool rpcready ( word );
+static void bitaccess ( word,word,int *,char * );
+static void dupmask ( word );
 
-void rpc1(msg)				/* preprocess RPC request */
+void rpc1 ( msg )				/* preprocess RPC request */
 message *msg;
 {
     word pix, prot;
@@ -18,33 +18,29 @@ message *msg;
 
     pix = msg->control.receiver.pix;
     p = &process[ pix ];
-    if (p->mark != msg->control.receiver.mark)
-    	senderr(RTEREFTN, &msg->control.sender);
-    msg1 = (message *) ballocate(sizeof(message));
-    if (msg1 == NULL) errsignal(RTEMEMOV);
-    moveblock((char *) msg, (char *) msg1, (word) sizeof(message));
+    if ( p->mark != msg->control.receiver.mark )
+        senderr ( RTEREFTN, &msg->control.sender );
+    msg1 = ( message * ) ballocate ( sizeof ( message ) );
+    if ( msg1 == NULL ) errsignal ( RTEMEMOV );
+    moveblock ( ( char * ) msg, ( char * ) msg1, ( word ) sizeof ( message ) );
     prot = msg->control.par;
-    if (isenabled(pix, prot))
-    {
-        p->msgqueue = minsert(p->msgqueue, msg1);
-	if (p->status == ACCEPTING) activate(pix);
-    }
-    else p->rpcwait = minsert(p->rpcwait, msg1);
+    if ( isenabled ( pix, prot ) ) {
+        p->msgqueue = minsert ( p->msgqueue, msg1 );
+        if ( p->status == ACCEPTING ) activate ( pix );
+    } else p->rpcwait = minsert ( p->rpcwait, msg1 );
 }
 
 
-void rpc2()
-{
-    if (rpcready(thispix)) rpc3();
+void rpc2() {
+    if ( rpcready ( thispix ) ) rpc3();
 }
 
 
-void rpc3()				/* Actual remote procedure call */
-{
+void rpc3() {			/* Actual remote procedure call */
     word prot, ah, am;
     message *msg;
 
-    msg = mfront(thisp->msgqueue);	/* remove first RPC message (enabled) */
+    msg = mfront ( thisp->msgqueue );	/* remove first RPC message (enabled) */
 
     /*fprintf(
              stderr, "rpc(thisp=%d) from: node=%d, pix=%d, mark=%d\n",
@@ -54,28 +50,28 @@ void rpc3()				/* Actual remote procedure call */
              msg->control.sender.mark
            );*/
 
-    thisp->msgqueue = qremove(thisp->msgqueue);
-    pushmask(thispix);			/* disable all procedures */
+    thisp->msgqueue = qremove ( thisp->msgqueue );
+    pushmask ( thispix );			/* disable all procedures */
     prot = msg->control.par;
 
-    slopen(prot, &thisp->procref, &ah, &am);	/* open procedure object */
+    slopen ( prot, &thisp->procref, &ah, &am );	/* open procedure object */
 
     {
-       virtaddr v;
-       mess2obj( thisp, &(msg->control.sender), &v );
-       storevirt( v, am+M[ am ]+RPCDL );	 /* set up remote DL */
+        virtaddr v;
+        mess2obj ( thisp, & ( msg->control.sender ), &v );
+        storevirt ( v, am+M[ am ]+RPCDL );	 /* set up remote DL */
     }
 
-    moveparams(thispix, am, msg, PARIN, SAVEPAR);
+    moveparams ( thispix, am, msg, PARIN, SAVEPAR );
 
-    go(ah, am);				/* transfer control to procedure */
+    go ( ah, am );				/* transfer control to procedure */
 
-    free(msg);
+    free ( msg );
 
 }
 
 
-void rpcend(msg)			/* After return from RPC */
+void rpcend ( msg )			/* After return from RPC */
 message *msg;
 {
     word pix, am;
@@ -86,12 +82,12 @@ message *msg;
 
     p = &process[ pix ];
     am = p->M[ temporary ];		/* template physical address */
-    moveparams(pix, am, msg, PAROUT, SAVEPAR);
-    activate(pix);			/* resume process waiting for RPC */
+    moveparams ( pix, am, msg, PAROUT, SAVEPAR );
+    activate ( pix );			/* resume process waiting for RPC */
 }
 
 
-static void bitaccess(pix, prot, bytenr, bitmask)
+static void bitaccess ( pix, prot, bytenr, bitmask )
 word pix, prot;
 int *bytenr;
 char *bitmask;
@@ -100,127 +96,124 @@ char *bitmask;
 
     bitnr = prot-prototype[ process[ pix ].prot ]->maskbase;
     *bytenr = bitnr / 8;
-    *bitmask = (char)(unsigned char)( 1 << (bitnr % 8) );
+    *bitmask = ( char ) ( unsigned char ) ( 1 << ( bitnr % 8 ) );
 }
 
 
-void enable(pix, prot)			/* Enable remote procedure */
+void enable ( pix, prot )			/* Enable remote procedure */
 word pix, prot;
 {
     mask m;
     int bytenr;
     char bitmask;
 
-    m = top(process[ pix ].rpcmask);
-    bitaccess(pix, prot, &bytenr, &bitmask);
+    m = top ( process[ pix ].rpcmask );
+    bitaccess ( pix, prot, &bytenr, &bitmask );
     m[ bytenr ] |= bitmask;
 }
 
 
-void disable(pix, prot)			/* Disable remote procedure */
+void disable ( pix, prot )			/* Disable remote procedure */
 word pix, prot;
 {
     mask m;
     int bytenr;
     char bitmask;
 
-    m = top(process[ pix ].rpcmask);
-    bitaccess(pix, prot, &bytenr, &bitmask);
+    m = top ( process[ pix ].rpcmask );
+    bitaccess ( pix, prot, &bytenr, &bitmask );
     m[ bytenr ] &= ~ bitmask;
 }
 
 
-static bool isenabled(pix, prot)		/* Check if RPC allowed */
+static bool isenabled ( pix, prot )		/* Check if RPC allowed */
 word pix, prot;
 {
     mask m;
     int bytenr;
     char bitmask;
 
-    m = top(process[ pix ].rpcmask);
-    bitaccess(pix, prot, &bytenr, &bitmask);
-    return( m[ bytenr ] & bitmask );
+    m = top ( process[ pix ].rpcmask );
+    bitaccess ( pix, prot, &bytenr, &bitmask );
+    return ( m[ bytenr ] & bitmask );
 }
 
 
-void pushmask(pix)			/* Push empty RPC mask onto stack */
+void pushmask ( pix )			/* Push empty RPC mask onto stack */
 word pix;
 {
     mask m;
     int i, size;
 
     size = prototype[ process[ pix ].prot ]->masksize;
-    m = (mask) ballocate(size);
-    if (m == NULL) errsignal(RTEMEMOV);
-    for (i = 0;  i < size;  i++ )  m[ i ] = '\0';	/* disable all */
-    process[ pix ].rpcmask = push(process[ pix ].rpcmask, m);
+    m = ( mask ) ballocate ( size );
+    if ( m == NULL ) errsignal ( RTEMEMOV );
+    for ( i = 0;  i < size;  i++ )  m[ i ] = '\0';	/* disable all */
+    process[ pix ].rpcmask = push ( process[ pix ].rpcmask, m );
 }
 
 
-static void dupmask(pix)		/* Duplicate RPC mask from stack top */
+static void dupmask ( pix )		/* Duplicate RPC mask from stack top */
 word pix;
 {
     mask m;
     int size;
 
     size = prototype[ process[ pix ].prot ]->masksize;
-    m = (mask) ballocate(size);
-    if (m == NULL) errsignal(RTEMEMOV);
-    moveblock(top(process[ pix ].rpcmask), m, (word) size);
-    process[ pix ].rpcmask = push(process[ pix ].rpcmask, m);
+    m = ( mask ) ballocate ( size );
+    if ( m == NULL ) errsignal ( RTEMEMOV );
+    moveblock ( top ( process[ pix ].rpcmask ), m, ( word ) size );
+    process[ pix ].rpcmask = push ( process[ pix ].rpcmask, m );
 }
 
 
-void popmask(pix)			/* Pop RPC mask from stack (restore) */
+void popmask ( pix )			/* Pop RPC mask from stack (restore) */
 word pix;
 {
     mask m;
 
-    m = top(process[ pix ].rpcmask);
-    process[ pix ].rpcmask = pop(process[ pix ].rpcmask);
-    free((char *) m);
+    m = top ( process[ pix ].rpcmask );
+    process[ pix ].rpcmask = pop ( process[ pix ].rpcmask );
+    free ( ( char * ) m );
 }
 
 
-void evaluaterpc(pix)		/* Check if any waiting RPC is enabled */
+void evaluaterpc ( pix )		/* Check if any waiting RPC is enabled */
 word pix;
 {
     queue q;
     message *msg;
 
     q = process[ pix ].rpcwait;
-    if (!qempty(q))
-    {
-    	do
-    	{
-    	    msg = mfront(q);
-    	    if (isenabled(pix, msg->control.par))
-	    {
-		process[ pix ].msgqueue = mpush(process[ pix ].msgqueue, msg);
-		process[ pix ].rpcwait = mdelete(process[ pix ].rpcwait, msg);
-		return;
-	    }
-	    q = qrotate(q);
-	} while (q != process[ pix ].rpcwait);
+    if ( !qempty ( q ) ) {
+        do {
+            msg = mfront ( q );
+            if ( isenabled ( pix, msg->control.par ) ) {
+                process[ pix ].msgqueue = mpush ( process[ pix ].msgqueue, msg );
+                process[ pix ].rpcwait = mdelete ( process[ pix ].rpcwait, msg );
+                return;
+            }
+            q = qrotate ( q );
+        } while ( q != process[ pix ].rpcwait );
     }
 }
 
 
-void rpc_accept(length)			/* Accept remote procedure call */
+void rpc_accept ( length )			/* Accept remote procedure call */
 word length;
 {
     int i;
 
-    dupmask(thispix);
-    for (i = 0;  i < length;  i++)
-    	enable(thispix, virtprot(M[ ic++ ]));
-    evaluaterpc(thispix);
-    if (!rpcready(thispix))
-        passivate(ACCEPTING);
+    dupmask ( thispix );
+    for ( i = 0;  i < length;  i++ )
+        enable ( thispix, virtprot ( M[ ic++ ] ) );
+    evaluaterpc ( thispix );
+    if ( !rpcready ( thispix ) )
+        passivate ( ACCEPTING );
 }
 
 
-static bool rpcready(pix)
+static bool rpcready ( pix )
 word pix;
 {
     procdescr *p;
@@ -228,27 +221,27 @@ word pix;
     word prot;
 
     p = &process[ pix ];
-    while (!qempty(p->msgqueue))
-    {
-        msg = mfront(p->msgqueue);
+    while ( !qempty ( p->msgqueue ) ) {
+        msg = mfront ( p->msgqueue );
         prot = msg->control.par;
-        if (isenabled(pix, prot))  return(TRUE);
-	p->msgqueue = qremove(p->msgqueue);
-	p->rpcwait = minsert(p->rpcwait, msg);
+        if ( isenabled ( pix, prot ) )  return ( TRUE );
+        p->msgqueue = qremove ( p->msgqueue );
+        p->rpcwait = minsert ( p->rpcwait, msg );
     }
-    return(FALSE);
+    return ( FALSE );
 }
 
 
-word virtprot(prot)			/* Get actual prototype for virtual */
+word virtprot ( prot )			/* Get actual prototype for virtual */
 word prot;
 {
     bool sign;
     word virtnr;
 
-    sign = (prot < 0);
-    prot = absolute(prot);
+    sign = ( prot < 0 );
+    prot = absolute ( prot );
     virtnr = prototype[ prot ]->virtnumber;
-    if (virtnr != -1) prot = M[ prototype[ thisp->prot ]->virtlist+virtnr ];
-    if (sign) return(-prot);  else return(prot);
+    if ( virtnr != -1 ) prot = M[ prototype[ thisp->prot ]->virtlist+virtnr ];
+    if ( sign ) return ( -prot );
+    else return ( prot );
 }

@@ -1,37 +1,37 @@
 /* Standard class IIUWGRAPH graphics primitives
 
-GRON:procedure(mode:integer) 
-GROFF:procedure 
-CLS:procedure 
-POINT:procedure(x, y:integer) 
-MOVE:procedure(x, y:integer) 
-DRAW:procedure(x, y:integer) 
-HFILL:procedure(x:integer) 
-VFILL:procedure(y:integer) 
-COLOR:procedure(color:integer) 
-STYLE:procedure(style:integer) 
-PATERN:procedure(p1, p2, p3, p4:integer) 
-INTENS:procedure(intens:integer) 
-PALLET:procedure(p:integer) 
-BORDER:procedure(b:integer) 
-VIDEO:procedure(buffer:arrayof integer) 
-HPAGE:procedure(p, q, r:integer) 
-NOCARD:function:integer 
-PUSHXY:procedure 
-POPXY:procedure 
-INXPOS:function:integer 
-INYPOS:function:integer 
-INPIX:function(x, y:integer):integer 
-GETMAP:function(x, y:integer):arrayof integer 
-PUTMAP:procedure(arrayof integer) 
-ORMAP:procedure(arrayof integer) 
-XORMAP:procedure(arrayof integer) 
-TRACK:procedure(x, y:integer) 
-INKEY:function:integer 
-HASCII:procedure(ch:integer) 
-HFONT:procedure(off, seg:integer) 
-HFONT8:procedure(output off, seg:integer) 
-OUTSTRING:procedure(s:string) 
+GRON:procedure(mode:integer)
+GROFF:procedure
+CLS:procedure
+POINT:procedure(x, y:integer)
+MOVE:procedure(x, y:integer)
+DRAW:procedure(x, y:integer)
+HFILL:procedure(x:integer)
+VFILL:procedure(y:integer)
+COLOR:procedure(color:integer)
+STYLE:procedure(style:integer)
+PATERN:procedure(p1, p2, p3, p4:integer)
+INTENS:procedure(intens:integer)
+PALLET:procedure(p:integer)
+BORDER:procedure(b:integer)
+VIDEO:procedure(buffer:arrayof integer)
+HPAGE:procedure(p, q, r:integer)
+NOCARD:function:integer
+PUSHXY:procedure
+POPXY:procedure
+INXPOS:function:integer
+INYPOS:function:integer
+INPIX:function(x, y:integer):integer
+GETMAP:function(x, y:integer):arrayof integer
+PUTMAP:procedure(arrayof integer)
+ORMAP:procedure(arrayof integer)
+XORMAP:procedure(arrayof integer)
+TRACK:procedure(x, y:integer)
+INKEY:function:integer
+HASCII:procedure(ch:integer)
+HFONT:procedure(off, seg:integer)
+HFONT8:procedure(output off, seg:integer)
+OUTSTRING:procedure(s:string)
 CIRB:procedure(x, y, r:integer, alpha, beta:real, b, i, p, q:integer)
 
 */
@@ -73,19 +73,19 @@ CIRB:procedure(x, y, r:integer, alpha, beta:real, b, i, p, q:integer)
 
 /* Standard class MOUSE mouse support
 
-INIT:function(output butttons:integer):boolean 
-SHOWCURSOR:procedure 
-HIDECURSOR:procedure 
-STATUS:procedure(output x,y:integer, l,r,c:boolean) 
-SETPOSITION:procedure(x, y:integer) 
+INIT:function(output butttons:integer):boolean
+SHOWCURSOR:procedure
+HIDECURSOR:procedure
+STATUS:procedure(output x,y:integer, l,r,c:boolean)
+SETPOSITION:procedure(x, y:integer)
 GETPRESS:procedure(b:integer; output x,y,p:integer, l, r, c:boolean)
 GETRELEASE:procedure(b:integer; output x,y,p:integer, l, r, c:boolean)
-SETWINDOW:procedure(l, r, t, b:integer) 
-DEFCURSOR:procedure(select, p, q:integer) 
-GETMOVEMENT:procedure(output x, y:integer) 
-SETSPEED:procedure(x, y:integer) 
-SETMARGINS:procedure(l, r, t, b:integer) 
-SETTHRESHOLD:procedure(t:integer) 
+SETWINDOW:procedure(l, r, t, b:integer)
+DEFCURSOR:procedure(select, p, q:integer)
+GETMOVEMENT:procedure(output x, y:integer)
+SETSPEED:procedure(x, y:integer)
+SETMARGINS:procedure(l, r, t, b:integer)
+SETTHRESHOLD:procedure(t:integer)
 
 */
 

@@ -126,9 +126,9 @@ typedef struct {
 /*
  * prototypes
  */
-EventQueue *EventQueueInit(int qsize,int ms_stksize,void (*msdraw)(void));
-void   EventQueueDeInit(void);
-int    EventQueueNextEvent(EventQueue *q,EventRecord *e);
+EventQueue *EventQueueInit ( int qsize,int ms_stksize,void ( *msdraw ) ( void ) );
+void   EventQueueDeInit ( void );
+int    EventQueueNextEvent ( EventQueue *q,EventRecord *e );
 
 #ifdef __cplusplus
 }
