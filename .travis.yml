@@ -1,0 +1,13 @@
+before_script:
+  - sudo add-apt-repository ppa:rethinkdb/ppa -y
+  - sudo dpkg --add-architecture i386
+  - sudo apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc 
+  - sudo apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
+  - sudo add-apt-repository ppa:kalakris/cmake -y
+  - sudo apt-get update
+  - sudo apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev libc6-dev-i386 multiarch-support build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2:i386 libf2c2-dev:i386 f2c:i386
+install: 
+  - cmake -G "Unix Makefiles" -DDISTRIBUTION=precise -DARCHITECTURE=amd64
+  - make
+compiler: gcc
+script: make test

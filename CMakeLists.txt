@@ -21,4 +21,4 @@ set(CPACK_PACKAGE_FILE_NAME "vlp-${PACKAGE_VERSION}-${DISTRIBUTION}_${ARCHITECTU
 #inclide cpack
 install(DIRECTORY examples DESTINATION share/vlp)
 INCLUDE(CPack)
-
+enable_testing()
