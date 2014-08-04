@@ -4,6 +4,7 @@ before_install:
   - sudo apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc 
   - sudo apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
   - sudo add-apt-repository ppa:kalakris/cmake -y
+  - sudo apt-mark hold oracle-java7-installer oracle-java8-installer
   - sudo apt-get update
   - sudo apt-get install --reinstall linux-libc-dev
   - sudo apt-get install -y libwxgtk3.0-dev libboost-dev cmake libc6-dev libc6-dev-i386 multiarch-support cpp g++ gcc gcc-multilib libf2c2:i386 libf2c2-dev:i386 f2c:i386
