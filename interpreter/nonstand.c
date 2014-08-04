@@ -20,9 +20,9 @@ char ii[50],ff[50];
 int scc,lastmsg;
 
 int wait_for_key() {
-    G_MESSAGE msg;
+    MESSAGE msg;
 
-    bzero ( &msg,sizeof ( G_MESSAGE ) );
+    bzero ( &msg,sizeof ( MESSAGE ) );
     while ( ( msg.msg_type != MSG_GRAPH ) && ( msg.param.pword[0] != GRAPH_INKEY_RESPONSE ) ) {
         read_from_graph ( &msg );
 
@@ -41,7 +41,7 @@ word nrproc;
     word ax,bx,cx,dx,i,t1,t2;
     unsigned int v,p,h,l,r,c,sc;
     unsigned int Res_graph_X,Res_graph_Y;
-    G_MESSAGE msg;
+    MESSAGE msg;
     MESSAGE msg1;
 
 
@@ -338,7 +338,7 @@ word nrproc;
 
             if ( msg.param.pword[1]<0 ) {
                 lastmsg=msg.param.pword[1];
-                bzero ( &msg,sizeof ( G_MESSAGE ) );
+                bzero ( &msg,sizeof ( MESSAGE ) );
                 while ( msg.param.pword[0]!=GRAPH_MAGIC_RESPONSE )
                     read_from_graph ( &msg );
                 if ( lastmsg==-305 ) { // Read integer

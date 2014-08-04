@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=VLP
+Comment=Loglan language and Virtual Loglan Processor
+Exec=vlp
+Icon=vlp
+Terminal=false
+Categories=Development;Languages;Loglan;

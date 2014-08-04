@@ -1,9 +1,3 @@
-#include "depend.h"
-#include "genint.h"
-#include "int.h"
-#include "process.h"
-#include "intproto.h"
-#include "socu.h"
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -12,16 +6,24 @@
 #include <errno.h>
 #include <netdb.h>
 
+#include "depend.h"
+#include "genint.h"
+#include "int.h"
+#include "process.h"
+#include "intproto.h"
+#include "socu.h"
+#include "sockets.h"
+#include "debug.h"
+
 static void load ( char * );
 static void initiate ( int, char ** );
 int main ( int, char ** );
 
 int internal_sock, graph_sock, net_sock, connected = 0;
+SOCKET network_socket;
 struct sockaddr_un svr;
 int GraphRes = -1;
-char ProgName[255], mygname[80], mykname[80], nname[80], mynname[80];
-fd_set DirSet;
-int maxDirSet;
+char ProgName[255];
 
 ctx_struct my_ctx;
 ctx_struct parent_ctx;
@@ -106,82 +108,30 @@ static void load ( char *_filename ) {
 
 /* Establish configuration parameters */
 static void initiate ( int argc, char **argv ) {
-    if ( argc < 3 ) {
-        printf ( "FATAL ERROR: Bad number of arguments %d\nNeed 2 or 3\n", argc - 1 );
+    if ( argc < 2 ) {
+        printf ( "FATAL ERROR: Bad number of arguments %d\nNeed 1 or 2\n\nUsage: %s program-name.log [r]\n", argc - 1,argv[0] );
         exit ( 8 );
     }
-    long m;
-    int len, i;
-    char filename[300];
-    int sock;
-    fd_set rset, wset;
+    int i;
 
     ournode = 0;
     network = TRUE;
-    if ( ( argc == 4 ) && ( strcmp ( argv[3], "r" ) == 0 ) ) {
+    if ( ( argc == 3 ) && ( strcmp ( argv[2], "r" ) == 0 ) ) {
         remote = TRUE;
-    } else {
+    } else  if ( argc == 2 ){
         remote = FALSE;
+    } else {
+        printf ( "FATAL ERROR: Bad number of arguments %d\nNeed 1 or 2\n\nUsage: %s program-name.log [r]\n", argc - 1,argv[0] );
+        exit ( 8 );
     }
     for ( i = 0; i < 255; i++ ) {
         RInstance[i] = -1;
         DirConn[i] = -1;
     }
+    strcpy ( ProgName, argv[1] );
 
-    FD_ZERO ( &DirSet );
-    maxDirSet = 0;
-
-    strcpy ( filename, argv[2] );
-    strcpy ( ProgName, argv[2] );
-
-    strcpy ( mynname, argv[1] );
-    strcat ( mynname, ".net" );
-    unlink ( mynname );
-    sock = socket ( AF_UNIX, SOCK_STREAM, 0 );
-    bzero ( &svr, sizeof ( svr ) );
-    svr.sun_family = AF_UNIX;
-    strcpy ( svr.sun_path, mynname );
-    len = strlen ( svr.sun_path ) + sizeof ( svr.sun_family );
-    bind ( sock, ( struct sockaddr* ) &svr, len );
-    listen ( sock, 5 );
-
-    /* socket for graphic requests */
-    strcpy ( mygname, argv[1] );
-    strcat ( mygname, ".gr" );
-    unlink ( mygname );
-
-    /* socket for KERNEL communication */
-    internal_sock = socket ( AF_UNIX, SOCK_STREAM, 0 );
-    bzero ( &svr, sizeof ( svr ) );
-    svr.sun_family = AF_UNIX;
-    strcpy ( svr.sun_path, argv[1] );
-    strcpy ( mykname, argv[1] );
-    len = strlen ( svr.sun_path ) + sizeof ( svr.sun_family );
-    i = connect ( internal_sock, ( struct sockaddr* ) &svr, len );
-
-    if ( i == 0 ) {
-        fcntl ( internal_sock, F_SETFL, O_NONBLOCK | fcntl ( internal_sock, F_GETFL, 0 ) );
-    } else {
-        while ( i != 0 ) {
-            close ( internal_sock );
-            internal_sock = socket ( AF_UNIX, SOCK_STREAM, 0 );
-            fcntl ( internal_sock, F_SETFL, O_NONBLOCK | fcntl ( internal_sock, F_GETFL, 0 ) );
-            i = connect ( internal_sock, ( struct sockaddr* ) &svr, len );
-        }
-    }
-    /* socket for network requests */
-    FD_ZERO ( &rset );
-    FD_ZERO ( &wset );
-    FD_SET ( sock, &rset );
-    if ( select ( sock + 1, &rset, &wset, 0, 0 ) )
-        net_sock = accept ( sock, ( struct sockaddr* ) 0, ( int * ) 0 );
-    if ( net_sock > 0 ) {
-        fcntl ( net_sock, F_SETFL, O_NONBLOCK | fcntl ( net_sock, F_GETFL, 0 ) );
-    }
-    close ( sock );
-
-    if ( filename != NULL ) {
-        load ( filename ); /* load code and prototypes */
+    if ( ProgName != NULL ) {
+        load ( ProgName ); /* load code and prototypes */
     }
 }
 
@@ -197,22 +147,22 @@ void decode() {
     getargument ( a3, 2 );
 }
 
-void send_to_graph ( G_MESSAGE *msg ) {
-    write ( graph_sock, msg, sizeof ( G_MESSAGE ) );
+void send_to_graph ( MESSAGE *msg ) {
+    write ( network_socket, msg, sizeof ( MESSAGE ) );
 }
 
-int read_from_graph ( G_MESSAGE *msg ) {
+int read_from_graph ( MESSAGE *msg ) {
     fd_set rset, wset;
     struct timeval tout = {0, 0};
 
     FD_ZERO ( &rset );
     FD_ZERO ( &wset );
-    FD_SET ( graph_sock, &rset );
+    FD_SET ( network_socket, &rset );
 
 
     if ( select ( graph_sock + 1, &rset, &wset, 0, ( struct timeval * ) &tout ) > 0 ) {
-        if ( FD_ISSET ( graph_sock, &rset ) )
-            return ( read ( graph_sock, msg, sizeof ( G_MESSAGE ) ) );
+        if ( FD_ISSET ( network_socket, &rset ) )
+            return ( read ( network_socket, msg, sizeof ( MESSAGE ) ) );
     }
     return ( 0 );
 }
@@ -223,56 +173,58 @@ int read_from_net ( MESSAGE *msg ) {
 
     FD_ZERO ( &rset );
     FD_ZERO ( &wset );
-    FD_SET ( net_sock, &rset );
+    FD_SET ( network_socket, &rset );
 
     if ( select ( net_sock + 1, &rset, &wset, 0, ( struct timeval * ) &tout ) > 0 ) {
-        if ( FD_ISSET ( net_sock, &rset ) )
-            return ( read ( net_sock, msg, sizeof ( MESSAGE ) ) );
+        if ( FD_ISSET ( network_socket, &rset ) )
+            return ( read ( network_socket, msg, sizeof ( MESSAGE ) ) );
     }
     return ( 0 );
 }
 
 /* Get graphic resource number */
 int get_graph_res() {
-    MESSAGE msg;
-    int sock;
-    struct sockaddr_un svr;
-    int len, i;
-    fd_set rset, wset;
+    MESSAGE in,out;
+    int i;
 
-    unlink ( mygname );
-    sock = socket ( AF_UNIX, SOCK_STREAM, 0 );
-    bzero ( &svr, sizeof ( svr ) );
-    svr.sun_family = AF_UNIX;
-    strcpy ( svr.sun_path, mygname );
-    len = strlen ( svr.sun_path ) + sizeof ( svr.sun_family );
-    bind ( sock, ( struct sockaddr* ) &svr, len );
-    listen ( sock, 5 );
+    in.msg_type = MSG_GRAPH;
+    in.param.pword[0] = GRAPH_ALLOCATE;
+    DEBUG_PRINT("Sending request to kernel\n\t type %d;\tparam.pword[0] %d\n", in.msg_type, in.param.pword[0]);
+    send_and_select_response( network_socket, &in, &out );
 
 
-    msg.msg_type = MSG_GRAPH;
-    msg.param.pword[0] = GRAPH_ALLOCATE;
-    strcpy ( msg.param.pstr, mygname );
-    write ( internal_sock, &msg, sizeof ( MESSAGE ) );
-    bzero ( &msg, sizeof ( MESSAGE ) );
-    FD_ZERO ( &rset );
-    FD_ZERO ( &wset );
-    FD_SET ( sock, &rset );
-    if ( select ( sock + 1, &rset, &wset, 0, 0 ) ) {
-        graph_sock = accept ( sock, ( struct sockaddr* ) 0, ( int* ) 0 );
-    }
-    if ( graph_sock == -1 ) {
-        graphics = FALSE;
+    if ( out.msg_type == MSG_GRAPH && out.param.pword[0] == GRAPH_ALLOCATED ) {
+        graphics = TRUE;
+        DEBUG_PRINT("Graphics resource allocated\n");
         return ( 0 );
+    }else if ( out.msg_type == MSG_GRAPH && out.param.pword[0] == GRAPH_INACCESSIBLE ) {
+        graphics = FALSE;
+        DEBUG_PRINT("Cannot allocate graphics resource\n");
+        return ( 1 );
+    } else {
+        graphics = FALSE;
+        DEBUG_PRINT("Wrong answer for GRAPH_ALLOCATE; should frow protocol exception %d %d\n", out.msg_type, out.param.pword[0]);
+        return (-1);
     }
-    close ( sock );
-    fcntl ( graph_sock, F_SETFL, O_NONBLOCK | fcntl ( graph_sock, F_GETFL, 0 ) );
-    return ( 1 );
 } /* get_graph_res */
 
+void graph_setstatus() {
+    MESSAGE m1;
+    m1.msg_type = MSG_GRAPH;
+    m1.param.pword[0] = GRAPH_SET_TITLE;
+    m1.param.pword[1] = GraphRes;
+    sprintf ( m1.param.pstr,
+            "%s      ID: %d", ProgName, my_ctx.program_id );
+    if ( remote ) strcat ( m1.param.pstr, "  REMOTE instance" );
+    send_message (network_socket, &m1 );
+}
+/*
+ * 1. todo przerobić int tak aby przy braku zasobu graficznego wyświetlał informacje na konsoli
+ * 2. implementacja modułu graficznego
+ */
 /* writeln string */
 void writeln_str ( char *s ) {
-    G_MESSAGE msg;
+    MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
     msg.param.pword[2] = GRAPH_WRITE;
@@ -284,7 +236,7 @@ void writeln_str ( char *s ) {
 
 /* write string */
 void write_str ( char *s ) {
-    G_MESSAGE msg;
+    MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
     msg.param.pword[0] = GRAPH_WRITE;
@@ -294,7 +246,7 @@ void write_str ( char *s ) {
 
 /* write char */
 void write_char ( char a ) {
-    G_MESSAGE msg;
+    MESSAGE msg;
 
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
@@ -306,7 +258,7 @@ void write_char ( char a ) {
 /* read char */
 char read_char() {
     char ch;
-    G_MESSAGE msg;
+    MESSAGE msg;
     int st;
 
 
@@ -330,7 +282,7 @@ char read_char() {
 
 /* read line */
 void read_line() {
-    G_MESSAGE msg;
+    MESSAGE msg;
     int st;
 
     msg.msg_type = MSG_GRAPH;
@@ -348,7 +300,7 @@ void read_line() {
 /* read string */
 void read_str ( char *s ) {
     char ss[255];
-    G_MESSAGE msg;
+    MESSAGE msg;
     int st;
 
     msg.msg_type = MSG_GRAPH;
@@ -371,7 +323,7 @@ void read_str ( char *s ) {
 
 /* send message to kernel */
 void send_to_kernel ( MESSAGE *msg ) {
-    write ( internal_sock, msg, sizeof ( MESSAGE ) );
+    write ( network_socket, msg, sizeof ( MESSAGE ) );
 }
 
 /* send message to net */
@@ -517,13 +469,16 @@ void get_internal() {
 
 void request_id() {
     MESSAGE m;
-    G_MESSAGE m1;
+    MESSAGE m1;
 
     m.msg_type = MSG_INT;
     m.param.pword[0] = INT_CTX_REQ;
-    send_to_kernel ( &m );
-    while ( ( m.msg_type != MSG_INT ) || ( m.param.pword[0] != INT_CTX ) )
-        read ( internal_sock, &m, sizeof ( MESSAGE ) );
+    send_and_select_response(network_socket, &m, &m);
+    if( ( m.msg_type != MSG_INT ) || ( m.param.pword[0] != INT_CTX ) ) {
+        // todo should throw exception, bad response from VM
+        DEBUG_PRINT("BAD response from VM! Waiting for INT_CTX but recived: %d %d \n",m.msg_type,m.param.pword[0] );
+        exit(-8777);
+    }
 
     my_ctx.node = m.param.pword[1];
     my_ctx.program_id = m.param.pword[2];
@@ -536,15 +491,6 @@ void request_id() {
         parent_ctx.program_id = my_ctx.program_id;
     }
     ournode = my_ctx.node;
-    //  strcpy(nname,m.param.pstr);
-    //  net_sock = open(nname,O_WRONLY);
-    m1.msg_type = MSG_GRAPH;
-    m1.param.pword[0] = GRAPH_SET_TITLE;
-    m1.param.pword[1] = GraphRes;
-    sprintf ( m1.param.pstr,
-              "%s      ID: %d", ProgName, my_ctx.program_id );
-    if ( remote ) strcat ( m1.param.pstr, "  REMOTE instance" );
-    send_to_graph ( &m1 );
 }
 
 void send_ready() {
@@ -572,7 +518,7 @@ void send_ready() {
     len = sizeof ( svr );
     getsockname ( sock, ( struct sockaddr* ) &svr, &len );
     msg.param.pword[8] = ntohs ( svr.sin_port );
-    gethostname ( name, &len );
+    gethostname ( name, len );
     info = ( struct hostent* ) gethostbyname ( name );
     bcopy ( ( char* ) info->h_addr, ( char* ) &svr.sin_addr, info->h_length );
     sprintf ( msg.param.pstr, "%s", inet_ntoa ( svr.sin_addr ) );
@@ -584,12 +530,16 @@ void send_ready() {
 }
 
 int main ( int argc, char **argv ) {
-    initiate ( argc, argv ); /* initialize executor */
-    runsys(); /* initialize running system */
-    GraphRes = get_graph_res();
-    if ( GraphRes < 0 ) exit ( 12 );
 
+    initiate ( argc, argv ); /* initialize executor */
+
+    socket_setup();
+    network_socket = socket_connect();
+    runsys(); /* initialize running system */
     request_id();
+    GraphRes = get_graph_res();
+    graph_setstatus();
+    if ( GraphRes < 0 ) exit ( 12 );
     if ( remote ) send_ready();
 
     setjmp ( contenv ); /* set label for continue long jump */

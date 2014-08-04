@@ -1,4 +1,5 @@
 #include "../head/comm.h"
+#include "sockets.h"
 
 #define MAXMARKER       MAXINTEGER  /* maximum special value of mark */
 #define MAXAPPT         MAXINTEGER  /* maximum appetite (easily extensible ?) */
@@ -173,9 +174,8 @@ extern int curx;
 extern int cury;
 extern char ProgName[255];
 extern ctx_struct my_ctx;
-extern void send_to_graph ( G_MESSAGE* );
-extern int read_from_graph ( G_MESSAGE* );
+extern void send_to_graph ( MESSAGE* );
+extern int read_from_graph ( MESSAGE* );
 extern int read_from_net ( MESSAGE* );
-extern char mygname[80],mykname[80],mynname[80];
 extern int DirConn[MAXINSTANCE];
-
+extern SOCKET network_socket;

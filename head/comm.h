@@ -1,3 +1,5 @@
+#ifndef COMM_H
+#define COMM_H
 /*    Communication structures */
 typedef struct {
     int node;
@@ -70,7 +72,8 @@ typedef struct {
 
 #define GRAPH_MAGIC	37
 #define GRAPH_MAGIC_RESPONSE	38
-
+#define GRAPH_INACCESSIBLE 39
+#define GRAPH_ALLOCATING 40
 /* INT element */
 #define INT_CONNECTED	1
 #define INT_EXITING	    2
@@ -143,7 +146,4 @@ typedef struct {
     messg int_msg;
 } MESSAGE;
 
-typedef struct {
-    short msg_type;
-    param_struct param;
-} G_MESSAGE;
+#endif

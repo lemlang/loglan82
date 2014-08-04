@@ -10,11 +10,22 @@ project(logint)
 # RPCDBG - debugging of alien call, all actions : alien call, acknowledges,
 #          passivations and returns are written to stderr
 # NO_GRAPH -    nonstand.c defines only INKEY grom IIUWGRAPH
-add_definitions(-DOBJECTADDR -DSYSV -m32)
-set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -m32")
-set(CMAKE_SHARED_LIBRARY_C_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} -m32")
-set(CMAKE_SHARED_LIBRARY_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -m32")
+add_definitions(-DOBJECTADDR -DSYSV )
+
+
+find_package(wxWidgets COMPONENTS base net REQUIRED)
+# wxWidgets include (this will do all the magic to configure everything)
+include( "${wxWidgets_USE_FILE}" )
+
+set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ")
+set(CMAKE_SHARED_LIBRARY_C_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ")
+set(CMAKE_SHARED_LIBRARY_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} ")
 if(UNIX)
   link_libraries(m)
 endif(UNIX)
-add_executable(logint cint.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
+
+set(SRC cint.c sockets.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
+
+add_executable(logint ${SRC})
+target_link_libraries(logint ${wxWidgets_LIBRARIES})
+

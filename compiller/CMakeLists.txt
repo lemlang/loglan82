@@ -10,3 +10,5 @@ set(SRCS main.cpp Compiller.cpp IncludeFile.cpp)
 #endif(WIN32)
 add_executable(vlpc WIN32 ${SRCS})
 target_link_libraries(vlpc ${wxWidgets_LIBRARIES})
+install (TARGETS vlpc DESTINATION bin)
+

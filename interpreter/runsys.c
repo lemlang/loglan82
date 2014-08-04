@@ -33,7 +33,7 @@ or             Andrzej Salwicki
 #include        "int.h"
 #include        "process.h"
 #include        "intproto.h"
-
+#include "sockets.h"
 /* Initialize memory structures for objects, main object and a few goodies
  * more.
  */
@@ -241,7 +241,7 @@ void trace ( word lineno ) {
 
 void endrun ( int status ) {
     MESSAGE msg;
-    G_MESSAGE m;
+    MESSAGE m;
     int i;
 
     if ( debug ) {
@@ -251,19 +251,15 @@ void endrun ( int status ) {
     msg.msg_type = MSG_INT;
     msg.param.pword[0] = INT_EXITING;
     strcpy ( msg.param.pstr,ProgName );
-    write ( internal_sock, &msg, sizeof ( MESSAGE ) );
+    write ( network_socket, &msg, sizeof ( MESSAGE ) );
 
     m.msg_type = MSG_GRAPH;
     m.param.pword[0] = GRAPH_FREE;
-    write ( graph_sock,&m,sizeof ( G_MESSAGE ) );
+    write ( network_socket,&m,sizeof ( MESSAGE ) );
 
-    close ( internal_sock );
-    close ( graph_sock );
-    close ( net_sock );
-    unlink ( mygname );
-    unlink ( mykname );
-    unlink ( mynname );
     for ( i=0; i<255; i++ )
         if ( DirConn[i]!=-1 ) close ( DirConn[i] );
+    socket_disconnect(network_socket);
+    socket_teardown();
     exit ( status );
 }

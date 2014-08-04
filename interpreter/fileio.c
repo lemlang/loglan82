@@ -199,7 +199,7 @@ void readln ( fp )                      /* Skip to end of line */
 FILE *fp;
 {
     int ch,st;
-    G_MESSAGE msg;
+    MESSAGE msg;
     if ( fp == stdin ) {
         read_line();
     } else
