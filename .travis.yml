@@ -1,6 +1,6 @@
 before_install:
   - sudo add-apt-repository ppa:rethinkdb/ppa -y
-  - sudo dpkg --add-architecture i386
+  - sudo dpkg --foreign-architecture i386
   - sudo apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc 
   - sudo apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
   - sudo add-apt-repository ppa:kalakris/cmake -y
