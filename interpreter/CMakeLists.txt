@@ -1,7 +1,7 @@
 #Specify the version being used aswell as the language
 cmake_minimum_required(VERSION 2.6)
 #Name your project here
-project(logint)
+project(loglanint)
 # OBJECTADDR - switch on special process addressing - object simulates
 #              process pointer
 # CDBG - turn on debugging of compactifier, compactifier appends to file
@@ -26,6 +26,7 @@ endif(UNIX)
 
 set(SRC cint.c sockets.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
 
-add_executable(logint ${SRC})
-target_link_libraries(logint ${wxWidgets_LIBRARIES})
+add_executable(loglanint ${SRC})
+target_link_libraries(loglanint ${wxWidgets_LIBRARIES})
+install (TARGETS loglanint DESTINATION bin)
 

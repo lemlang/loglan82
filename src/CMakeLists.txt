@@ -42,9 +42,9 @@ endif()
 
 # For convenience we define the sources as a variable. You can add
 # header files and cpp/c files and CMake will sort them out
-set(SRCSL launcher.cpp Launcher.cpp VLPMainWindow.cpp backward.cpp)
-set(SRCSR vm.cpp VMServerThread.cpp VM.cpp Configurations.cpp backward.cpp)
-set(SRCSG graphics.cpp Graphics.cpp GraphicsWindow.cpp backward.cpp)
+set(SRCSL launchermain.cpp Launcher.cpp VLPMainWindow.cpp backward.cpp)
+set(SRCSR vmmain.cpp VMServerThread.cpp VM.cpp Configurations.cpp backward.cpp)
+set(SRCSG graphicsmain.cpp Graphics.cpp GraphicsWindow.cpp backward.cpp)
 
 # If we build for windows systems, we also include the resource file
 # containing the manifest, icon and other resources

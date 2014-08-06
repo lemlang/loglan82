@@ -16,6 +16,7 @@ else(F2C_LIBRARIES)
   find_library(F2C_LIBRARIES f2c
                /usr/lib
                /usr/local/lib
+               c:/f2c
               )
 
   if(F2C_LIBRARIES)
