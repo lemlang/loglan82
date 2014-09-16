@@ -12,11 +12,8 @@
 #endif
 */
 
-void errsignal ( exception )
-int exception;
-{
+void errsignal ( int exception ) {
     word signum, ah, am;
-
 
     signum = scot[ exception ];
     /* A.Salwicki 30 pazdz. 2002 *

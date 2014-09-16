@@ -1,6 +1,4 @@
-#Specify the version being used aswell as the language
-cmake_minimum_required(VERSION 2.6)
-#Name your project here
+cmake_minimum_required(VERSION 2.8)
 project(loglanint)
 # OBJECTADDR - switch on special process addressing - object simulates
 #              process pointer
@@ -24,9 +22,12 @@ if(UNIX)
   link_libraries(m)
 endif(UNIX)
 
+if(WIN32)
+link_libraries(wsock32)
+endif(WIN32)
+
 set(SRC cint.c sockets.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
 
 add_executable(loglanint ${SRC})
 target_link_libraries(loglanint ${wxWidgets_LIBRARIES})
 install (TARGETS loglanint DESTINATION bin)
-

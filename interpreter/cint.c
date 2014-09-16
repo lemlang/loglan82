@@ -1,17 +1,13 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <errno.h>
-#include <netdb.h>
 
 #include "depend.h"
 #include "genint.h"
 #include "int.h"
 #include "process.h"
-#include "intproto.h"
-#include "socu.h"
+#include "intproto.h" 
 #include "sockets.h"
 #include "debug.h"
 
@@ -21,7 +17,7 @@ int main ( int, char ** );
 
 int internal_sock, graph_sock, net_sock, connected = 0;
 SOCKET network_socket;
-struct sockaddr_un svr;
+struct sockaddr_in svr;
 int GraphRes = -1;
 char ProgName[255];
 
@@ -148,7 +144,11 @@ void decode() {
 }
 
 void send_to_graph ( MESSAGE *msg ) {
-    write ( network_socket, msg, sizeof ( MESSAGE ) );
+    if( network_socket > 0 ) {
+        write ( network_socket, msg, sizeof ( MESSAGE ) );
+    } else {
+        errsignal(RTEIOERR);
+    }
 }
 
 int read_from_graph ( MESSAGE *msg ) {
@@ -224,6 +224,7 @@ void graph_setstatus() {
  */
 /* writeln string */
 void writeln_str ( char *s ) {
+    if( network_socket > 0 ) {
     MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
@@ -232,20 +233,29 @@ void writeln_str ( char *s ) {
     send_to_graph ( &msg );
     strcpy ( msg.param.pstr, "\n" );
     send_to_graph ( &msg );
+    } else {
+        printf("%s\n",s);
+    }
 }
 
 /* write string */
 void write_str ( char *s ) {
+    if( network_socket > 0 ) {
     MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
     msg.param.pword[0] = GRAPH_WRITE;
     strcpy ( msg.param.pstr, s );
     send_to_graph ( &msg );
+    } else {
+        printf("%s",s);
+    }
 }
 
 /* write char */
 void write_char ( char a ) {
+    if( network_socket > 0 ) {
+
     MESSAGE msg;
 
     msg.msg_type = MSG_GRAPH;
@@ -253,6 +263,9 @@ void write_char ( char a ) {
     msg.param.pword[0] = GRAPH_PUTCHAR;
     msg.param.pchar = a;
     send_to_graph ( &msg );
+    } else {
+        printf("%c",a);
+    }
 }
 
 /* read char */
@@ -375,7 +388,7 @@ int send_to_net ( MESSAGE *msg ) {
             RInstance[k] = -1;
             writeln_str ( "Cannot connect remote instance!" );
         } else {
-            fcntl ( DirConn[k], F_SETFL, O_NONBLOCK | fcntl ( DirConn[k], F_GETFL, 0 ) );
+            //fcntl ( DirConn[k], F_SETFL, O_NONBLOCK | fcntl ( DirConn[k], F_GETFL, 0 ) );
         }
     }
     if ( RInstance[k] != -1 ) {
@@ -526,7 +539,7 @@ void send_ready() {
 
     bzero ( &svr, sizeof ( svr ) );
     DirConn[parent_ctx.node] = accept ( sock, ( struct sockaddr* ) &svr, &len );
-    fcntl ( DirConn[parent_ctx.node], F_SETFL, O_NONBLOCK | fcntl ( DirConn[parent_ctx.node], F_GETFL, 0 ) );
+    //fcntl ( DirConn[parent_ctx.node], F_SETFL, O_NONBLOCK | fcntl ( DirConn[parent_ctx.node], F_GETFL, 0 ) );
 }
 
 int main ( int argc, char **argv ) {
@@ -536,11 +549,13 @@ int main ( int argc, char **argv ) {
     socket_setup();
     network_socket = socket_connect();
     runsys(); /* initialize running system */
+    if( network_socket > 0) {
     request_id();
-    GraphRes = get_graph_res();
-    graph_setstatus();
-    if ( GraphRes < 0 ) exit ( 12 );
-    if ( remote ) send_ready();
+        GraphRes = get_graph_res();
+        graph_setstatus();
+        if ( GraphRes < 0 ) exit ( 12 );
+        if ( remote ) send_ready();
+    }
 
     setjmp ( contenv ); /* set label for continue long jump */
     while ( TRUE ) { /* repeat until exit() is called */

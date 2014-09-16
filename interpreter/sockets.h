@@ -4,6 +4,7 @@
 // include headers based on OS
 #if defined WIN32
 #include <winsock.h>  // WinSock subsystem
+#include <winsock2.h>  // WinSock subsystem
 #elif defined __linux__
 #include <unistd.h>
 #include <netdb.h>
@@ -16,6 +17,8 @@
 // redefine some types and constants based on OS
 #if defined WIN32
 typedef int socklen_t;  // Unix socket length
+#define bzero(ptr,n) memset(ptr, 0, n)
+#define bcopy(b1, b2, len) (memmove((b2),(b1),(len)),(void) 0)
 #elif defined __linux__
 typedef int SOCKET;
 #define INVALID_SOCKET -1  // WinSock invalid socket
