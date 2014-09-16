@@ -13,6 +13,12 @@
 #include <wx/txtstrm.h>
 #include <wx/stdpaths.h>
 
+Compiller::Compiller() {
+}
+
+Compiller::~Compiller() {
+}
+
 void Compiller::OnInitCmdLine(wxCmdLineParser& parser) {
     parser.SetDesc(g_cmdLineDesc);
     // must refuse '/' as parameter starter or cannot use "/path" style paths

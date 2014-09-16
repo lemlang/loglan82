@@ -12,7 +12,6 @@ cmake_minimum_required(VERSION 2.8.8)
 # visual studio, and in our makefiles.
 project(vlp)
 
-set(VERSION "2014")
 # Location where cmake first looks for cmake modules.
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
 
