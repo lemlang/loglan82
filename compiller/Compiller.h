@@ -16,6 +16,8 @@ public:
     IncludeFile* findTrueLine(long line, long *trueline);
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
+    Compiller();
+    ~Compiller();
 private:
     IncludeFileList includeList;
     int result;
