@@ -41,7 +41,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <malloc.h>
-#include "f2c.h"
+#include <f2c.h>
 
 FILE *file_arr[30]={NULL};
 static char *file_names[30]={NULL};

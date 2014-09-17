@@ -7,7 +7,7 @@
 #include "genint.h"
 #include "int.h"
 #include "process.h"
-#include "intproto.h" 
+#include "intproto.h"
 #include "sockets.h"
 #include "debug.h"
 
@@ -144,7 +144,7 @@ void decode() {
 }
 
 void send_to_graph ( MESSAGE *msg ) {
-    if( network_socket > 0 ) {
+    if( network_socket != INVALID_SOCKET ) {
         write ( network_socket, msg, sizeof ( MESSAGE ) );
     } else {
         errsignal(RTEIOERR);
@@ -224,7 +224,7 @@ void graph_setstatus() {
  */
 /* writeln string */
 void writeln_str ( char *s ) {
-    if( network_socket > 0 ) {
+    if( network_socket != INVALID_SOCKET ) {
     MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
@@ -240,7 +240,7 @@ void writeln_str ( char *s ) {
 
 /* write string */
 void write_str ( char *s ) {
-    if( network_socket > 0 ) {
+    if( network_socket != INVALID_SOCKET ) {
     MESSAGE msg;
     msg.msg_type = MSG_GRAPH;
     msg.param.pword[1] = GraphRes;
@@ -254,7 +254,7 @@ void write_str ( char *s ) {
 
 /* write char */
 void write_char ( char a ) {
-    if( network_socket > 0 ) {
+    if( network_socket != INVALID_SOCKET ) {
 
     MESSAGE msg;
 
@@ -549,7 +549,7 @@ int main ( int argc, char **argv ) {
     socket_setup();
     network_socket = socket_connect();
     runsys(); /* initialize running system */
-    if( network_socket > 0) {
+    if( network_socket != INVALID_SOCKET) {
     request_id();
         GraphRes = get_graph_res();
         graph_setstatus();
