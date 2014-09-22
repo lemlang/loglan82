@@ -86,6 +86,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ubuntu64precisetest.vm.box = "ubuntu/precise64"
     ubuntu64precisetest.vm.provision "shell", inline: $script_precise_test
   end
+  config.vm.define "windows7" do |windows7|
+    windowsxp.vm.communication = "winrm"
+  end
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
