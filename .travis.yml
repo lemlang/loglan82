@@ -11,5 +11,6 @@ before_install:
 install: 
   - cmake -G "Unix Makefiles" -DDISTRIBUTION=precise -DARCHITECTURE=amd64
   - make
+  - make install
 compiler: gcc
-script: make test
+script: ctest -V

@@ -51,6 +51,10 @@ bool Compiller::OnInit() {
         this->result = 1;
         return false;
     }
+    return true;
+}
+int Compiller::OnRun()
+{
     size_t t;
     wxString systemCommand;
     wxString poms, poms1, poms2;
@@ -69,8 +73,8 @@ bool Compiller::OnInit() {
 
     wxFileName temporaryDirectory(wxFileName::CreateTempFileName("loglan"));
     wxLogMessage("cwd: %s executable dir: %s filename: %s filename without ext: %s tempfilename: %s",
-            cwd.GetFullPath(), executablesDir.GetFullPath(), filename, filenameNoExt, temporaryDirectory.GetFullPath());
-	temporaryDirectory.SetExt("");
+                 cwd.GetFullPath(), executablesDir.GetFullPath(), filename, filenameNoExt, temporaryDirectory.GetFullPath());
+    temporaryDirectory.SetExt("");
     wxString temporaryNoEXt = temporaryDirectory.GetFullPath();
     temporaryDirectory.SetExt("log");
     wxString temporaryLog = temporaryDirectory.GetFullPath();
@@ -151,9 +155,9 @@ bool Compiller::OnInit() {
     compfile.Close();
 
     systemCommand.sprintf("%s%cloglan %s > %s",
-            executablesDir.GetFullPath(),
-            wxFileName::GetPathSeparator(),
-            temporaryLog, temporaryErr);
+                          executablesDir.GetFullPath(),
+                          wxFileName::GetPathSeparator(),
+                          temporaryLog, temporaryErr);
     wxLogMessage(_("System command: %s"),systemCommand);
     if (wxExecute(systemCommand, wxEXEC_SYNC) == -1) {
         wxLogError(_("Cannot execute pass1"));
@@ -164,9 +168,9 @@ bool Compiller::OnInit() {
     if (wxFile::Exists(temporaryLcd.ToAscii())) {
         wxLogMessage(_("Compile ok"));
         systemCommand.sprintf("%s%cloglangen %s",
-                executablesDir.GetFullPath(),
-                wxFileName::GetPathSeparator(),
-                temporaryNoEXt);
+                              executablesDir.GetFullPath(),
+                              wxFileName::GetPathSeparator(),
+                              temporaryNoEXt);
         wxLogMessage(_("System command: %s"),systemCommand);
         if (wxExecute(systemCommand, wxEXEC_SYNC) == -1) {
             wxLogError(_("Cannot execute pass2"));
@@ -222,15 +226,16 @@ bool Compiller::OnInit() {
         wxRemoveFile(temporaryPcd.ToAscii());
         wxRemoveFile(temporaryCcd.ToAscii());
         if( wxFileExists(temporaryErr.ToAscii()) ) {
-			wxRemoveFile(temporaryErr.ToAscii());
-		}
+            wxRemoveFile(temporaryErr.ToAscii());
+        }
         //todo clear all temporary files
     }
-    return false;
+    return this->result;
 }
 
+
 int Compiller::OnExit() {
-    return this->result;
+    return wxAppConsole::OnExit();
 }
 
 IncludeFile* Compiller::findTrueLine(long ln, long *trueline) {

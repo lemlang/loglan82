@@ -11,8 +11,9 @@
 
 class Compiller : public wxAppConsole {
 public:
-    bool OnInit();
-    int OnExit();
+    virtual bool OnInit();
+    virtual int OnExit();
+    virtual int  OnRun();
     IncludeFile* findTrueLine(long line, long *trueline);
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);

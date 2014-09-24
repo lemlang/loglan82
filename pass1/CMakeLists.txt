@@ -31,7 +31,7 @@ set(CMAKE_SHARED_LIBRARY_C_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} -m32")
 set(CMAKE_SHARED_LIBRARY_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -m32")
 set(SRC memfil.c ml3.c main.c stdio.c blank2.h blank3.h blank.h stos.h option.h)
 set(FF_FILES al11 al12 al13 it0 it1 scan wan1 )
-#set(FF_FILES al11.F al12.F al13.F it0.F it1.F scan.F wan1.F)
+
 FOREACH (FF_FILE ${FF_FILES})
 add_custom_command (
   OUTPUT ${FF_FILE}.c
