@@ -1,0 +1,131 @@
+program Winograd;
+
+signal Niezgoda;
+
+unit Winograd: procedure(A,B: arrayof arrayof real;
+			 output C: arrayof arrayof real);
+ 
+   var i,j,k,n,m: integer,
+       W,V: arrayof real,
+       p: boolean,
+       s: real;
+            
+begin
+(* ustalic czy macierze moga byc mnozone tzn. 
+   czy ilosc wierszy w A = ilosc kolumn w B? *)
+(* ustalic czy n jest parzyste? *) 
+(* obliczyc "preprocessing" *)
+
+i := upper(A);
+j := lower(A);
+k := i-j;
+i:= upper(B);
+j:= lower(B);
+if i-j <> k then raise Niezgoda fi;
+
+(* mozna mnozyc *)
+
+n := k+1;
+p := (n mod 2) = 0;
+m := n div 2;
+array W dim (1:n);
+array V dim (1:n);
+array C dim (1:n);
+for i := 1 to n
+do
+  array C(i) dim (1:n)
+od;  
+(* obliczanie "preprocessingu" *)
+for j:= 1 to n
+do
+  s:=0;
+  for i := 1 to m 
+  do
+    s := A(j,2*i-1) * A(j,2*i) +s;
+  od;
+  W(j) := s;
+od;
+for j:= 1 to n
+do
+  s:=0;
+  for i := 1 to m 
+  do
+    s := B(2*i-1,j) * B(2*i,j) +s;
+  od;
+  V(j) := s;
+od;
+
+(* obliczanie iloczynu macierzy *)
+for i := 1 to n
+do
+  for j := 1 to n
+  do
+    s:= 0;
+    for k:= 1 to m
+    do
+      s:= (A(i,2*k-1)+B(2*k,j)) * (B(2*k-1,j)+A(i,2*k)) +s;
+    od;
+    C(i,j) :=s-W(i)-V(j);
+    if not p
+    then 
+       C(i,j) := C(i,j) + A(i,n)*B(n,j);
+    fi;
+  od;
+od;      
+end Winograd;
+
+var M1,K1,J1,J2 : arrayof arrayof real,
+    i,j,n,t,k : integer,
+    s: real;
+
+
+(* ------------------------------------------------------------------------- *)
+begin (*programu *)
+   write("podaj wartosc n=");
+   readln(n);writeln(n);
+   array M1 dim (1:n);
+   array K1 dim (1:n);
+   array J1 dim (1:n);
+   array J2 dim (1:n);
+   for i := 1 to n do
+     array M1(i) dim (1:n);
+     array K1(i) dim (1:n);
+     array J1(i) dim (1:n);
+     array J2(i) dim (1:n);
+   od;     
+   for i := 1 to n do
+   for j := 1 to n do
+     if i=j then M1(i,j):= 1 else M1(i,j):=0 fi;
+     K1(i,j):= (i-1)*n+j;
+   od;
+   od;
+   
+   t:=time;
+   call Winograd(M1,K1,J1);
+   t:=time - t;
+   writeln("czas Win=",t:6);
+   
+   t:=time;
+   for i:=1 to n do
+   for j:=1 to n do
+     s:=0;
+     for k:=1 to n do
+       s := s + M1(i,k)*K1(k,j);
+     od;
+     J2(i,j):=s;
+   od;
+   od;
+   t:=time-t;
+   writeln("czas norm=",t:6);
+     
+
+(*   for i := 1 to n do
+     writeln;
+     for j := 1 to n do
+       write(J1(i,j):5:0);
+     od;
+   od;
+*)   
+   
+               
+end program;

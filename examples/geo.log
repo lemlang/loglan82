@@ -1,0 +1,194 @@
+BLOCK 
+ 
+UNIT GEOPLAN : CLASS;
+     (* THIS IS A PROBLEM ORIENTED LANGUAGE. IT OFFERS VARIOUS FACILITIES  
+        FOR PROBLEM SOLVING IN THE FIELD OF ANALTICAL PLANAR GEOMETRY.
+
+        THIS CLASS HAS THE FOLLOWING STRUCTURE:
+     
+                            GEOPLAN                    <----- CLASS
+                           /   |   \
+                          /    |    \
+                         /     |     \
+                    POINT    CIRCLE  LINE              <----- CLASSES
+                   /  |  \     |     / | \ 
+                  /   |   \    |    /  |  \
+                 /    |    |   |   |   |   \           <--|
+                /     |    |   |   |   |    \             |
+           EQUALS   DIST   |   | MEETS |     \            |
+                        ERROR  |       |    ERROR         \   OPERA-
+                               |       |                  /   TIONS 
+                          INTERSECTS   |                  |
+                                       |                  |
+                                   PARALLELTO          <--|
+
+
+                                                                 *)
+   UNIT POINT : CLASS(X,Y : REAL);
+      UNIT EQUALS : FUNCTION (Q : POINT) : BOOLEAN;
+      BEGIN
+        RESULT:= Q.X=X AND Q.Y=Y ;
+      END EQUALS;
+ 
+      UNIT DIST : FUNCTION (P : POINT) : REAL;
+        (* DISTANCE BETWEEN THIS POINT AND POINT P *)
+      BEGIN
+        IF P = NONE
+        THEN
+          CALL ERROR
+        ELSE
+          RESULT:= SQRT((X-P.X)*(X-P.X)+(Y-P.Y)*(Y-P.Y))
+        FI
+      END DIST;
+ 
+ 
+      UNIT VIRTUAL ERROR : PROCEDURE;
+      BEGIN
+        WRITELN(" THERE IS NO POINT")
+      END ERROR;
+   END POINT;
+ 
+ 
+   UNIT CIRCLE : CLASS (P : POINT, R : REAL);
+      (* THE CIRCLE IS REPRESENTED BY ITS CENTER P AND THE RADIUS R *)
+ 
+     UNIT INTERSECTS : FUNCTION (C : CIRCLE) : LINE;
+       (* IF BOTH CIRCLES INTERSECT AT 2 POINTS, THE LINE JOINING THEM
+          IS RETURNED. IF CIRCLES INTERSECT AT ONE POINT, IT IS TANGENT
+          TO BOTH OF THEM. OTHERWISE PERPENDICULAR BISECTION
+          OF THEIR CENTRES IS RETURNED *)
+     VAR R1,R2 : REAL;
+     BEGIN
+       IF C=/= NONE
+       THEN
+         R1:= R*R-P.X*P.X-P.Y*P.Y;
+         R2:= C.R*C.R-C.P.X*C.P.X-C.P.Y*C.P.Y;
+         RESULT := NEW LINE (P.X-C.P.X,P.Y-C.P.Y,(R1-R2)/2);
+       FI
+     END INTERSECTS;
+ 
+   BEGIN
+     IF P=NONE 
+     THEN
+       WRITELN (" WRONG CENTRE")
+     FI
+   END CIRCLE;
+ 
+ 
+   UNIT LINE : CLASS (A,B,C : REAL);
+     (* LINE IS REPRESENTED BY COEFFICIENTS OF ITS EQUATION AX+BY+C=0 *)
+ 
+   
+     UNIT MEETS : FUNCTION (L : LINE) : POINT;
+       (* IF TWO LINES INTERSECT FUNCTION MEETS RETURNS THE POINT
+          OF INTERSECTION, OTHERWISE RETURNS NONE *)
+     VAR T  : REAL;
+     BEGIN
+       IF L =/= NONE AND NOT PARALLELTO (L)
+       THEN
+         T := 1/(L.A*B-L.B*A);
+         RESULT := NEW POINT (-T*(B*L.C-C*L.B), T*(A*L.C-C*L.A));
+       ELSE
+         CALL ERROR
+       FI
+     END MEETS;
+
+     UNIT PARALLELTO : FUNCTION (L : LINE) : BOOLEAN;
+     BEGIN
+       IF L=/= NONE
+       THEN
+         IF A*L.B-B*L.A = 0.0
+         THEN
+           RESULT:=TRUE; WRITELN(" zle"); 
+         ELSE
+           RESULT:=FALSE; WRITELN(" dobrze");
+         FI        
+       ELSE
+         CALL ERROR
+       FI
+     END PARALLELTO;
+ 
+     UNIT VIRTUAL ERROR  : PROCEDURE;
+     BEGIN
+       WRITELN(" THERE IS NO LINE")
+     END ERROR;
+ 
+   VAR D : REAL;
+ 
+   BEGIN (* NORMALIZATION OF COEFFICIENTS *)
+     D := SQRT(A*A+B*B);
+     IF D= 0.0
+     THEN
+       WRITELN( " ZLE ZERO"); CALL ERROR
+     ELSE
+       A := A/D;
+       B := B/D;
+       C := C/D;
+     FI
+   END LINE;
+ 
+END GEOPLAN;
+ 
+ 
+ 
+BEGIN
+ 
+  PREF GEOPLAN BLOCK
+    (* THE LANGUAGE GEOPLAN IS USED FOR FINDING THE CIRCLE CIRCUMSCRIBED 
+       ON A GIVEN TRIANGLE:
+             
+                          P
+                         / \
+                        /   \
+                       /  .<-\------- CENTRE  
+                      /       \
+                     Q---------R 
+                                                                      *)
+  TAKEN POINT,LINE,CIRCLE;
+ 
+  VAR P,Q,R,CENTRE : POINT,
+    L1,L2 : LINE,
+    C1,C2,C4 : CIRCLE,
+    RADIUS, X1,Y1 : REAL;
+ 
+  BEGIN
+   DO
+    WRITELN(" THIS PROGRAM FINDS THE CIRCUMCENTRE AND THE RADIUS OF ");
+    WRITELN(" THE CIRCLE CIRCUMSCRIBED  ON A GIVEN TRIANGLE ");
+    WRITELN(" GIVE THE VERTICES COEFFICIENTS OF A TRIANGLE");
+    WRITELN(" X1,Y1= ?? ??");
+    READ (X1,Y1);
+    P := NEW POINT(X1,Y1);
+    WRITELN(" ",X1,"   ",Y1);
+    WRITELN(" X2,Y2= ?? ??");
+    READ (X1,Y1);
+    Q := NEW POINT(X1,Y1);
+    WRITELN(" ",X1,"   ",Y1);
+    WRITELN(" X3,Y3= ?? ??");
+    READ (X1,Y1);
+    R := NEW POINT (X1,Y1);
+    WRITELN(" ",X1,"   ",Y1);
+ 
+    RADIUS := P.DIST(Q) + Q.DIST(R);
+
+    C1 := NEW CIRCLE (P,RADIUS);
+    C2 := NEW CIRCLE (Q,RADIUS);
+    C4 := NEW CIRCLE (R,RADIUS);
+ 
+    L1 := C2.INTERSECTS(C1); (*THE PERPENDICULAR BISECTOR OF THE SIDE PQ*)
+    L2 := C2.INTERSECTS(C4); (*THE PERPENDICULAR BISECTOR OF THE SIDE QR *)
+ 
+    CENTRE := L1.MEETS(L2);
+ 
+    IF CENTRE = NONE
+    THEN
+      WRITELN(" ALL POINTS LAY ON THE SAME LINE");
+    ELSE
+      WRITELN(" THE CIRCUMSCRIBED CIRCLE PARAMETTERS ARE AS FOLOWS:");
+      WRITELN(" CENTRE = (",CENTRE.X,',',CENTRE.Y,')');
+      WRITELN(" RADIUS = ",CENTRE.DIST(P));
+    FI
+   OD
+  END
+END 
+

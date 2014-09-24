@@ -1,0 +1,358 @@
+PROGRAM GraphColoring;
+  UNIT BACKTRACK: CLASS;
+    HIDDEN SE,ELEM,TOP;
+    VAR  ROOT:NODE,SEARCH:SE,FOUND,OPT:NODE,
+         NUMBER_OF_NODES,NUMBER_OF_LEAVES,NUMBER_OF_ANSWERS:INTEGER,
+         NUMERO_DE_NOEUDS: INTEGER;
+             
+    UNIT NODE: COROUTINE(FATHER:NODE);
+      VAR NSONS,LEVEL,MY_NUMBER: INTEGER , DEADEND:BOOLEAN;
+      UNIT VIRTUAL LEAF:  FUNCTION :BOOLEAN;
+      END LEAF;
+      UNIT VIRTUAL ANSWER :FUNCTION :BOOLEAN;
+      END ANSWER;
+      UNIT VIRTUAL LASTSON: FUNCTION : BOOLEAN;
+      END LASTSON;
+      UNIT VIRTUAL NEXTSON: FUNCTION : NODE;
+      END NEXTSON;
+      UNIT VIRTUAL EQUAL : FUNCTION (W:NODE):BOOLEAN;
+      END EQUAL;
+      UNIT VIRTUAL COST: FUNCTION :REAL;
+      END COST;
+    BEGIN
+      NUMERO_DE_NOEUDS := NUMERO_DE_NOEUDS + 1;
+      MY_NUMBER := NUMERO_DE_NOEUDS;
+      IF FATHER =/= NONE
+      THEN
+        LEVEL:=FATHER.LEVEL+1
+      ELSE
+        LEVEL:=0
+      FI;
+    END NODE;
+  
+    UNIT OK: FUNCTION (V:NODE):BOOLEAN;
+      VAR W:NODE;
+    BEGIN
+      IF V=NONE THEN RESULT:=FALSE; RETURN FI;
+      RESULT:=TRUE; W:=V.FATHER;
+      WHILE W =/= NONE
+      DO
+        IF V.EQUAL(W) THEN RESULT:=FALSE; RETURN FI;
+        W:=W.FATHER
+      OD
+    END OK;
+  
+    UNIT PURGE: PROCEDURE (V:NODE);
+      VAR W: NODE;
+    BEGIN
+      IF V=NONE THEN RETURN FI;
+      DO
+        W:=V.FATHER; KILL(V);
+        IF W=NONE THEN RETURN FI;
+        W.NSONS:=W.NSONS-1;
+        IF W.NSONS =/= 0 THEN RETURN FI;
+        V:=W
+      OD;
+    END PURGE;
+
+    VAR TOP:ELEM;
+
+    UNIT ELEM: CLASS (NEXT:ELEM, V:NODE);
+    END ELEM;
+ 
+    UNIT VIRTUAL INSERT: PROCEDURE(V:NODE);
+    BEGIN
+      TOP:=NEW ELEM(TOP,V); 
+    END INSERT;
+  
+    UNIT VIRTUAL DELETE: FUNCTION :NODE;
+      VAR E:ELEM;
+    BEGIN
+      IF TOP =/= NONE
+      THEN
+        RESULT:=TOP.V; 
+        E:=TOP; TOP:=TOP.NEXT; KILL(E);
+      FI; 
+    END DELETE;
+  
+    UNIT SE: COROUTINE ;
+      VAR I:INTEGER,V,W:NODE;
+    BEGIN
+      RETURN; CALL INSERT(ROOT);
+      DO
+        V:=DELETE; 
+        IF V=NONE THEN EXIT FI;
+        ATTACH(V); 
+        IF V.ANSWER
+        THEN
+          NUMBER_OF_ANSWERS:=NUMBER_OF_ANSWERS+1;
+          FOUND:=V;
+          IF OPT=NONE ORIF V.COST < OPT.COST
+          THEN
+             OPT:=V
+          FI;
+          DETACH;
+          (* HERE THE USER OF BACKTRACK MAY UNDERTAKE SOME ACTIONS
+             ON THE ANSWER NODES. IF NOT NECESSARY DO ATTACH      *) 
+        ELSE
+          IF V.DEADEND
+          THEN
+            NUMBER_OF_LEAVES:=NUMBER_OF_LEAVES+1;
+            CALL PURGE(V);
+          ELSE
+            DO
+              W:=V.NEXTSON; V.NSONS:=V.NSONS+1;
+              NUMBER_OF_NODES:=NUMBER_OF_NODES+1; 
+              IF OK(W)
+              THEN 
+                W.DEADEND:=W.LEAF; CALL INSERT(W);
+              FI;
+              IF V.LASTSON THEN EXIT FI;  
+            OD;
+          FI;
+        FI;
+      OD;
+      FOUND:=NONE;
+    END SE;
+  
+      
+    UNIT KILLALL :PROCEDURE;
+      VAR V:NODE;
+    BEGIN
+      DO
+        V:=DELETE;
+        IF V=NONE THEN RETURN FI;
+        CALL PURGE(V);
+      OD;
+    END KILLALL;
+
+  BEGIN
+    NUMBER_OF_NODES := 1;
+    SEARCH:=NEW SE;
+    INNER;
+    KILL(SEARCH); CALL KILLALL;
+  END BACKTRACK;
+ 
+ 
+  VAR N,M,I,J:INTEGER,H1,H2,H3:CHAR;
+  VAR INC: ARRAYOF ARRAYOF BOOLEAN,
+      f: file;  
+  BEGIN 
+   open(f, text, unpack("colourng.his"));
+   DO
+    
+    writeln; writeln;
+    writeln("An aplication of Backtracking to Graph Colouring");
+    WRITE(" NUMBER OF VERTICES= (exit on zero)  ");
+     
+    READLN(N);
+    
+    IF N=0 THEN EXIT FI;
+    call rewrite(f);
+    WRITEln(f," NUMBER OF VERTICES= ",N);  
+    WRITE(" NUMBER OF COLOURS= ");
+    READLN(M);
+    WRITEln(f," NUMBER OF COLOURS= ",M); 
+    ARRAY INC DIM (1:N);
+    FOR I:=1 TO N DO ARRAY INC(I) DIM (1:I); OD;
+    writeln;writeln;
+    WRITELN(" GIVE A GRAPH BY DEFINING SUCCESSIVE EDGES");
+    WRITELN(" For each vertex give a list of adjacent vertices");
+    WRITELN(" Don't give numbers less than number of current vertex");
+    WRITELN(" TO END A LIST WRITE 0");
+    Writeln(" Example: for i-th vertex give i+2,i+3 avoid i-5");
+    FOR I:=1 TO N
+    DO
+      WRITELN(" VERTEX ",I:3," IS INCIDENT WITH VERTICES=");
+      WRITELN(f," VERTEX ",I:3," IS INCIDENT WITH VERTICES="); 
+      DO
+        READ(J); WRITE(f,J);
+        IF J>1 AND J<=N THEN INC(J,I):=TRUE ELSE EXIT FI;
+      OD;
+      WRITELN(" END OF EDGES WITH VERTEX", I:3);
+      WRITELN(f," END OF EDGES WITH VERTEX", I:3);
+    OD;
+    WRITELN(" GRAPH HAS THE FOLLOWING INCIDENCE MATRIX");
+    WRITELN(f," GRAPH HAS THE FOLLOWING INCIDENCE MATRIX");
+    FOR I:=1 TO N
+    DO
+      FOR J:=1 TO I
+      DO
+        IF INC(I,J) 
+        THEN WRITE(1:2); write(f,1:2) 
+        ELSE WRITE(0:2); write(f,0:2) 
+        FI;
+      OD;
+      WRITELN; writeln(f);
+    OD;      
+    PREF BACKTRACK BLOCK
+    VAR K:INTEGER;
+     UNIT STATE: NODE CLASS(I,J,NC:INTEGER);
+     
+         (*I- VERTEX, J-COLOUR, NC-NUMBER OF COLOURS *)
+
+      UNIT VIRTUAL ANSWER: FUNCTION: BOOLEAN;
+      BEGIN
+        RESULT:= I=N AND OKGO(THIS STATE)
+      END ANSWER;
+ 
+      UNIT VIRTUAL LEAF: FUNCTION :BOOLEAN;
+      BEGIN
+        RESULT:=I=N OR NOT OKGO(THIS STATE)
+      END LEAF;
+  
+      UNIT OKGO: FUNCTION(V:STATE) : BOOLEAN;
+      VAR I,J:INTEGER;
+      BEGIN
+        I:=V.I; J:=V.J;
+        DO
+         V:=V.FATHER;
+         IF V=NONE THEN RESULT:=TRUE; EXIT FI;
+         IF V.J=J AND INC(I,V.I) THEN EXIT FI;
+        OD;
+      END OKGO;
+
+        
+      UNIT VIRTUAL LASTSON: FUNCTION :BOOLEAN;
+      BEGIN
+        IF K=M
+        THEN
+          RESULT:=TRUE;
+          K:=0;
+        FI; 
+      END LASTSON;
+ 
+      UNIT VIRTUAL NEXTSON : FUNCTION :STATE;
+      VAR V:STATE,NCK:INTEGER;
+      BEGIN
+        V:=THIS STATE;
+        K:=K+1;
+        NCK:=NC;
+        DO
+          IF V=NONE THEN NCK:=NCK+1; EXIT FI;
+          IF V.J=K THEN EXIT FI;
+          V:=V.FATHER;
+        OD;        
+        RESULT:=NEW STATE(THIS STATE,I+1,K,NCK);
+        call DISPLAY(result);
+     END NEXTSON;
+
+      UNIT VIRTUAL EQUAL: FUNCTION(S:STATE):BOOLEAN;
+      BEGIN
+        RESULT:=I=S.I AND J=S.J
+      END EQUAL;
+  
+      UNIT VIRTUAL COST: FUNCTION :REAL;
+      BEGIN
+        RESULT:=NC
+      END COST;
+          
+                
+    BEGIN
+      RETURN;
+      DO
+        DETACH   
+      OD;
+    END STATE;
+
+        
+    UNIT DISPLAY: PROCEDURE(V:STATE);
+    BEGIN
+      IF V=NONE 
+      THEN WRITELN(" NO SOLUTIONS"); writeln(f,"no solutions"); RETURN 
+      FI;
+      WRITE("State no:",V.MY_NUMBER);
+      if V.FATHER <>none then WRITE(" son of state:",V.FATHER.MY_NUMBER) fi;
+      if V.ANSWER then WRITELN("  SOLUTION! ") 
+      else
+        if V.LEAF then WRITELN("  DEADEND ")
+        else WRITELN
+        fi
+      fi;
+      WRITE(f,"State no:",V.MY_NUMBER);
+      if V.FATHER <>none then WRITE(f," son of state:",V.FATHER.MY_NUMBER) fi;
+      if V.ANSWER then WRITELN(f,"  SOLUTION! ") 
+      else
+        if V.LEAF then WRITELN(f,"  DEADEND ")
+        else WRITELN(f)
+        fi
+      fi;
+      WRITELN("VERTEX       COLOUR");
+      WRITELN(f,"VERTEX       COLOUR");
+      DO
+        WRITE(V.I); WRITE("     "); WRITELN(V.J);
+        WRITE(f,V.I); WRITE(f,"     "); WRITELN(f,V.J);
+        V:=V.FATHER;
+        IF V=NONE THEN EXIT FI 
+      OD;
+      WRITELN;
+    END DISPLAY;
+    
+    BEGIN
+      READLN;
+      ROOT:=NEW STATE(NONE,1,1,1); 
+      call DISPLAY(ROOT);
+      WRITE("DO YOU WANT TO OPTIMIZE ");
+      WRITELN("OR TO PRINT ALL THE SOLUTIONS ?");
+      WRITELN(" (ANSWER OPT OR ALL)");
+      READLN(H1,H2,H3);
+      IF H1='O' AND H2='P' AND H3='T'
+      THEN
+        DO
+          ATTACH(SEARCH);
+          IF FOUND=NONE THEN EXIT FI;
+          IF OPT =/= NONE ANDIF OPT.COST<FOUND.COST
+          THEN
+            EXIT
+          FI;  
+        OD;
+        IF OPT =/= NONE
+        THEN
+          CALL DISPLAY(OPT);
+          WRITELN("NUMBER OF NODES=",NUMBER_OF_NODES);
+          WRITELN("NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+          WRITELN("NUMBER OF ANSWERS=",NUMBER_OF_ANSWERS);
+          WRITELN(f,"NUMBER OF NODES=",NUMBER_OF_NODES);
+          WRITELN(f,"NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+          WRITELN(f,"NUMBER OF ANSWERS=",NUMBER_OF_ANSWERS);
+
+        ELSE
+          WRITELN("NO SOLUTIONS");
+          WRITELN("NUMBER OF NODES=",NUMBER_OF_NODES);
+          WRITELN("NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+          WRITELN(f,"NO SOLUTIONS");
+          WRITELN(f,"NUMBER OF NODES=",NUMBER_OF_NODES);
+          WRITELN(f,"NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+
+        FI;
+      ELSE       
+        IF H1='A' AND H2='L' AND H3='L'
+        THEN
+          DO
+            ATTACH(SEARCH); 
+        (*    CALL DISPLAY(FOUND);  *)
+            WRITELN("NUMBER OF NODES=",NUMBER_OF_NODES);
+            WRITELN("NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+            WRITELN("NUMBER OF ANSWERS=",NUMBER_OF_ANSWERS);
+            WRITELN(f,"NUMBER OF NODES=",NUMBER_OF_NODES);
+            WRITELN(f,"NUMBER OF LEAVES=",NUMBER_OF_LEAVES);
+            WRITELN(f,"NUMBER OF ANSWERS=",NUMBER_OF_ANSWERS);
+
+            IF FOUND=NONE THEN EXIT FI;
+            WRITELN("DO YOU WANT TO CONTINUE?");
+            READ(H1,H2);
+            IF H1=/='Y' ORIF H2=/='E' THEN EXIT FI;
+            READLN(H3);
+            IF H3=/='S' THEN EXIT FI;
+          OD;
+        FI
+      FI;
+    END (* of PREFIXED block *) ;
+  OD;
+
+   
+   
+  END;  (* of program *)
+    
+
+  

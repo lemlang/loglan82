@@ -1,0 +1,141 @@
+BLOCK  (* SYMBOLIC DIFFERENTIATION *)
+ 
+(* THIS IS AN EXAMPLE OF STEPWISE REFINEMENT PROGRAMMING INTENSIVELY USING  *)
+(* VIRTUALS. WE COMPUTE THE DERIVATIVE OF AN ALGEBRAIC EXPRESSION. THE EXP- *)
+(* RESSION IS REPRESENTED IN THE FORM OF A TREE. LITERALS REPRESENTING      *)
+(* CONSTANTS AND VARIABLES ARE LOCATED IN THE LEAVES. THE OTHER NODES ARE   *)
+(* OPERATORS. WHILE IMPLEMENTING DIFFERENTIATION OF ANY PARTICULAR KIND OF  *)
+(* EXPRESSION WE NEED NOT INTEREST IN THE OTHER EXPRESSIONS KINDS. DUE TO   *)
+(* THE ADVENTAGES OF VIRTUALS WE ONLY NEED EXPRESSION TO HAVE A FUNCTION    *)
+(* NAMED "DERIV" WHICH RETURN ITS DERIVATIVE. THE EXACT FORM OF THIS        *)
+(* FUNCTION IS COMPLETELY OUT OF OUR INTEREST AND MAY BE DEFINED SEPARATELY *)
+(* AND INDEPENDENTLY FOR EACH KIND OF EXPRESSION                            *)
+ 
+ 
+  uNIT RSYMBOL:CLASS;
+     (* DIFFERENTIATION OF A FUNCTION OF A VARIABLE X *)
+ 
+       UNIT EXPR:CLASS; (* OUR FUNCTIONS WILL BE EXPRESSIONS *)
+            UNIT VIRTUAL DERIV:FUNCTION(X:VARIABLE):EXPR;
+                               END DERIV;
+                 END EXPR;
+ 
+       UNIT CONSTANT:EXPR CLASS(K:REAL);
+           (* DIFFERENTIATED EXPRESSION WILL CONSIST OF CONSTANT *)
+            UNIT VIRTUAL DERIV:FUNCTION(X:VARIABLE):EXPR;
+                               BEGIN
+                                 RESULT:=ZERO;
+                               END DERIV;
+                               END CONSTANT;
+ 
+       UNIT VARIABLE:EXPR CLASS(ID:STRING);
+           (* DIFFERENTIATED EXPRESSION WILL OBVIOUSLY CONSIST OF VARIABLES*)
+            UNIT VIRTUAL DERIV:FUNCTION(X:VARIABLE):EXPR;
+                               BEGIN
+                                 IF X=THIS VARIABLE THEN
+                                    RESULT:=ONE
+                                 ELSE
+                                    RESULT:=ZERO
+                                    (*THIS IS THE DERIVATIVE OF A VARIABLE
+                                     OTHER THEN X WITH RESPECT TO X       *)
+                                 FI
+                               END DERIV;
+                 END VARIABLE;
+ 
+       UNIT PAIR:EXPR CLASS(L,R:EXPR);
+           (* WE WILL ALSO COMPUTE DERIVATIVES OF EXPRESSIONS WITH TWO
+              ARGUMENT OPERATORS                                        *)
+           UNIT VIRTUAL DERIV: FUNCTION(X:VARIABLE):EXPR;
+           END;
+                 END PAIR;
+ 
+ 
+       UNIT SUM:PAIR CLASS;
+           (* WE DIFFERENTIATE THE SUM OF TWO EXPRESSIONS *)
+            UNIT VIRTUAL DERIV:FUNCTION(X:VARIABLE):EXPR;
+                               VAR LPRIM,RPRIM:EXPR;
+                               BEGIN
+                                 LPRIM:=L.DERIV(X);
+                                 RPRIM:=R.DERIV(X);
+                                 (*WE DELETE 0 AS THE NEUTRAL ELEMENT OF
+                                   ADDITION                             *)
+                                 IF LPRIM=ZERO THEN
+                                    RESULT:=RPRIM
+                                 ELSE
+                                 IF RPRIM=ZERO THEN
+                                    RESULT:=LPRIM
+                                 ELSE
+                                    RESULT:=NEW SUM(LPRIM,RPRIM)
+                                 FI
+                                 FI;
+                               END DERIV;
+                END SUM;
+ 
+ 
+        UNIT DIFF:PAIR CLASS;
+            (* WE DIFFERENTIATE THE DIFFERECE OF TWO EXPRESSIONS *)
+             UNIT VIRTUAL DERIV:FUNCTION(X:VARIABLE):EXPR;
+                                VAR LPRIM,RPRIM: EXPR;
+                                BEGIN
+                                  LPRIM:=L.DERIV(X);
+                                  RPRIM:=R.DERIV(X);
+                                  (* WE DELETE THE SUBTRACTED ZERO *)
+                                  IF RPRIM=ZERO THEN
+                                     RESULT:=LPRIM
+                                  ELSE
+                                     RESULT:=NEW DIFF(LPRIM,RPRIM)
+                                  FI
+                                END DERIV;
+                 END DIFF;
+ 
+ 
+        UNIT DISPLAY:PROCEDURE(T:STRING,E:EXPR);
+           (* DISPLAY THE EXPRESSION TREE IN A READABLE FORM *)
+ 
+                  UNIT SCAN:PROCEDURE(E:EXPR);
+                            BEGIN
+                              IF E IS SUM THEN
+                                 WRITE(" ("); CALL SCAN(E QUA PAIR.L);WRITE("+");
+                                 CALL SCAN(E QUA PAIR.R);
+                                 WRITE(" )")
+                              ELSE
+                              IF E IS DIFF THEN
+                                  WRITE(" (");
+                                 CALL SCAN(E QUA PAIR.L);WRITE("-");
+                                 CALL SCAN(E QUA PAIR.R);
+                                  WRITE(" )")
+                              ELSE
+                              IF E IS CONSTANT THEN
+                                 WRITE(E QUA CONSTANT.K:6:2)
+                              ELSE
+                              IF E IS VARIABLE THEN
+                                 WRITE(E QUA VARIABLE.ID);
+                               FI FI FI FI;
+                      END SCAN;
+ 
+                          BEGIN
+                              WRITE(T);
+                              CALL SCAN(E); WRITELN;
+         END DISPLAY;
+ 
+ 
+       VAR ZERO,ONE:CONSTANT;
+       BEGIN (* INITIALIZE LITERAL PATTERNS OF CONSTANTS *)
+         ZERO:=NEW CONSTANT(0);
+         ONE:=NEW CONSTANT(1);
+       END RSYMBOL;
+ 
+ 
+   BEGIN
+    PREF RSYMBOL BLOCK
+                VAR X,Y,Z:VARIABLE,U,V,E,F:EXPR;
+                BEGIN
+                  X:=NEW VARIABLE("X");Y:=NEW VARIABLE("Y");
+                  U:=NEW SUM(X,Y);Z:=NEW VARIABLE("Z");
+                  V:=NEW DIFF(Z,NEW CONSTANT(4));
+                  E:=NEW DIFF(U,V); E:=NEW SUM(E,NEW DIFF(X,Y));
+                  CALL DISPLAY(" EXPRESSION E= ",E);
+                  F:=E.DERIV(X);
+                  CALL DISPLAY(" DERIVATIVE WITH RESPECT TO X:",F);
+                END
+   END

@@ -1,0 +1,14 @@
+program p;
+     unit A : class;
+          var x: integer;
+          unit B: class;
+          begin
+               x:=3;
+               writeln(x)
+          end B;
+    begin
+    end A;
+    var o, p :A;
+begin
+   new A.new B;
+end

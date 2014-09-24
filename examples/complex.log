@@ -1,0 +1,27 @@
+(************************************************************************)
+(* File    : complex.log                                                *)
+(* Purpose : complex numbers as loglan class                            *)
+(* Date    : 20-feb-94                                                  *)
+(************************************************************************)
+
+BLOCK
+ UNIT complex: CLASS(rev,imv: Real);	(* rev and imv are class parms	*)
+  CLOSE rev,imv, modulev;		(* CLOSED (hidden) attributes 	*)
+  VAR modulev: Real;			(* module is not a parameter	*)
+
+  UNIT re    : FUNCTION: Real; BEGIN result:= rev 		END re;
+  UNIT im    : FUNCTION: Real; BEGIN result:= imv 		END im;
+  UNIT module: FUNCTION: Real; BEGIN result:= modulev 		END module;
+  UNIT WriteC: PROCEDURE; BEGIN Write("(",rev,"+",imv,"*i)")  	END WriteC;
+ BEGIN
+  modulev:= sqrt(rev*rev + imv*imv);
+ END complex;
+
+ VAR
+  c1, c2: complex;
+ BEGIN
+  c1:= new complex(1,2);
+  c2:= new complex(2,4);
+  Write(" c1= ");  CALL c1.WriteC;  WriteLn;
+  Write(" c2= ");  CALL c2.WriteC;  WriteLn;
+ END;

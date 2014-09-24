@@ -1,0 +1,139 @@
+BLOCK
+ 
+(* GENERATION OF N CONSECUTIVE PRIME NUMBERS                                *)
+(* WE EXAMINE SUCCESIVE ODD NUMBERS. VARIABLE J REPRESENTS THE EXAMINED     *)
+(* NUMBER. IF J IS COMPOSITE THEN IT HAS PRIME DIVISOR LESS THAN OR EQUAL TO*)
+(* SQRT(J). IT IS ENOUGH  TO TEST WHETHER J IS A MULTIPLE OF ANY FROM T     *)
+(* CONSECUTIVE PRIME NUMBERS WHERE P(T) (THE T-TH PRIME NUMBER)IS SUCH THAT *)
+(* P(T)*P(T) <= J .  POSSIBLE DIVISORS ARE EXAMINED IN A TRICKY WAY.        *)
+(* WE HAVE IN THE PRIORITY QUEUE THE NEAREST BUT NOT LESS THAN J AND ODD    *)
+(* MULTIPLY OF P(K). THEN IF J=MINIMUM OF THE PRIORITY QUEUE THEN J IS      *)
+(* COMPOSITE NUMBER. OTHERWISE J IS PRIME.                                  *)
+ 
+ 
+UNIT PQ: CLASS(TYPE T; FUNCTION LESS(X,Y:T):BOOL);
+   (* PRIORITY QUEUE WITH ELEMENTS OF TYPE T. QUEUE IS ORGANISED AS A HEAP  *)
+   (* IN THE ARRAY A. THE FIRST ELEMENT IS THE LEAST ONE                    *)
+  VAR A:ARRAYOF T,   N,M:INTEGER;
+ 
+  UNIT DELETEMIN: FUNCTION:T;
+    VAR I,J:INTEGER,  X:T;
+    BEGIN
+      IF N=0 THEN RETURN FI;
+      RESULT:=A(1); X:=A(N); N:=N-1;
+      I:=1; J:=2;
+      WHILE J <= N
+      DO  (* UPDATE HEAP DOWN *)
+        IF J+1 <=N THEN IF LESS(A(J+1),A(J)) THEN J:=J+1 FI FI;
+        IF LESS(X,A(J)) THEN EXIT FI;
+        A(I):=A(J); I:=J;  J:=2*I
+      OD;
+      A(I):=X
+    END DELETEMIN;
+ 
+  UNIT MIN: FUNCTION :T;
+    BEGIN
+      IF N =/= 0 THEN RESULT:=A(1) FI
+    END MIN;
+ 
+  UNIT INSERT : PROCEDURE(X:T);
+   VAR I,J :INTEGER, B:ARRAYOF T;
+   BEGIN
+     IF N=M THEN (* OVERFLOW. INCREASE SPACE TWICE *)
+       ARRAY B DIM(1:2*M); FOR I:=1 TO M DO B(I):=A(I) OD;
+       KILL(A); M:=2*M; A:=B;
+     FI;
+     N,J:=N+1;
+     IF N=1 THEN A(1):=X; RETURN; FI;
+     I:= J DIV 2;
+     WHILE I>=1
+     DO  (* UPDATE HEAP DOWN *)
+       IF LESS(A(I),X) THEN EXIT FI;
+       A(J):=A(I); J:=I; I:= J DIV 2
+     OD;
+     A(J):=X
+   END INSERT;
+ 
+   BEGIN
+     M:=2;
+     ARRAY A DIM(1:2);
+   END PQ;
+ 
+ 
+BEGIN
+  BLOCK
+ 
+    UNIT ELEM :CLASS (I,INC:INTEGER);
+     (* WE WILL USE PRIORITY QUEUE WITH THE FIRST ATTRIBUTE AS A KEY *)
+    END ELEM;
+ 
+    UNIT LESS: FUNCTION(X,Y:ELEM):BOOLEAN;
+      BEGIN
+        RESULT:=X.I<=Y.I
+      END LESS;
+ 
+    VAR X: ELEM;
+ 
+  BEGIN
+    PREF PQ(ELEM,LESS) BLOCK
+      VAR N,I,T,J,K,ITIME,M: INTEGER;
+      VAR P:ARRAYOF INTEGER; (* ARRAY OF K PRIME NUMBERS *)
+ 
+      BEGIN
+       DO
+        WRITELN(" CHARTRES ALGORITHM GENERATING N CONSECUTIVE");
+        WRITELN(" PRIME NUMBERS");
+        DO
+          WRITELN(" GIVE N:");
+          READ(N);  WRITELN(N);
+          IF N=0 THEN EXIT EXIT ELSE EXIT FI;
+        OD;
+        ITIME:=TIME;
+        ARRAY P DIM (1:N);
+        X:=NEW ELEM(9,6);
+        (* 9 IS A MULTIPLY OF 3. THE PURPOSE OF THE SECOND COMPONENT   *)
+        (* WILL BE EXPLAINED LATER. X IS THE MINIMUM OF THE PRIOR QUEUE*)
+        (* PQ, BUT IS NOT INSERTED ITSELF INTO IT. CONDITION           *)
+        (* P(T)*P(T) = J WILL BE TESTED OUTSIDE QUEUE ELEMENTS TESTING *)
+        P(1):=2;  P(2):=3;  P(3):=5;
+        T:=3;  I:=25;  K:=3;  J:=5;
+        DO
+          IF N=3 THEN EXIT FI; 
+          J:=J+2;
+          IF J < X.I  THEN
+            IF J=I THEN  (* J=P(T)*P(T) AND SO ISN'T PRIME *)
+              M:= 2*P(T);
+              CALL INSERT( NEW ELEM( I+M , M ));
+              (* THE SECOND COMPONENT IS THE INCREMENT FOR THE FIRST ONE   *)
+              (* WE INCREASE THE FIRST COMPONENT AND THEN WE INSERT INTO   *)
+              (* THE QUEUE THE NEXT ODD MULTIPLY OF P(T)                   *)
+              T:=T+1;  I:= P(T)*P(T);
+              (* COMPUTE THE NEXT SENTINEL - A  SQUARE OF THE NEXT         *)
+              (* PRIME NUMBER.                                             *)
+            ELSE  (* J IS PRIME *)
+              K:=K+1;  P(K):=J;  IF K>=N THEN EXIT FI
+            FI
+          ELSE  (* J=X.I  *)
+            DO
+              (* ALMOST THE SAME AS ABOVE *)
+              X.I := X.I + X.INC;
+              CALL INSERT(X);
+              X:=DELETEMIN;
+              IF J=/=X.I THEN EXIT FI
+              (* WE ARE TO UPDATE ALL ELEMENTS WITH THE SAME COMPONENT X.I *)
+            OD
+          FI
+        OD;
+        ITIME:=TIME-ITIME;
+        WRITELN(" EXECUTION TIME =",ITIME," SEC");
+        J:=-1;
+        FOR K:=1 TO N
+        DO
+          J:=J+1; IF J=10 THEN WRITELN; J:=0 FI;
+          WRITE(' ',P(K))
+        OD;
+        WRITELN;
+      OD;
+    END
+  END
+END 

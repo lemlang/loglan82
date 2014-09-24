@@ -1,0 +1,99 @@
+(* A very simple use of coroutines :					*)
+(* generation of permutations of 'n' elements 1..n			*)
+
+BLOCK
+
+ UNIT PrintTable: PROCEDURE(tab: ARRAY_OF Integer);
+  VAR i: Integer;
+ BEGIN
+   Write("(");
+   FOR i:= Lower(tab) TO Upper(tab)-1 DO
+     Write(tab(i):2, ", ")
+   OD;
+   WriteLn(tab(Upper(tab)):2, ")")
+ END PrintTable;
+
+(*----------------------------------------------------------------------*)
+(* Unit Permutation is a coroutine, can be suspended, then reactivated	*)
+(* Use of it :								*)
+(*	VAR p: Permutation;						*)
+(*	...								*)
+(*	p:= new Permutation(max);  max is maximum of numbers to permute	*)
+(*	DO								*)
+(*	  Attach(p)		   activate coroutine			*)
+(*	  IF p.Done EXIT FI	   when p.Done becomes true all the	*)
+(*				   permutations were generated		*)
+(*	  p.Values(2) 		   Here the function p.Values will give	*)
+(*				   last recent permutation		*)
+(*	OD								*)
+(*----------------------------------------------------------------------*)
+ UNIT Permutation : COROUTINE(n:integer);
+  HIDDEN
+   pTable,i,Permute,Generator;	(* These attributes are HIDDEN to unit	*)
+  VAR
+   Done: Boolean,
+   pTable: 	 ARRAY_OF Integer,
+   i: 	 Integer;
+
+
+  UNIT Permute: PROCEDURE(INOUT x,y: Integer);
+   VAR tmp: Integer;
+  BEGIN
+    tmp:= x;  x:= y;  y:= tmp
+  END Permute;
+
+  UNIT Generator: PROCEDURE(k : Integer);
+   VAR q,i: Integer;
+  BEGIN
+    IF k=1 THEN	(* Last call in chain of the recursive Generator's call	*)
+      Detach	(* one more permutation is done - detach to caller 	*)
+    ELSE
+      CALL Generator(k-1);		(* build up next permutation	*)
+      FOR i:=1 TO (k-1) DO
+        CALL Permute(pTable(i), pTable(k));
+        CALL Generator(k-1)
+      OD;
+      q:= pTable(1);
+      FOR i:=1 TO k-1 DO pTable(i):=pTable(i+1) OD;
+      pTable(k):= q
+    FI
+  END Generator;
+
+  UNIT Values: FUNCTION: ARRAY_OF Integer;
+  BEGIN
+    Result:= pTable
+  END Values;
+
+ BEGIN  (* Permutation *)
+   ARRAY pTable DIM (1:n);
+   FOR i:=1 TO n DO
+     pTable(i) := i
+   OD;
+   RETURN;
+   CALL Generator(n);
+   Done:=  TRUE
+ END Permutation;
+
+ VAR
+   p: Permutation,
+(* perm_tab: ARRAY_OF Integer, *)
+   i,n : integer;
+
+ BEGIN  (* BLOCK *)
+   Write("no elem = ");
+   Readln(n);
+   p:= NEW Permutation(n);
+   i:= 1;
+   DO
+     Attach(p);
+     IF p.Done
+       THEN EXIT FI;
+     Write("Permutation(", i:3, ") : ");
+     i:= i+ 1;
+(*-----*)
+     CALL PrintTable(p.Values);
+(*-----*)
+   OD;
+   WriteLn("Done...")
+ END BLOCK;
+

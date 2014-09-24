@@ -1,0 +1,622 @@
+program system;
+
+unit structures:class;
+   signal errorm,errorg,error(i:integer);
+
+   unit ring:class;
+      unit virtual add:function(x:ring):ring; end;
+      unit virtual mult:function(x:ring):ring; end;
+   end ring;
+
+   unit matrix:ring class(n,m:integer);
+      var a:arrayof arrayof ring;
+      var i:integer;
+      unit virtual add:function(x:matrix):matrix;
+         var i,j:integer;
+         handlers
+            when typerror: raise error(3);
+         end handlers;
+      begin
+         if n<> x.n or m <> x.m then raise errorg fi;
+         result := new matrix(n,m);
+         for i:=1 to n do
+            for j := 1 to m do
+               result.a(i,j) := a(i,j).add(x.a(i,j))
+            od;
+         od;
+      end add;
+
+      unit virtual mult : function (x:matrix) : matrix;
+
+       var i,j,k : integer ;
+       handlers
+              when typerror : raise error(3);
+       end handlers;
+
+       begin
+           if  m<> x.n
+              then
+                  raise errorm ;
+           fi;
+
+           result := new matrix (n,x.m);
+           for i := 1 to n do
+        for j := 1 to x.m do
+        result.a(i,j) := a(i,1).mult(X.a(1,j));
+        for k := 2 to m do
+         result.a(i,j) :=  result.a(i,j).add( a(i,k).mult( X.a(k,j) )) ;
+
+         OD;OD;OD;
+
+       end mult;
+
+   begin
+      array a dim (1:n);
+      for i:=1 to n do
+         array a(i) dim (1:m);
+      od;
+   end matrix;
+
+
+   unit polynomial:ring class(n:integer);
+     var a:arrayof ring;
+
+     unit virtual add:function(x:polynomial):polynomial;
+        var i,k:integer;
+         handlers
+            when typerror: raise error(3);
+         end handlers;
+     begin
+        k := imax(n,x.n);
+        result := new polynomial(k);
+        for i := 0 to imin(n,x.n) do
+          result.a(i):= a(i).add(x.a(i));
+        od;
+        if n>x.n then
+          for i:=x.n+1 to n do result.a(i) := a(i) od
+        else
+          for i := n+1 to x.n do result.a(i) := x.a(i) od
+        fi;
+     end add;
+
+     unit virtual mult:function(x:polynomial):polynomial;
+     var j,i : integer ;
+     var b,c : arrayof ring ;
+     begin 
+           array b dim (0:n+x.n) ;
+           array c dim (0:n+x.n) ;
+          result := new polynomial ( n + x.n );
+
+                          for i:=0 to x.n
+                                do
+                          c(i):= x.a(i);
+                                od;
+
+                          for i:=0 to n
+                                do
+                          b(i) := a(i) ;
+                                od;
+
+
+          for i:=n+1 to result.n
+                 do
+                    b(i):= a(n+1);
+                 od;
+
+          for i:=(x.n +1) to result.n
+                do
+                  c(i):= a(n+1);
+                od;
+
+          for i:=0 to result.n
+                do
+                   result.a(i) := a(n+1);
+                od;
+
+          result.a(0) := b(0).mult(c(0));
+
+          for i:=0 to result.n
+                do
+           result.a(i):= b(0).mult(c(i));
+             
+          for j:=1 to i
+                do
+ result.a(i) := result.a(i).add( b(j).mult( c(i-j) ));
+                od;
+                od;       
+end mult;
+
+
+   begin
+       array a dim (0:n+1);
+   end polynomial;
+
+   unit number:ring class;
+      var n:integer;
+      unit virtual add:function(x:number):number;
+         handlers
+            when typerror: raise error(3);
+         end handlers;
+      begin
+         result := new number;
+         result.n := n+x.n
+      end add;
+
+    unit virtual mult : function (x:number) : number ;
+
+    handlers
+           when typerror : raise error(3);;
+    end handlers ;
+
+    begin
+        result := new number ;
+        result.n:= n * x.n;
+
+   end mult;
+   end number;
+
+
+   unit rnumber:ring class;
+      var r:real;
+      unit virtual add:function(x:rnumber):rnumber;
+         handlers
+            when typerror: raise error(3);
+         end handlers;
+      begin
+         result := new rnumber;
+         result.r := r+x.r
+      end add;
+
+    unit virtual mult : function (x:rnumber) : rnumber ;
+
+    handlers
+           when typerror : raise error(3);;
+    end handlers ;
+
+    begin
+        result := new rnumber ;
+        result.r:= r * x.r;
+
+   end mult;
+   end rnumber;
+
+    unit complex : ring class ;
+
+    var re,im : real;
+
+    unit virtual add : function (x: complex) : complex ;
+     begin
+         result := new complex ;
+         result.re := re + x.re ;
+         result.im := im + x.im  ;
+     end add ;
+
+    unit virtual mult : function (x: complex) : complex ;
+     begin
+         result := new complex ;
+         result.re := re*x.re - x.im*im ;
+         result.im := re*x.im + x.re*im ;
+     end mult ;
+
+    begin
+    end complex ;
+
+end structures;
+
+(* ====================================================== *)
+
+begin
+  (* system for polynomials and matrices *)
+
+  pref structures block
+    var struct:arrayof ring;
+    var c:char;
+
+    unit scan:function:char;
+    (* reads one character *)
+    begin
+       result := ' ';
+       do
+        if result <> ' ' or eoln then exit fi;
+        read(result);
+       od;  
+     if eoln and result = ' ' then result:= '&' fi;
+    end scan;
+
+    unit num:function(c:char):integer;
+    begin
+          result := ord(c)- ord('0');
+          if result<1 or result >9 then raise error(5) fi; 
+    end num;
+
+    unit definition:procedure;
+      (* definition of the new structure *)
+      var i:integer;
+    begin
+       i := num(c);
+       c := scan;
+       if c <> ':' then raise error(1) fi;
+       struct(i) := gentp;
+       call generate(struct(i));
+       call inform(struct(i),inf);
+    end definition;      
+
+    unit information:procedure;
+      var i:integer;
+    begin
+      c := scan;
+      i := num(c);
+      if struct(i)=none then raise error(4) fi;
+      call inform(struct(i),inf);
+    end information;
+ 
+    unit fill:procedure;
+      (* fills  up the structure *)
+      var i:integer;
+    begin
+       c := scan;
+       i := num(c);
+       if struct(i) = none then raise error(4) fi;
+       call inform(struct(i),fillst);
+    end fill;
+
+
+   unit help : procedure;
+    (* explains "command language" *)
+   var h: char;
+
+    unit riteln : procedure (n : integer);
+       var i : integer;
+         begin for i := 1 to n
+                do 
+                 writeln; 
+                od;
+         end riteln;
+  begin
+       call riteln(4);
+        writeln(" HELP");
+       call riteln(3);
+        writeln (" hit =1= for info about DEFINITION OF STRUCTURE ");
+        writeln;
+        writeln (" hit =2= for info about OPERATION ON STRUCTURE ");
+        writeln;
+        writeln (" hit =3= to return to program ");
+        writeln;
+        writeln ("i n = information about structure no. n");
+        writeln;
+        writeln ("w n = show structure no. n");
+        writeln;
+        writeln ("f n = fill structure no. n");
+        writeln;
+        writeln("$    = exit from program");
+        writeln;
+        writeln("h    = this text");
+      readln;
+      read(h);
+     case h
+        when '1' :call riteln(22);
+            writeln("to define structure no. num (1 <= num <= 9) , write :");
+                  call riteln(2);
+                 
+                  writeln(" num: structype [param1] [param2] <return>");
+                  writeln("      [substructype] ");
+                  writeln;
+                  writeln("where (sub)structype is");
+                  writeln;
+           writeln("  m for matrix 2-dim ; parameters== rows-no.  columns-no.");
+                  writeln("                        substructype==elementype.");
+                  writeln;
+                  writeln("  p for 1_var_polynomials ; parameter is degree");
+           writeln("                           substructype==coefficientype.");
+                  writeln;
+                  writeln("  n for integer number ;no parameters");
+                  writeln("                        no substructure .");
+                  writeln;
+                  writeln("  r for real number ;   no parameters");
+                  writeln("                        no substructure .");
+                  writeln;
+                  writeln("  c for complex number ;no parameters");
+                  writeln("                        no substructure .");
+
+        when '2' : call riteln(22);
+
+   writeln("Operations work on two structures ( of the same type only )");
+        writeln;
+        writeln("producing a third structure .");
+        writeln;
+        writeln("Command is : ");  
+        writeln("               o res=op1 @ op2 ");
+        call riteln(3);
+   writeln("where res,op1,op2 are structure-identifiers <numbers>");
+        writeln;
+        writeln("and @ is the operation sign ( + , * ) .");
+        call riteln(3);
+        writeln(" Examples :");
+        writeln("           o 3=1*2");
+        writeln("(struct-1 * struct-2 --> struct-3)");        
+        writeln;
+        writeln("           o 2=1+2");
+        writeln("(struct-1 + struct-2 --> struct-2)");        
+        otherwise  writeln("                 bye !");
+
+     esac;    
+   end help;
+
+
+    unit writestruct:procedure;
+     (* displays the structure *)
+       var i:integer;   
+    begin
+      c := scan;
+      i := num(c);
+      if struct(i) = none then raise error(4) fi;
+      call inform(struct(i),wrt);
+    end writestruct;
+
+    unit operation:procedure;
+    (* performs an operatin *)
+      var i,k:integer;
+    begin
+      c := scan;
+      k := num(c); (* result *)
+      c := scan;
+      if c <> '=' then raise error(2) fi;
+      c := scan;
+      i := num(c); (* first argument *)
+      c := scan; (* operation *)
+      case c
+   when '+': call  opadd(k,i);
+   when '*': call  opmult(k,i);
+   otherwise  raise error(5);
+      esac;
+    end operation;
+
+    unit gentp:function:ring;
+     (* generates the pattern for the new structure *)
+      var n,m:integer;
+    begin
+       c := scan;
+         case c
+     when 'm': (* matrix *)
+               read(n); read(m); readln;
+               if n<1 or m<1 then raise error(7) fi;
+               result := new matrix(n,m);
+               result qua matrix.a(n,m) := gentp;
+     when 'p': (* polynomial *)
+               read(n); readln;
+               if n<0 then raise error(7) fi;
+               result := new polynomial(n);
+               result qua polynomial.a(0) := gentp;
+      when 'n': (* number *)
+               result := new number;
+      when 'r': (* rnumber *)
+               result := new rnumber;
+      when 'c': (* complex *)
+               result := new complex;
+     otherwise raise error(6);
+         esac;
+    end gentp;
+
+    unit generate:procedure(x:ring);
+     (* generates the structure *)
+      var y:ring,
+          i,j:integer;
+    begin
+       if x is matrix then
+           y := x qua matrix.a(x qua matrix.n ,x qua matrix.m);
+           for i:=1 to x qua matrix.n do
+             for j:=1 to x qua matrix.m do
+                 x qua matrix.a(i,j) := copy(y);
+                 call coppy(x qua matrix.a(i,J),y);
+                 call generate(x qua matrix.a(i,j));
+             od;
+           od
+        else
+           if x is polynomial then
+              y := x qua polynomial.a(0);
+              for i:=0 to (x qua polynomial.n)+1 do
+                  x qua polynomial.a(i) := copy(y);
+                  call coppy(x qua polynomial.a(i),y);
+                  call generate(x qua polynomial.a(i));
+              od;
+           fi
+        fi
+    end generate;   
+
+   unit coppy:procedure(x,y:ring );
+    var i:integer;
+  begin
+     if x is matrix then
+        x qua matrix.a := copy(y qua matrix.a);
+        for i := 1 to x qua matrix.n do
+           x qua matrix.a(i) := copy (y qua matrix.a(i));
+        od
+      else
+      if x is polynomial then
+         x qua polynomial.a := copy(y qua polynomial.a);
+       fi
+     fi
+  end;
+  
+    unit inform:procedure(x:ring; procedure op(x:ring));
+      (* auxilliary *)
+    begin
+         if x = none then raise error(4) fi;
+         if x is matrix then
+           write("  matrix ", x qua matrix.n:3, " X ",x qua matrix.m:3);
+           writeln;
+           call  op(x)
+         else
+           if x is polynomial then
+              write("  polynomial deg ", x qua polynomial.n:3);
+              writeln;
+              call op(x)
+           else
+              if x is number then write("  number ");
+                                  call op(x);
+                             else
+              if x is rnumber then write("  realnumber ");
+                                   call op(x);
+                              else
+              if x is complex then write(" complex number ");
+                                   call op(x);
+              fi;
+              fi;
+              fi;
+             fi
+         fi;
+       writeln
+    end inform;       
+
+    unit fillst:procedure(x:ring);
+      (* fills the  structure *)
+       var i,j:integer,
+             y:ring;
+    begin
+       if x is matrix then
+          for i:=1 to x qua matrix.n do
+            writeln(" row ",i:3);
+            for j := 1 to x qua matrix.m do
+               writeln(" column",j:3);
+                call inform(x qua matrix.a(i,j),fillst); 
+            od;
+          od
+       else
+          if x is polynomial then
+             for i := 0 to x qua polynomial.n do
+                writeln (" element ",i:3);
+                  call inform(x qua polynomial.a(i),fillst);
+             od
+          else
+             if x is number then read(x qua number.n);
+              else
+                if x is rnumber then read (x qua rnumber.r);
+                 else if x is complex then
+                                      write ( "real ");
+                                      read ( x qua complex.re );
+                                      write ( "imag. ");
+                                      read ( x qua complex.im );
+                      fi;
+                fi;
+             fi;
+          fi;
+       fi;
+    end fillst;
+
+    unit inf:procedure(x:ring);
+      var y:ring;
+    begin
+      if x is matrix then y := x qua matrix.a(1,1); call inform(y,inf)
+      else
+        if x is polynomial then y := x qua polynomial.a(0); call inform(y,inf)  fi
+      fi;
+      writeln;
+    end inf;
+
+    unit wrt:procedure(x:ring);
+     (* displays the structure *) 
+       var i,j:integer,
+             y:ring;
+    begin
+       if x is matrix then
+          writeln;
+          for i := 1 to x qua matrix.n do
+            for j := 1 to x qua matrix.m do
+            write(" row ",i:3," ,column ",j:3,":");writeln;
+               y := x qua matrix.a(i,j);
+               call inform(y,wrt);
+               writeln;
+            od
+          od
+        else
+           if x is polynomial then
+              writeln;
+              for i := 0 to x qua polynomial.n do
+                write(" element ",i:3,':');
+                y := x qua polynomial.a(i);
+                call inform(y,wrt);
+                writeln;
+               od
+           else
+              if x is number then
+              write(x qua number.n:4);
+              else
+                 if x is rnumber then
+                 write(x qua rnumber.r);                  
+                 else
+                    if x is complex then
+                 write("( ",x qua complex.re," ) + i*( ",x qua complex.im," )");
+                    fi;
+                 fi;              
+              fi;
+           fi
+        fi
+    end wrt;
+
+    unit opadd:procedure(k,i:integer);
+    (* auxilliary - performs addition *)
+       var x,y:ring,
+           j:integer;
+       handlers
+          when typerror: raise error(3);
+       end handlers;
+    begin
+       c := scan;
+       j := num(c);
+       struct(k) := struct(i).add(struct(j))
+     end opadd;
+
+    unit opmult:procedure(k,i:integer);
+    (* auxilliary - performs multiplication *)
+       var x,y:ring,
+           j:integer;
+       handlers
+          when typerror: raise error(3);
+       end handlers;
+    begin
+       c := scan;
+       j := num(c);
+       struct(k) := struct(i).mult(struct(j))
+     end opmult;
+ 
+     handlers
+       when error: write("  **** error **** ");
+                    case i 
+            when 0: writeln(" undefined statement ");
+            when 1: writeln(" ':' expected");
+            when 2: writeln(" '=' expected ");
+            when 3: writeln(" not compatible types in operation");
+            when 4: writeln(" structure not defined ");
+            when 5: writeln(" illegal operation");
+            when 6: writeln(" unrecognized structure");
+            when 7: writeln(" wrong parameter");
+                    esac;
+                    wind;
+       when errorm:
+                   writeln(" matrix dimensions - in mult - are not compatible");
+                            wind;
+       when errorg:
+                   writeln(" matrix dimensions - in sum - are not compatible");
+                   wind;
+     end handlers;
+         
+  begin  (* main program *)
+    array struct dim(1:9);
+    do
+      write(" ** ");
+      c := scan;
+      case c
+    when '1','2','3','4','5','6','7','8','9': call definition;
+    when 'f': call fill;
+    when 'w': call writestruct;
+    when 'o': call operation;
+    when '$': exit;
+    when 'i': call information; 
+    otherwise call help;
+      esac;
+      readln; writeln;
+   od;writeln;writeln("                            bye .");
+ end
+end             
+   
+      

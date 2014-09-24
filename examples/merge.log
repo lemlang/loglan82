@@ -1,0 +1,124 @@
+BLOCK
+   (* COROUTINE MERGE OF BINARY TREES*)
+ 
+ 
+ 
+UNIT NODE : CLASS;
+   (* NODE OF BINARY TREE *)
+   VAR LEFT,RIGHT : NODE, VAL : INTEGER; (*SEARCHING KEY *)
+ 
+   UNIT INS : PROCEDURE (VALUE : INTEGER);
+     BEGIN
+       IF VAL> VALUE
+        THEN
+         IF LEFT = NONE
+          THEN
+           LEFT := NEW NODE;
+           LEFT.VAL := VALUE
+ 
+           ELSE
+            CALL LEFT.INS(VALUE)
+           FI
+         ELSE
+          (* ELEMENTS NOT LESS THAN VAL ARE LOCATED IN THE RIGHT SUBTREE*)
+          IF RIGHT = NONE
+           THEN
+            RIGHT := NEW NODE;
+            RIGHT.VAL := VALUE
+           ELSE
+            CALL RIGHT.INS(VALUE)
+          FI
+        FI;
+   END INS;
+ 
+END NODE;
+ 
+ 
+   UNIT TRAVERS : COROUTINE (X :NODE);
+   (* CONSECUTIVE ELEMENTS OF TREE NODE ARE LOCATED IN THE GROWING ORDER TO *)
+   (* THE "MAIL BOX" VAL AND SENT TO THE ATTACHING UNIT                     *)
+      VAR VAL : INTEGER;
+ 
+      UNIT T : PROCEDURE (Y : NODE);
+      (* RECURSIVE PROCEDURE FOR INFIX TRAVERSION RESULTING TREE ELEMENTS  *)
+      (* IN NOT DECREASING ORDER                                           *)
+         BEGIN
+           IF Y =/= NONE
+            THEN
+             CALL T(Y.LEFT);
+             VAL := Y.VAL;
+             DETACH;
+             (* CONSECUTIVE ELEMENTS OF TREE Y ARE SENT FOR FURTHER        *)
+             (* PROCESSING TO THE MASTER PROGRAM                           *)
+             CALL T(Y.RIGHT);
+            FI
+      END T;
+ 
+      BEGIN
+        RETURN;
+        CALL T(X);
+        VAL := M;
+        (* VAL IS MAXIMAL VALUE TREATED AS A SENTINEL WHILE ENTIRE TREE IS *)
+        (* TRAVESED                                                        *)
+   END TRAVERS;
+ 
+   VAR N,I,J,MIN,M,K : INTEGER,
+    (* N - TNE NUMBER OF TREES
+       M - MAXIMAL KEY VALUE + 1
+       MIN- MINIMAL VALUE PRODUCED AT A GIVEN MOMENT BY SYSTEM OF COROUTINES*)
+       D : ARRAYOF NODE,
+       TR : ARRAYOF TRAVERS;
+ 
+BEGIN
+WRITELN(" PROGRAM USES COROUTINES AND MERGES A GIVEN NUMBER OF BINARY",
+        " SEARCHING TREES");
+DO WRITELN(" GIVE THE NUMBER OF TREES:");
+   READ(N);
+   WRITELN(N);
+   IF N>0 THEN EXIT ELSE WRITELN(" THE NUMBER MUST BE > 0") FI
+OD;
+WRITELN(" ELEMENTS OF THE TREES ARE INTEGERS");
+WRITELN(" TO TERMIATE INSERTING TREE TYPE  -1.");
+WRITELN(" THIS NUMBER IS NOT INSERTED AS AN ELEMENT");
+ 
+ARRAY D DIM(1:N);
+FOR I := 1 TO N DO
+   WRITELN(" GIVE THE ELEMENT SEQUENCE FOR THE TREE NO.",I:4);
+   READ(J); WRITE(J);  IF J>M THEN M :=J FI ;
+   D(I) := NEW NODE;
+   D(I).VAL := J;
+   DO
+    READ(J);
+     IF J = -1 THEN WRITELN; EXIT FI;
+     WRITE(J);
+     IF J > M THEN M := J FI;
+     CALL D(I).INS(J)
+   OD;
+OD;
+M := M+1;
+WRITELN(" THE MERGED SEQUENCE IS:");
+ 
+ARRAY TR DIM(1:N);
+ 
+MIN := 0;
+(* GENERATE THE TRAVERSERS SYSTEM *)
+FOR I:= 1 TO N DO
+   TR(I) := NEW TRAVERS (D(I));
+   ATTACH(TR(I));
+OD;
+ 
+K:=0;
+DO
+  IF MIN = M THEN EXIT FI;
+  MIN := TR(1).VAL;
+  J :=1;
+  FOR I:= 2 TO N DO
+   IF MIN>TR(I).VAL THEN MIN:= TR(I).VAL; J := I FI;
+  OD;
+ 
+IF MIN< M THEN WRITE(' ',MIN); ATTACH(TR(J));
+   K:=K+1; IF K=10 THEN WRITELN FI
+FI
+OD; WRITELN
+ 
+END
