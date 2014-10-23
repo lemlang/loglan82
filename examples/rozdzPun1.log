@@ -834,7 +834,3 @@ call GUI_writeInt(pminX+150,pminY+45, jakosc, c_darkGrey,c_green);
   
    END (* block od Grafiki *)
 END RozdzileaniePunktow;
- 
-       
-
-   

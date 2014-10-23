@@ -353,6 +353,3 @@ PROGRAM GraphColoring;
    
    
   END;  (* of program *)
-    
-
-  

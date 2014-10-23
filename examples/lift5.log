@@ -1,5 +1,3 @@
-
-  
  PROGRAM LIFT5;
 (* wersja styczen 1999*)
    #include "classes/gui.inc"
@@ -893,8 +891,3 @@ END STRUC_QUEUE;
         call outstring(maxX-100,maxY+25, "          ",gris,gris);              
 
     end waittt;
-     
- 
- 
-€
-  

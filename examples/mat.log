@@ -618,5 +618,3 @@ begin
    od;writeln;writeln("                            bye .");
  end
 end             
-   
-      
