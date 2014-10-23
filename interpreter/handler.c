@@ -107,6 +107,9 @@ void errsignal ( int exception ) {
     case RTEIOERR:
         fprintf ( stderr, " I/O ERROR" );
         break;
+    case RTEVMCONERR:
+        fprintf ( stderr, " VM CONNECTION ERROR" );
+        break;
     case RTECNTOP:
         fprintf ( stderr, " CANNOT OPEN FILE" );
         break;

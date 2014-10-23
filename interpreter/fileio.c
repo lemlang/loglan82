@@ -194,10 +194,8 @@ FILE *fp;
     return ( ch == '\n' );
 } /* end testeoln */
 
-
-void readln ( fp )                      /* Skip to end of line */
-FILE *fp;
-{
+/* Skip to end of line */
+void readln ( FILE *fp)  {
     int ch,st;
     MESSAGE msg;
     if ( fp == stdin ) {

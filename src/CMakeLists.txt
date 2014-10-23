@@ -26,15 +26,15 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(vlp ${SRCSL})
-#add_executable(vlpvm ${SRCSR})
+add_executable(vlpvm ${SRCSR})
 add_executable(vlpgr ${SRCSG})
 
 target_link_libraries(vlp ${wxWidgets_LIBRARIES})
-#target_link_libraries(vlpvm ${wxWidgets_LIBRARIES})
+target_link_libraries(vlpvm ${wxWidgets_LIBRARIES})
 target_link_libraries(vlpgr ${wxWidgets_LIBRARIES})
 
 install (TARGETS vlp DESTINATION bin)
-#install (TARGETS vlpvm DESTINATION bin)
+install (TARGETS vlpvm DESTINATION bin)
 install (TARGETS vlpgr DESTINATION bin)
 
 if(WIN32)

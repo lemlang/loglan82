@@ -15,7 +15,7 @@ FOREACH (TEST_FILE ${TEST_FILES})
 add_test(
     NAME "compile_${TEST_FILE}"
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/../examples/
-    COMMAND vlpc ${TEST_FILE} )
+    COMMAND ${CMAKE_INSTALL_PREFIX}/bin/vlpc ${TEST_FILE} )
 ENDFOREACH(TEST_FILE)
 add_test(
     NAME "md5check"

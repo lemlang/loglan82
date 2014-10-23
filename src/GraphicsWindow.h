@@ -16,11 +16,22 @@ public:
     void OnQuit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
     void OnExecute(wxCommandEvent& WXUNUSED(event));
-    //virtual void SetTitle(const wxString&);
+    void PutChar(char ch);
+    void onKeyDown(wxKeyEvent &aEvent);
+    void onKeyUp(wxKeyEvent &aEvent);
+    void onMouseClick(wxMouseEvent &aEvent);
+    void onChar(wxKeyEvent &aEvent);
     DECLARE_EVENT_TABLE()
 private:
     int showQuitDialog();
+    wxTextCtrl *text; // the main text area
 
+
+
+};
+
+enum  {
+    TEXT_Main = wxID_HIGHEST + 1
 };
 
 #endif	/* VLPMAINWINDOW_H */

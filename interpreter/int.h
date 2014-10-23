@@ -125,6 +125,7 @@ typedef struct {
 #define RTEINVND        27      /* invalid node number */
 #define RTENEGST        28      /* negative step value */
 #define RTENONGL        29      /* only process may be global */
+#define RTEVMCONERR     30      /* error connection vm */
 
 union value {
     unsigned int xint;
