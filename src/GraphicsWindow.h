@@ -8,6 +8,7 @@
 #ifndef GRAPHICSWINDOW_H
 #define	GRAPHICSWINDOW_H
 #include <wx/wx.h>
+#include <queue>
 
 class GraphicsWindow: public wxFrame  {
 public:
@@ -17,6 +18,7 @@ public:
     void OnClose(wxCloseEvent& event);
     void OnExecute(wxCommandEvent& WXUNUSED(event));
     void PutChar(char ch);
+    int ReadChar();
     void onKeyDown(wxKeyEvent &aEvent);
     void onKeyUp(wxKeyEvent &aEvent);
     void onMouseClick(wxMouseEvent &aEvent);
@@ -25,6 +27,7 @@ public:
 private:
     int showQuitDialog();
     wxTextCtrl *text; // the main text area
+    std::queue<int> character_input_queue;
 
 
 

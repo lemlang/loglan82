@@ -5,15 +5,23 @@
  * Created on 11 marzec 2014, 22:33
  */
 
+#include <wx/msgdlg.h>
 #include "VM.h"
 
 VM::VM() {
     this->port = 3600;
+
 }
 
 bool VM::OnInit() {
     //This call enables us to use wxSocket calls in secondary threads
     wxSocketBase::Initialize();
+    Connect(wxID_ANY,wxEVT_END_SESSION,(wxObjectEventFunction)&VM::OnClose, NULL, this);
+    if( SetSignalHandler(SIGTERM,this->OnSigTerm) ) {
+        wxLogError ( _( "Successfully handler installed." ) );
+    } else {
+        wxLogError ( _( "Failed to install handler." ) );
+    }
 
     wxLog::SetActiveTarget ( new wxLogStderr );
 
@@ -170,8 +178,18 @@ wxFileName* VM::getExecutablesDir() {
 }
 
 
+void VM::OnClose(wxCloseEvent &event) {
+    if (event.GetEventType() == wxEVT_CLOSE_WINDOW)
+        wxMessageBox(L"got wxEVT_CLOSE_WINDOW");
+    ExitMainLoop();
+
+}
+
 BEGIN_EVENT_TABLE ( VM, wxAppConsole )
     EVT_SOCKET ( SERVER_EVENT_ID,  VM::OnServerEvent )
     EVT_SOCKET ( SOCKET_EVENT_ID,  VM::OnSocketEvent )
 END_EVENT_TABLE()
 
+void VM::OnSigTerm(int sig) {;
+    wxLogMessage(wxString::Format("got signal %d",sig));
+}

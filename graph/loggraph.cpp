@@ -416,8 +416,7 @@ void VGR::keyPressEvent ( QKeyEvent *ev ) {
             msg.msg_type = MSG_GRAPH;
             msg.param.pword[0] = GRAPH_MAGIC_RESPONSE;
             msg.param.pword[1]=0;
-            WriteChar ( ( char ) ev->ascii() );
-            GraphRead=FALSE;
+            WriteChar ( ( char ) ev->ascii() );            GraphRead=FALSE;
         }  else {
             msg.msg_type = MSG_GRAPH;
             msg.param.pword[0] = GRAPH_READCHAR_RESPONSE;

@@ -39,6 +39,8 @@ public:
 
     void OnServerEvent(wxSocketEvent& event);
     void OnSocketEvent(wxSocketEvent& event);
+    void OnClose( wxCloseEvent& event );
+    void static OnSigTerm(int sig);
     int getNodeNumber();
     Configurations* getConfiguration();
     wxFileName* getExecutablesDir();

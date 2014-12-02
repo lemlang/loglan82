@@ -12,21 +12,23 @@
 
 GraphicsWindow::GraphicsWindow(const wxString& title)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
+
     text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
-            wxTE_MULTILINE , wxTextValidator(wxFILTER_ALPHANUMERIC), wxTextCtrlNameStr);
+            wxTE_MULTILINE , wxTextValidator(wxFILTER_NONE ), wxTextCtrlNameStr);
+    wxLogMessage(wxString::Format(_("GraphicsWindow::this->text %lu \n"),(long unsigned int) text));
     Connect(wxID_EXIT, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(GraphicsWindow::OnQuit));
     Connect(wxID_EXECUTE, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(GraphicsWindow::OnExecute));
-    text->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(GraphicsWindow::onKeyDown));
-    text->Connect(wxEVT_KEY_UP,   wxKeyEventHandler(GraphicsWindow::onKeyUp));
-    text->Connect(wxEVT_CHAR,   wxKeyEventHandler(GraphicsWindow::onChar));
-    text->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick));
-    text->Connect(wxEVT_LEFT_UP, wxMouseEventHandler(GraphicsWindow::onMouseClick));
-    text->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick));
-    text->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(GraphicsWindow::onMouseClick));
-    text->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(GraphicsWindow::onMouseClick));
-    text->Connect(wxEVT_RIGHT_DCLICK, wxMouseEventHandler(GraphicsWindow::onMouseClick));
+    //text->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(GraphicsWindow::onKeyDown));
+    //text->Connect(wxEVT_KEY_UP,   wxKeyEventHandler(GraphicsWindow::onKeyUp));
+    text->Connect(wxEVT_CHAR,   wxKeyEventHandler(GraphicsWindow::onChar), NULL, this);
+    text->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
+    text->Connect(wxEVT_LEFT_UP, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
+    text->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
+    text->Connect(wxEVT_RIGHT_UP, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
+    text->Connect(wxEVT_LEFT_DCLICK, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
+    text->Connect(wxEVT_RIGHT_DCLICK, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
     Centre();
 }
 
@@ -42,28 +44,41 @@ void GraphicsWindow::onMouseClick(wxMouseEvent& aEvent)
 void GraphicsWindow::onKeyDown(wxKeyEvent& aEvent)
 {
 
-    wxLogMessage(wxString::Format(_("GraphicsWindow::onKeyDown\n")));
-    aEvent.ResumePropagation(1);
-    aEvent.Skip();
+    //wxLogMessage(wxString::Format(_("GraphicsWindow::onKeyDown\n")));
+    aEvent.ResumePropagation(wxEVENT_PROPAGATE_MAX);
+    //aEvent.Skip();
     //aEvent.StopPropagation();
 }
 
 void GraphicsWindow::onKeyUp(wxKeyEvent& aEvent)
 {
-
-    wxLogMessage(wxString::Format(_("GraphicsWindow::onKeyUp \"%c\" %d %d\n"),aEvent.GetUnicodeKey(), aEvent.GetKeyCode(), aEvent.GetModifiers() ));
-    aEvent.ResumePropagation(1);
-    aEvent.Skip();
+//aEvent.GetUnicodeKey(),
+    wxLogMessage(wxString::Format(_("GraphicsWindow::onKeyUp %d %d\n"),aEvent.GetKeyCode(), aEvent.GetModifiers() ));
+    //aEvent.ResumePropagation(wxEVENT_PROPAGATE_MAX);
+    //aEvent.Skip();
     //aEvent.StopPropagation();
 }
 
 void GraphicsWindow::onChar(wxKeyEvent& aEvent)
 {
-    wxLogMessage(wxString::Format(_("GraphicsWindow::onChar \"%c\" %d\n"),aEvent.GetUnicodeKey(), aEvent.GetKeyCode() ));
+    int key_char = 11;
+    wxLogMessage(wxString::Format(_("GraphicsWindow::character_input_queue size %lu\n"), character_input_queue.size()));
+    if( aEvent.GetUnicodeKey() == WXK_NONE) {
+        wxLogMessage(wxString::Format(_("GraphicsWindow::onChar %d\n"),aEvent.GetKeyCode() ));
+        key_char = aEvent.GetKeyCode();
+
+    } else {
+        wxLogMessage(wxString::Format(_("GraphicsWindow::onChar %d\n"),aEvent.GetUnicodeKey()));
+        key_char = aEvent.GetUnicodeKey();
+
+    }
+    character_input_queue.push(key_char
+    );
+    //
     //aEvent.ResumePropagation(1);
     //aEvent.Skip();
     aEvent.StopPropagation();
-}
+    }
 void GraphicsWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
     Close(FALSE);
 }
@@ -118,4 +133,11 @@ END_EVENT_TABLE()
 
 void GraphicsWindow::PutChar(char ch) {
     (*text) << ch;
+}
+
+int GraphicsWindow::ReadChar() {
+    if( character_input_queue.size() > 0 ) {
+        return character_input_queue.front()
+    }
+    return 0;
 }
