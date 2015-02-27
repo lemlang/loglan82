@@ -81,6 +81,7 @@ typedef boost::multi_index_container<
 > LocalIndex;
 
 typedef LocalIndex::index<local_entry::ByInterpreter>::type LocalIndexByIntepreter;
+typedef LocalIndex::index<local_entry::ByGraphics>::type LocalIndexByGraphics;
 
 
 using namespace boost::multi_index;
@@ -114,10 +115,13 @@ public:
     unsigned short int GetGraphicalResource(unsigned short int interpreter_port);
 
     wxSocketBase* GetGraphicalSocket(unsigned short int interpreter_port);
+
+    wxSocketBase *GetIntSocket(unsigned short int graphical_port);
     void CloseConnections();
 
 private:
     LocalIndex li;
+
 };
 
 #endif // CONFIGURATIONS_H

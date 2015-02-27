@@ -5,6 +5,7 @@
 #include "intproto.h"
 
 #include "nonstand.h"
+#include "../head/comm.h"
 
 
 /* Call (non)standard procedures.
@@ -24,8 +25,8 @@ int wait_for_key() {
 
     bzero ( &msg,sizeof ( MESSAGE ) );
     while ( ( msg.msg_type != MSG_GRAPH ) && ( msg.param.pword[0] != GRAPH_INKEY_RESPONSE ) ) {
-        read_from_graph ( &msg );
-
+        receive_message (network_socket, &msg );
+        DEBUG_PRINT("wait_for_key  %d %d\n",msg.msg_type , msg.param.pword[0]);
     }
     return ( msg.param.pword[3] );
 }
@@ -89,7 +90,7 @@ word nrproc;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
         while ( ( msg.msg_type!=MSG_GRAPH ) && ( msg.param.pword[0]!=GRAPH_CURPOS_RESPONSE ) )
-            read_from_graph ( &msg );
+            read_from_net ( &msg );
         param[0].xword = msg.param.pword[3];
         break;
 
@@ -99,7 +100,7 @@ word nrproc;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
         while ( ( msg.msg_type!=MSG_GRAPH ) || ( msg.param.pword[0]!=GRAPH_CURPOS_RESPONSE ) )
-            read_from_graph ( &msg );
+            receive_message (network_socket, &msg );
         param[0].xword = msg.param.pword[4];
         break;
 
@@ -160,7 +161,7 @@ word nrproc;
         msg.param.pword[3] = param[1].xword;
         send_to_graph ( &msg );
         while ( ( msg.msg_type!=MSG_GRAPH ) || ( msg.param.pword[0]!=GRAPH_GETMAP_RESPONSE ) )
-            read_from_graph ( &msg );
+            read_from_net ( &msg );
 
         {
             int map;
@@ -223,7 +224,9 @@ word nrproc;
         msg.param.pword[0]=GRAPH_INKEY;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
+            DEBUG_PRINT("Waiting GRAPH_INKEY_RESPONSE\n");
         param[0].xword = wait_for_key();
+            DEBUG_PRINT("Recived GRAPH_INKEY_RESPONSE\n");
         break;
 
 
@@ -340,7 +343,7 @@ word nrproc;
                 lastmsg=msg.param.pword[1];
                 bzero ( &msg,sizeof ( MESSAGE ) );
                 while ( msg.param.pword[0]!=GRAPH_MAGIC_RESPONSE )
-                    read_from_graph ( &msg );
+                    read_from_net ( &msg );
                 if ( lastmsg==-305 ) { // Read integer
                     newarry ( ( word ) 0,10, ( word ) AINT,&param[8].xvirt,&ax );
                     ax+=3;
@@ -399,7 +402,7 @@ word nrproc;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
         while ( 1 ) {
-            read_from_graph ( &msg );
+            read_from_net ( &msg );
             if ( ( msg.msg_type==MSG_GRAPH ) && ( msg.param.pword[0]==GRAPH_MGETPRESS_RESPONSE ) ) break;
         }
         param[0].xword = msg.param.pword[2];

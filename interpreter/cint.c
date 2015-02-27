@@ -157,21 +157,6 @@ void send_to_graph(MESSAGE *msg) {
     }
 }
 
-int read_from_graph(MESSAGE *msg) {
-    fd_set rset, wset;
-    struct timeval tout = {0, 0};
-
-    FD_ZERO (&rset);
-    FD_ZERO (&wset);
-    FD_SET (network_socket, &rset);
-
-
-    if (select(graph_sock + 1, &rset, &wset, 0, (struct timeval *) &tout) > 0) {
-        if (FD_ISSET (network_socket, &rset))
-            return (read(network_socket, msg, sizeof(MESSAGE)));
-    }
-    return (0);
-}
 
 int read_from_net(MESSAGE *msg) {
     fd_set rset, wset;
@@ -295,7 +280,7 @@ char read_char() {
         msg.param.pword[0] = GRAPH_READCHAR;
         send_to_graph(&msg);
         while (TRUE) {
-            st = read_from_graph(&msg);
+            st = read_from_net(&msg);
             if (st > 0) {
                 if ((msg.msg_type == MSG_GRAPH) &&
                         (msg.param.pword[0] == GRAPH_READCHAR_RESPONSE)) {
@@ -322,7 +307,7 @@ void read_line() {
         msg.param.pword[0] = GRAPH_READLN;
         send_to_graph(&msg);
         while (TRUE) {
-            st = read_from_graph(&msg);
+            st = read_from_net(&msg);
             if (st > 0) if ((msg.msg_type == MSG_GRAPH) && (msg.param.pword[0] == GRAPH_READLN_RESPONSE))
                 break;
         }
@@ -345,7 +330,7 @@ void read_line() {
             msg.param.pword[0] = GRAPH_READSTR;
             send_to_graph(&msg);
             while (TRUE) {
-                st = read_from_graph(&msg);
+                st = read_from_net(&msg);
                 if (st > 0) {
                     if ((msg.msg_type == MSG_GRAPH) &&
                             (msg.param.pword[0] == GRAPH_READSTR_RESPONSE)) {

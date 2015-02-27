@@ -6,6 +6,7 @@
  */
 
 #include <wx/msgdlg.h>
+#include <sys/socket.h>
 #include "VM.h"
 
 VM::VM() {
@@ -36,7 +37,7 @@ bool VM::OnInit() {
     address.Hostname ( "localhost" );
     address.Service ( 3600 );
 
-    server = new wxSocketServer ( address);
+    server = new wxSocketServer ( address, wxSOCKET_REUSEADDR);
     server->SetEventHandler ( *this, SERVER_EVENT_ID );
     server->SetNotify ( wxSOCKET_CONNECTION_FLAG );
     server->Notify ( true );
@@ -79,29 +80,29 @@ void VM::OnSocketEvent ( wxSocketEvent& event ) {
 
         switch ( readValue.msg_type ) {
             case MSG_VLP:
-                wxLogMessage ( wxString::Format ( _ ( "ProcessMessageVLP ")));
+                wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageVLP]  %lu"), (intptr_t)sock));
             this->ProcessMessageVLP ( &readValue,sock );
             break;
         case MSG_NET:
-            wxLogMessage ( wxString::Format ( _ ( "ProcessMessageNet ")));
+            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageNet]  %lu"), (intptr_t)sock));
             this->ProcessMessageNet ( &readValue,sock );
             break;
         case MSG_GRAPH:
-            wxLogMessage ( wxString::Format ( _ ( "ProcessMessageGraph ")));
+            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageGraph] %lu"), (intptr_t)sock));
             this->ProcessMessageGraph ( &readValue,sock );
             break;
         case MSG_INT:
-            wxLogMessage ( wxString::Format ( _ ( "ProcessMessageInt ")));
+            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageInt]  %lu"), (intptr_t)sock));
             this->ProcessMessageInt ( &readValue,sock );
             break;
         default:
-            wxLogMessage ( wxString::Format ( _ ( "Received from client: %d\n" ), readValue.msg_type ) );
+            wxLogMessage ( wxString::Format ( _ ( "[VM::Received from client] %d" ), readValue.msg_type ) );
             break;
         }
         break;
     }
     case wxSOCKET_LOST: {
-        wxLogMessage ( wxString( _ ( "Socket lost" )) );
+        wxLogMessage ( wxString::Format( _ ( "[VM::Socket lost] %lu" ), (intptr_t)sock) );
         break;
     }
     case wxSOCKET_OUTPUT: {
@@ -140,7 +141,7 @@ void VM::ProcessMessageInt ( MESSAGE*message, wxSocketBase*socket){
 }
 void VM::ProcessMessageGraph ( MESSAGE*message, wxSocketBase*socket){
     if (message->param.pword[0]==GRAPH_ALLOCATE) {
-        wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)socket));
+        wxLogMessage(wxString::Format("[VM::Socket address] %lu",(intptr_t)socket));
         VMServerThread* pThread = new VMServerThread(this, socket);
         pThread->Create();
         pThread->Run();
@@ -148,7 +149,9 @@ void VM::ProcessMessageGraph ( MESSAGE*message, wxSocketBase*socket){
         wxIPV4address address;
         socket->GetPeer(address);
         configuration.ChangeLocalInstance(message->param.pword[1],address.Service(),socket);
-        wxLogMessage(wxString::Format("MessageGraph Processed"));
+        wxLogMessage(wxString::Format("[VM::MessageGraph Processed] %lu",(intptr_t)socket));
+    } else if  (message->param.pword[0]== GRAPH_INKEY_RESPONSE) {
+        this->ForwardToIntModule(message,socket);
     } else {
         this->ForwardToGraphModule(message,socket);
     }
@@ -160,12 +163,23 @@ void VM::ProcessMessageVLP ( MESSAGE* message, wxSocketBase* socket){
     wxLogMessage(wxString::Format("ProcessMessageVLP %d %d",message->msg_type,socket->GetTimeout()));
 }
 
-void VM::ForwardToGraphModule ( MESSAGE *message,wxSocketBase*socket) {
+void VM::ForwardToGraphModule( MESSAGE *message,wxSocketBase*socket) {
     wxIPV4address address;
     socket->GetPeer(address);
     wxSocketBase* graph_socket = this->configuration.GetGraphicalSocket(address.Service());
     graph_socket->Write(message,sizeof(MESSAGE));
     wxLogMessage(wxString::Format("Message forwarded to GraphModule"));
+}
+void VM::ForwardToIntModule  ( MESSAGE *message,wxSocketBase*socket) {
+    wxIPV4address address;
+    socket->GetPeer(address);
+    wxSocketBase* int_socket = this->configuration.GetIntSocket(address.Service());
+    int_socket->Write(message,sizeof(MESSAGE));
+    if( int_socket->Error() ) {
+        wxLogMessage(wxString::Format("Message forwarding to InthModule failed"));
+    } else {
+        wxLogMessage(wxString::Format("Message forwarded to InthModule"));
+    }
 }
 int VM::getNodeNumber() {
     return nodeNumber;

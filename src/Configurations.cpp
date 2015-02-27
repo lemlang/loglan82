@@ -34,7 +34,7 @@ Configurations::~Configurations() {
  */
 
 int Configurations::AddLocalInstance ( short unsigned int interpreter_port, wxSocketBase* socket) {
-    li.get<1>().insert(local_entry(interpreter_port,0,0,0));
+    li.get<1>().insert(local_entry(interpreter_port,0,socket,0));
     return interpreter_port;
 }
 
@@ -61,8 +61,14 @@ short unsigned int Configurations::GetGraphicalResource ( short unsigned int int
 wxSocketBase* Configurations::GetGraphicalSocket( short unsigned int interpreter_port ) {
     LocalIndexByIntepreter::iterator it0;
     it0 = get<local_entry::ByInterpreter>(li).find(interpreter_port);
-    wxLogMessage (  wxString::Format("get graphical resource %d for interpreter_port %d\n",(it0)->graphic_resource_port, interpreter_port));
+    wxLogMessage (  wxString::Format("get Graphical Socket %d for interpreter_port %d\n",(it0)->graphic_resource_port, interpreter_port));
     return (it0)->graphic_socket;
+}
+wxSocketBase* Configurations::GetIntSocket( short unsigned int graphical_port ) {
+    LocalIndexByGraphics::iterator it0;
+    it0 = get<local_entry::ByGraphics>(li).find(graphical_port);
+    wxLogMessage (  wxString::Format("get int socket %lu for graphical_port %d\n",(intptr_t)((it0)->interpreter_socket), graphical_port));
+    return (it0)->interpreter_socket;
 }
 void Configurations::CloseConnections()
 {

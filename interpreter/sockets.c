@@ -106,6 +106,33 @@ int send_and_select_response(SOCKET connection_socket, MESSAGE* output, MESSAGE*
     }
     return 0;
 }
+
+int receive_message(SOCKET connection_socket, MESSAGE* input){
+    fd_set rset;
+    int communication_result;
+
+    struct timeval tv;
+    tv.tv_sec = 30;
+    tv.tv_usec = 0;
+
+    FD_ZERO(&rset);
+    FD_SET(connection_socket, &rset);
+
+    bzero( input, sizeof(MESSAGE ) );
+
+
+
+    if ( (communication_result =select(connection_socket+1, &rset, NULL, NULL, &tv) ) > 0)
+    {
+        DEBUG_PRINT("receive_message: select returned: %d\n",  communication_result );
+        communication_result = recv(connection_socket, input, sizeof( MESSAGE ), 0 );
+        DEBUG_PRINT("receive_message: recv %d\n",  communication_result );
+    } else {
+        DEBUG_PRINT("Cannot receive_message: select timeout? %d %d %d\n", tv.tv_sec, tv.tv_usec, communication_result);
+        return (-1);
+    }
+    return 0;
+}
 int send_message(SOCKET connection_socket, MESSAGE* output){
     fd_set rset, wset;
     int communication_result;

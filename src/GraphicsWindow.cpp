@@ -136,8 +136,10 @@ void GraphicsWindow::PutChar(char ch) {
 }
 
 int GraphicsWindow::ReadChar() {
+    wxLogMessage("[GraphicsWindow::ReadChar]");
+
     if( character_input_queue.size() > 0 ) {
-        return character_input_queue.front()
+        return character_input_queue.front();
     }
     return 0;
 }

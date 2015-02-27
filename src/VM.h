@@ -57,6 +57,8 @@ private:
     unsigned short port;
     Configurations configuration;
     wxFileName executablesDir;
+
+    void ForwardToIntModule(MESSAGE *message, wxSocketBase *socket);
 };
 
 DECLARE_APP(VM)
