@@ -90,7 +90,7 @@ word nrproc;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
         while ( ( msg.msg_type!=MSG_GRAPH ) && ( msg.param.pword[0]!=GRAPH_CURPOS_RESPONSE ) )
-            read_from_net ( &msg );
+            receive_message (network_socket, &msg );
         param[0].xword = msg.param.pword[3];
         break;
 
@@ -161,7 +161,7 @@ word nrproc;
         msg.param.pword[3] = param[1].xword;
         send_to_graph ( &msg );
         while ( ( msg.msg_type!=MSG_GRAPH ) || ( msg.param.pword[0]!=GRAPH_GETMAP_RESPONSE ) )
-            read_from_net ( &msg );
+            receive_message (network_socket, &msg );
 
         {
             int map;
@@ -282,7 +282,7 @@ word nrproc;
                 msg1.param.pword[0]=NET_NODES_NUM;
                 write ( net_sock,&msg1,sizeof ( MESSAGE ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_NODES_NUM_RESPONSE ) )
-                    read_from_net ( &msg1 );
+                    receive_message (network_socket, &msg1 );
                 newarry ( ( word ) 0,2, ( word ) AINT,&param[8].xvirt,&ax );
                 ax+=3;
                 M[ax++]=msg1.param.pword[1];
@@ -294,7 +294,7 @@ word nrproc;
                 write ( net_sock,&msg1,sizeof ( MESSAGE ) );
                 bzero ( &msg1,sizeof ( msg1 ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_NODE_EXIST ) )
-                    read_from_net ( &msg1 );
+                    receive_message (network_socket, &msg1 );
                 newarry ( ( word ) 0,2, ( word ) AINT,&param[8].xvirt,&ax );
                 ax+=3;
                 M[ax++]=msg1.param.pword[1];
@@ -306,7 +306,7 @@ word nrproc;
                 msg1.param.pword[0]=NET_GET_INFO;
                 write ( net_sock,&msg1,sizeof ( MESSAGE ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_INFO_END ) ) {
-                    read_from_net ( &msg1 );
+                    receive_message (network_socket, &msg1 );
                     if ( msg1.param.pword[0]==NET_INFO )
                         strcat ( ss,msg1.param.pstr );
                 }
@@ -343,7 +343,7 @@ word nrproc;
                 lastmsg=msg.param.pword[1];
                 bzero ( &msg,sizeof ( MESSAGE ) );
                 while ( msg.param.pword[0]!=GRAPH_MAGIC_RESPONSE )
-                    read_from_net ( &msg );
+                    receive_message (network_socket, &msg );
                 if ( lastmsg==-305 ) { // Read integer
                     newarry ( ( word ) 0,10, ( word ) AINT,&param[8].xvirt,&ax );
                     ax+=3;
@@ -402,7 +402,7 @@ word nrproc;
         msg.param.pword[1] = GraphRes;
         send_to_graph ( &msg );
         while ( 1 ) {
-            read_from_net ( &msg );
+            receive_message (network_socket, &msg );
             if ( ( msg.msg_type==MSG_GRAPH ) && ( msg.param.pword[0]==GRAPH_MGETPRESS_RESPONSE ) ) break;
         }
         param[0].xword = msg.param.pword[2];

@@ -255,7 +255,7 @@ void endrun ( int status ) {
 
     m.msg_type = MSG_GRAPH;
     m.param.pword[0] = GRAPH_FREE;
-    write ( network_socket,&m,sizeof ( MESSAGE ) );
+    send_message( network_socket,&m );
 
     for ( i=0; i<255; i++ )
         if ( DirConn[i]!=-1 ) close ( DirConn[i] );

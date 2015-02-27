@@ -280,8 +280,8 @@ char read_char() {
         msg.param.pword[0] = GRAPH_READCHAR;
         send_to_graph(&msg);
         while (TRUE) {
-            st = read_from_net(&msg);
-            if (st > 0) {
+            st = receive_message(network_socket, &msg);
+            if (st == 0) {
                 if ((msg.msg_type == MSG_GRAPH) &&
                         (msg.param.pword[0] == GRAPH_READCHAR_RESPONSE)) {
                     ch = msg.param.pchar;
@@ -307,8 +307,8 @@ void read_line() {
         msg.param.pword[0] = GRAPH_READLN;
         send_to_graph(&msg);
         while (TRUE) {
-            st = read_from_net(&msg);
-            if (st > 0) if ((msg.msg_type == MSG_GRAPH) && (msg.param.pword[0] == GRAPH_READLN_RESPONSE))
+            st = receive_message(network_socket, &msg);
+            if (st == 0) if ((msg.msg_type == MSG_GRAPH) && (msg.param.pword[0] == GRAPH_READLN_RESPONSE))
                 break;
         }
     } else {
@@ -330,8 +330,8 @@ void read_line() {
             msg.param.pword[0] = GRAPH_READSTR;
             send_to_graph(&msg);
             while (TRUE) {
-                st = read_from_net(&msg);
-                if (st > 0) {
+                st = receive_message(network_socket, &msg);
+                if (st == 0) {
                     if ((msg.msg_type == MSG_GRAPH) &&
                             (msg.param.pword[0] == GRAPH_READSTR_RESPONSE)) {
                         strcpy(ss, msg.param.pstr);

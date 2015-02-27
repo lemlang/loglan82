@@ -91,6 +91,10 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
                             this->client->Write(&writeValue, sizeof(MESSAGE));
                             wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] GRAPH_INKEY wrote response %ld", __LINE__, (long)&event));
                             break;
+                        case GRAPH_FREE:
+                            this->client->Close();
+                            this->window->Close(false);
+                            break;
                         default:
                             wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] Got unhandled event %ld MSG_GRAPH type: %d", __LINE__, (long)&event, readValue.param.pword[0]));
                             break;
