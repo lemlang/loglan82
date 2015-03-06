@@ -25,12 +25,10 @@ void VMServerThread::AllocateGraphResource(wxSocketBase* socket) {
     wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)socket));
     socket->GetPeer(address);
     wxLogMessage ( wxString::Format(_( "Allocating graph resource for peer address: %s:%d" ),address.Hostname(), address.Service() ) );
-
-    wxString graphcsCommand;
-    graphcsCommand.Printf("%s%svlpgr %d",this->m_pServer->getExecutablesDir()->GetFullPath(),
-                          wxFileName::GetPathSeparators(),
-                          address.Service()
-                         );
+    wxString wxString1 = wxString::Format("%s%s",
+            this->m_pServer->getExecutablesDir()->GetFullPath(),
+            wxFileName::GetPathSeparators());
+    wxString graphcsCommand = wxString::Format("%svlpgr %d", wxString1, address.Service());
     wxExecute(graphcsCommand, wxEXEC_ASYNC);
     unsigned short int i = this->m_pServer->getConfiguration()->GetGraphicalResource(address.Service());
     int count = 60;

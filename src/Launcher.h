@@ -10,15 +10,30 @@
 
 #include "wx/app.h"
 #include "VLPMainWindow.h"
+#include <wx/socket.h>
+#include "../head/comm.h"
+
+enum
+{
+    // id for sockets
+    CLIENT_EVENT_ID = 3000,
+    SOCKET_EVENT_ID
+};
 
 class Launcher: public wxApp {
 
     virtual bool OnInit();
     virtual int OnExit();
+    void OnClientEvent(wxSocketEvent& event);
+    void OnSocketEvent(wxSocketEvent& event);
     private:
         VLPMainWindow *mainWindow;
+        wxSocketClient* client;
+        DECLARE_EVENT_TABLE()
 
 };
 
+
+DECLARE_APP(Launcher)
 #endif	/* LAUNCHER_H */
 

@@ -96,7 +96,7 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
                             this->window->Close(false);
                             break;
                         default:
-                            wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] Got unhandled event %ld MSG_GRAPH type: %d", __LINE__, (long)&event, readValue.param.pword[0]));
+                            wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Got unhandled event %ld MSG_GRAPH type: %d", (long)&event, readValue.param.pword[0]));
                             break;
                     }
                 } else {

@@ -7,7 +7,9 @@
 
 
 #include "VLPMainWindow.h"
+#include "../head/comm.h"
 #include <wx/wfstream.h>
+#include <wx/filename.h>
 
 VLPMainWindow::VLPMainWindow(const wxString& title)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
@@ -25,6 +27,8 @@ VLPMainWindow::VLPMainWindow(const wxString& title)
     
     Connect(wxID_EXECUTE, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(VLPMainWindow::OnExecute));
+    Connect(wxID_ABORT, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(VLPMainWindow::OnKill));
     Centre();
 }
 
@@ -42,6 +46,18 @@ void VLPMainWindow::OnClose(wxCloseEvent& event) {
     }
 }
 
+int VLPMainWindow::showKillDialog() {
+    wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
+            wxT("Which proccess to kill?"), wxT("Question"),wxT(""),
+            wxTextEntryDialogStyle);
+    dial->SetTextValidator(wxFILTER_DIGITS );
+    dial->ShowModal();
+    wxString target = dial->GetValue ();
+    int num = wxAtoi(target );
+    dial->Destroy();
+    wxLogDebug(wxString::Format(_("Kill Dialog returns %d."), num));
+    return num;
+}
 int VLPMainWindow::showQuitDialog() {
     wxMessageDialog *dial = new wxMessageDialog(NULL,
             wxT("Are you sure to quit?"), wxT("Question"),
@@ -58,21 +74,25 @@ void VLPMainWindow::OnExecute(wxCommandEvent& WXUNUSED(event)) {
             "log files (*.log)|*.log", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (openFileDialog.ShowModal() == wxID_CANCEL)
         return; // the user changed idea...
-
-    // proceed loading the file chosen by the user;
-    // this can be done with e.g. wxWidgets input streams:
-    wxFileInputStream input_stream(openFileDialog.GetPath());
-    if (!input_stream.IsOk()) {
-        wxLog* target = wxLog::GetActiveTarget();
-        wxLog::SetActiveTarget(NULL);
-        
-        wxLogError("Cannot open file '%s'.", openFileDialog.GetPath());
-        wxLog::SetActiveTarget(target);
-        return;
-    }
-
+    wxFileName executablesDir = wxPathOnly( wxStandardPaths::Get().GetExecutablePath() );
+    wxString wxString1 = wxString::Format("%s%s",
+            executablesDir.GetFullPath(),
+            wxFileName::GetPathSeparators());
+    wxString graphcsCommand = wxString::Format("%sloglanint %s", wxString1, openFileDialog.GetPath());
+    wxExecute(graphcsCommand, wxEXEC_ASYNC);
 }
 
+void VLPMainWindow::OnKill(wxCommandEvent &event) {
+    int id = showKillDialog();
+    if( id > 0) {
+        MESSAGE m;
+        m.msg_type = MSG_INT;
+        m.param.pword[0] = INT_KILL;
+        m.param.pword[1] = id;
+
+    }
+}
 BEGIN_EVENT_TABLE(VLPMainWindow, wxFrame)
 EVT_CLOSE(VLPMainWindow::OnClose)
 END_EVENT_TABLE()
+

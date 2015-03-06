@@ -132,6 +132,8 @@ typedef struct {
 #define VLP_REMOTE_INSTANCE_HERE    5
 #define VLP_CLOSE_INSTANCE		    6
 #define VLP_INTERPRETER_DOWN		7
+#define VLP_CONNECT                 8
+#define VLP_DISCONNECT              9
 /* ------------------------------------------------------------ */
 /*                Message structure                            */
 /*------------------------------------------------------------*/
