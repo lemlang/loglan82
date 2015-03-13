@@ -21,7 +21,7 @@ VLPMainWindow::VLPMainWindow(const wxString& title)
     file->AppendSeparator();
     file->Append(wxID_EXIT, wxT("&Quit"));
     network = new wxMenu;
-    network->Append(VLPMenu_Connect, <#(const wxString&)text#>, <#(wxMenu*)submenu#>, <#(wxString const &)help#>)
+    network->Append(VLPMenu_Connect, wxT("&Network"));
     menubar->Append(file, wxT("&Program"));
     SetMenuBar(menubar);
     text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
@@ -99,6 +99,9 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
         m.param.pword[1] = id;
 
     }
+}void VLPMainWindow::OnConnect(wxCommandEvent &event) {
+    int id = showConnectDialog();
+    //todo send connection signals
 }
 
 
