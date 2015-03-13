@@ -10,6 +10,12 @@
 
 
 bool Launcher::OnInit() {
+     ;
+    if( SetSignalHandler(SIGINT,&Launcher::OnSigTerm) || SetSignalHandler(SIGTERM,&Launcher::OnSigTerm) ) {
+        wxLogVerbose( _( "Successfully handler installed." ) );
+    } else {
+        wxLogError ( _( "Failed to install handler." ) );
+    }
     wxLog::SetActiveTarget(new wxLogStderr);
 
     this->client = new wxSocketClient();;
@@ -22,7 +28,18 @@ bool Launcher::OnInit() {
     address.Service(3600);
     if( this->client->Connect(address, true) == false) {
         //cannot connect; try to 
+        wxLogMessage(wxString::Format("[VLP::OnInit] Cannot connect to VM, trying to start one\n"));
+        wxFileName executablesDir = wxPathOnly( wxStandardPaths::Get().GetExecutablePath() );
+        wxString graphcsCommand = wxString::Format("%s%svlpvm",
+                executablesDir.GetFullPath(),
+                wxFileName::GetPathSeparators());
+        wxExecute(graphcsCommand, wxEXEC_ASYNC);
+        sleep(2);
 
+        if( this->client->Connect(address, true) == false) {
+            wxLogError(wxString::Format("[VLP::OnInit] Cannot connect to VM\n"));
+            return false;
+        }
     }
 
     MESSAGE msg;
@@ -32,11 +49,15 @@ bool Launcher::OnInit() {
     this->client->Write(&msg, sizeof(MESSAGE));
 
     mainWindow = new VLPMainWindow(wxT("Virtual Loglan Processor"));
-    mainWindow->Show(true);
     return true;
 }
 
 int Launcher::OnExit() {
+    MESSAGE msg;
+    msg.msg_type = MSG_VLP;
+    msg.param.pword[0] = VLP_DISCONNECT;
+    this->client->Write(&msg, sizeof(MESSAGE));
+    wxLogMessage(wxString::Format("[VLP::OnExit]\n"));
     return 0;
 }
 
@@ -51,14 +72,19 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
             case wxSOCKET_INPUT:
                 MESSAGE readValue, writeValue;
                 event.GetSocket()->Read(&readValue, sizeof(MESSAGE));
-                if (readValue.msg_type == MSG_GRAPH) {
+                if (readValue.msg_type == MSG_VLP) {
                     switch (readValue.param.pword[0]) {
-                        //case GRAPH_SET_TITLE:
-                            //wxLogMessage(wxString::Format("[VLP:%d::OnSocketEvent] GRAPH_SET_TITLE %ld", __LINE__, (long)&event));
-                        //    this->window->SetTitle( wxString(readValue.param.pstr));
-                        //    break;
+                        case VLP_CONNECTED:
+                            wxLogMessage(_("[VLP] Connected to VM"));
+                            mainWindow->Show(true);
+                            break;
+                        case VLP_CONNECTION_FAILED:
+                            wxLogMessage(_("[VLP] Failed to connect to VM"));
+                            mainWindow->Close(true);
+                            this->Exit();
+                            break;
                         default:
-                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_GRAPH type: %d", (long)&event, readValue.param.pword[0]));
+                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_VLP type: %d", (long)&event, readValue.param.pword[0]));
                             break;
                     }
                 } else {
@@ -84,7 +110,14 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
     } catch (int e) {
         wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Exception when procceing event %ld", (long)&event));
     }
+}
 
+void Launcher::OnSigTerm(int sig) {;
+    wxLogError(wxString::Format("got signal %d",sig));
+    if(sig == SIGTERM || sig == SIGINT) {
+        wxGetApp().mainWindow->Close(true);
+        wxGetApp().Exit();
+    }
 }
 
 BEGIN_EVENT_TABLE(Launcher, wxApp)

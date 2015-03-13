@@ -119,8 +119,6 @@ public:
     wxSocketBase *GetIntSocket(unsigned short int graphical_port);
     void CloseConnections();
 
-    std::list<wxSocketBase*> vlp;
-
 private:
     LocalIndex li;
 

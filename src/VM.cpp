@@ -1,13 +1,12 @@
 /*
- * File:   Runner.cpp
+ * File:   VM.cpp
  * Author: amz
  *
  * Created on 11 marzec 2014, 22:33
  */
 
-#include <wx/msgdlg.h>
-#include <sys/socket.h>
 #include "VM.h"
+#include "../head/comm.h"
 
 VM::VM() {
     this->port = 3600;
@@ -15,11 +14,20 @@ VM::VM() {
 }
 
 bool VM::OnInit() {
+    if (!wxAppConsole::OnInit()) {
+        return false;
+    }
+    if( verbose ) {
+        wxLog::SetVerbose();
+    }
     //This call enables us to use wxSocket calls in secondary threads
     wxSocketBase::Initialize();
     Connect(wxID_ANY,wxEVT_END_SESSION,(wxObjectEventFunction)&VM::OnClose, NULL, this);
-    if( SetSignalHandler(SIGTERM,this->OnSigTerm) ) {
-        wxLogError ( _( "Successfully handler installed." ) );
+    //void (VM::*OnSigTerm)(int) = &::add;
+
+
+    if(SetSignalHandler(SIGINT,&VM::OnSigTerm)|| SetSignalHandler(SIGTERM,&VM::OnSigTerm) ) {
+        wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
         wxLogError ( _( "Failed to install handler." ) );
     }
@@ -43,12 +51,12 @@ bool VM::OnInit() {
     server->Notify ( true );
 
     this->executablesDir = wxPathOnly( wxStandardPaths::Get().GetExecutablePath() );
-    wxLogMessage( this->executablesDir.GetFullPath() );
+    wxLogVerbose( this->executablesDir.GetFullPath() );
     return true;
 }
 
 int VM::OnExit() {
-    wxLogMessage ( _ ( "[VM] OnExit" ) );
+    wxLogVerbose ( _ ( "[VM] OnExit" ) );
     this->configuration.CloseConnections();
     this->server->Close();
     delete m_checker;
@@ -56,7 +64,7 @@ int VM::OnExit() {
 }
 
 void VM::OnServerEvent ( wxSocketEvent& event ) {
-    wxLogMessage ( wxString::Format ( _( "Server Event %d" ),event.GetEventType()) );
+    wxLogVerbose ( wxString::Format ( _( "Server Event %d" ),event.GetEventType()) );
 
     // Accept the new connection and get the socket pointer
     wxSocketBase* sock = server->Accept ( false );
@@ -66,7 +74,7 @@ void VM::OnServerEvent ( wxSocketEvent& event ) {
     sock->SetNotify ( wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG | wxSOCKET_OUTPUT_FLAG| wxSOCKET_CONNECTION_FLAG );
     sock->Notify ( true );
 
-    wxLogMessage ( _ ( "\nAccepted incoming connection.\n" ) );
+    wxLogVerbose ( _ ( "\nAccepted incoming connection.\n" ) );
 }
 void VM::OnSocketEvent ( wxSocketEvent& event ) {
     wxSocketBase *sock = event.GetSocket();
@@ -80,37 +88,37 @@ void VM::OnSocketEvent ( wxSocketEvent& event ) {
 
         switch ( readValue.msg_type ) {
             case MSG_VLP:
-                wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageVLP]  %lu"), (intptr_t)sock));
+                wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageVLP]  %lu"), (intptr_t)sock));
             this->ProcessMessageVLP ( &readValue,sock );
             break;
         case MSG_NET:
-            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageNet]  %lu"), (intptr_t)sock));
+            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageNet]  %lu"), (intptr_t)sock));
             this->ProcessMessageNet ( &readValue,sock );
             break;
         case MSG_GRAPH:
-            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageGraph] %lu"), (intptr_t)sock));
+            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageGraph] %lu"), (intptr_t)sock));
             this->ProcessMessageGraph ( &readValue,sock );
             break;
         case MSG_INT:
-            wxLogMessage ( wxString::Format ( _ ( "[VM::ProcessMessageInt]  %lu"), (intptr_t)sock));
+            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageInt]  %lu"), (intptr_t)sock));
             this->ProcessMessageInt ( &readValue,sock );
             break;
         default:
-            wxLogMessage ( wxString::Format ( _ ( "[VM::Received from client] %d" ), readValue.msg_type ) );
+            wxLogVerbose ( wxString::Format ( _ ( "[VM::Received from client] %d" ), readValue.msg_type ) );
             break;
         }
         break;
     }
     case wxSOCKET_LOST: {
-        wxLogMessage ( wxString::Format( _ ( "[VM::Socket lost] %lu" ), (intptr_t)sock) );
+        wxLogVerbose ( wxString::Format( _ ( "[VM::Socket lost] %lu" ), (intptr_t)sock) );
         break;
     }
     case wxSOCKET_OUTPUT: {
-        wxLogMessage ( wxString::Format( _ ( "wxSOCKET_OUTPUT event: %d" ),event.GetEventType()) );
+        wxLogVerbose ( wxString::Format( _ ( "wxSOCKET_OUTPUT event: %d" ),event.GetEventType()) );
         break;
     }
     default: {
-        wxLogMessage ( wxString::Format( _ ( "Socket other event: %d" ),event.GetSocketEvent()) );
+        wxLogVerbose ( wxString::Format( _ ( "Socket other event: %d" ),event.GetSocketEvent()) );
         break;
     }
     }
@@ -118,7 +126,7 @@ void VM::OnSocketEvent ( wxSocketEvent& event ) {
 
 void VM::ProcessMessageInt ( MESSAGE*message, wxSocketBase*socket){
     MESSAGE responseMessage;
-    wxLogMessage ( wxString::Format( _ ( "[VM::ProcessMessageInt]int message type %d" ),message->param.pword[0] ) );
+    wxLogVerbose ( wxString::Format( _ ( "[VM::ProcessMessageInt]int message type %d" ),message->param.pword[0] ) );
     switch(message->param.pword[0]) {
         case INT_CTX_REQ:
             wxIPV4address address;
@@ -141,7 +149,7 @@ void VM::ProcessMessageInt ( MESSAGE*message, wxSocketBase*socket){
 }
 void VM::ProcessMessageGraph ( MESSAGE*message, wxSocketBase*socket){
     if (message->param.pword[0]==GRAPH_ALLOCATE) {
-        wxLogMessage(wxString::Format("[VM::Socket address] %lu",(intptr_t)socket));
+        wxLogVerbose(wxString::Format("[VM::Socket address] %lu",(intptr_t)socket));
         VMServerThread* pThread = new VMServerThread(this, socket);
         pThread->Create();
         pThread->Run();
@@ -149,18 +157,48 @@ void VM::ProcessMessageGraph ( MESSAGE*message, wxSocketBase*socket){
         wxIPV4address address;
         socket->GetPeer(address);
         configuration.ChangeLocalInstance(message->param.pword[1],address.Service(),socket);
-        wxLogMessage(wxString::Format("[VM::MessageGraph Processed] %lu",(intptr_t)socket));
+        wxLogVerbose(wxString::Format("[VM::MessageGraph Processed] %lu",(intptr_t)socket));
     } else if  (message->param.pword[0]== GRAPH_INKEY_RESPONSE) {
         this->ForwardToIntModule(message,socket);
     } else {
         this->ForwardToGraphModule(message,socket);
     }
 }
-void VM::ProcessMessageNet ( MESSAGE* message, wxSocketBase* socket){
-    wxLogMessage(wxString::Format("ProcessMessageNet %d %d",message->msg_type,socket->GetTimeout()));
+void VM::ProcessMessageNet ( MESSAGE* message, wxSocketBase* socket) {
+    wxLogVerbose(wxString::Format("ProcessMessageNet %d %l",message->msg_type,socket->GetTimeout()));
 }
-void VM::ProcessMessageVLP ( MESSAGE* message, wxSocketBase* socket){
-    wxLogMessage(wxString::Format("ProcessMessageVLP %d %d",message->msg_type,socket->GetTimeout()));
+
+void VM::ProcessMessageVLP ( MESSAGE* message, wxSocketBase* socket) {
+    MESSAGE responseMessage;
+
+    switch(message->param.pword[0]) {
+        case VLP_CONNECT:
+            if( vlp != NULL&& vlp->IsConnected() ) {
+                //todo reply VLP_CONNECTION_FAILED
+                responseMessage.msg_type = MSG_VLP;
+                responseMessage.param.pword[0] = VLP_CONNECTION_FAILED;
+                socket->Write(&responseMessage, sizeof(MESSAGE));
+            } else {
+                vlp = socket;
+                responseMessage.msg_type = MSG_VLP;
+                responseMessage.param.pword[0] = VLP_CONNECTED;
+                vlp->Write(&responseMessage, sizeof(MESSAGE));
+            }
+            break;
+        case VLP_DISCONNECT:
+            //disconnect client
+            if(vlp == socket) {
+                socket->Close();
+                vlp = NULL;
+                wxLogVerbose ( _ ( "[VM::ProcessMessageVLP] Disconnected client"));
+            }
+        case VLP_INTERPRETER_DOWN:
+            //forget interpreter
+            wxLogVerbose ( _ ( "[VM::ProcessMessageVLP] Interpreter down - NOT implemented"));
+            //todo close graph module?
+            default:
+                wxLogVerbose ( wxString::Format( _ ( "[VM::ProcessMessageVLP]VLP message type %d" ),message->param.pword[0] ) );
+    }
 }
 
 void VM::ForwardToGraphModule( MESSAGE *message,wxSocketBase*socket) {
@@ -168,7 +206,7 @@ void VM::ForwardToGraphModule( MESSAGE *message,wxSocketBase*socket) {
     socket->GetPeer(address);
     wxSocketBase* graph_socket = this->configuration.GetGraphicalSocket(address.Service());
     graph_socket->Write(message,sizeof(MESSAGE));
-    wxLogMessage(wxString::Format("Message forwarded to GraphModule"));
+    wxLogVerbose(wxString::Format("Message forwarded to GraphModule"));
 }
 void VM::ForwardToIntModule  ( MESSAGE *message,wxSocketBase*socket) {
     wxIPV4address address;
@@ -176,9 +214,9 @@ void VM::ForwardToIntModule  ( MESSAGE *message,wxSocketBase*socket) {
     wxSocketBase* int_socket = this->configuration.GetIntSocket(address.Service());
     int_socket->Write(message,sizeof(MESSAGE));
     if( int_socket->Error() ) {
-        wxLogMessage(wxString::Format("Message forwarding to InthModule failed"));
+        wxLogVerbose(wxString::Format("Message forwarding to InthModule failed"));
     } else {
-        wxLogMessage(wxString::Format("Message forwarded to InthModule"));
+        wxLogVerbose(wxString::Format("Message forwarded to InthModule"));
     }
 }
 int VM::getNodeNumber() {
@@ -199,11 +237,30 @@ void VM::OnClose(wxCloseEvent &event) {
 
 }
 
+void VM::OnInitCmdLine(wxCmdLineParser& parser) {
+    parser.SetDesc(g_cmdLineDesc);
+    // must refuse '/' as parameter starter or cannot use "/path" style paths
+    parser.SetSwitchChars(wxT("-"));
+}
+
+bool VM::OnCmdLineParsed(wxCmdLineParser& parser) {
+    if (parser.Found("h")) {
+        return false;
+    }
+    this->verbose = parser.Found("v");
+    return true;
+}
+
 BEGIN_EVENT_TABLE ( VM, wxAppConsole )
     EVT_SOCKET ( SERVER_EVENT_ID,  VM::OnServerEvent )
     EVT_SOCKET ( SOCKET_EVENT_ID,  VM::OnSocketEvent )
 END_EVENT_TABLE()
 
 void VM::OnSigTerm(int sig) {;
-    wxLogMessage(wxString::Format("got signal %d",sig));
+    wxLogVerbose(wxString::Format("got signal %d",sig));
+    if(sig == SIGTERM || sig == SIGINT) {
+        wxLogError("NOT IMPLEMENTED GRACEFUL SHUTDOWN");
+        //todo properrly close all connections, send shutdown notification for all loglanint etc
+        wxGetApp().Exit();
+    }
 }

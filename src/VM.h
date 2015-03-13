@@ -8,11 +8,16 @@
 #ifndef VM_H
 #define	VM_H
 class VM;
+
+#define __WXDEBUG__ 1
 #include "wx/app.h"
 #include "../head/comm.h"
 #include "Configurations.h"
 #include "VMServerThread.h"
+#include <wx/msgdlg.h>
+#include <sys/socket.h>
 #include <wx/snglinst.h>
+#include <wx/cmdline.h>
 #include <wx/socket.h>
 #include <wx/hashset.h>
 #include <wx/stdpaths.h>
@@ -40,14 +45,17 @@ public:
     void OnServerEvent(wxSocketEvent& event);
     void OnSocketEvent(wxSocketEvent& event);
     void OnClose( wxCloseEvent& event );
-    void static OnSigTerm(int sig);
+    static void OnSigTerm(int sig);
     int getNodeNumber();
     Configurations* getConfiguration();
     wxFileName* getExecutablesDir();
+    virtual void OnInitCmdLine(wxCmdLineParser& parser);
+    virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
 private:
     int nodeNumber;
     wxSingleInstanceChecker *m_checker;
     wxSocketServer *server;
+    wxSocketBase *vlp = NULL;
     DECLARE_EVENT_TABLE()
     void ForwardToGraphModule ( MESSAGE*,wxSocketBase*);
     void ProcessMessageInt ( MESSAGE*, wxSocketBase*);
@@ -59,6 +67,16 @@ private:
     wxFileName executablesDir;
 
     void ForwardToIntModule(MESSAGE *message, wxSocketBase *socket);
+
+    bool verbose;
+};
+
+static const wxCmdLineEntryDesc g_cmdLineDesc [] ={
+        { wxCMD_LINE_SWITCH, "h", "help", "displays help on the command line parameters",
+                wxCMD_LINE_VAL_NONE, wxCMD_LINE_OPTION_HELP},
+        { wxCMD_LINE_SWITCH, "v", "verbose", "verbose messages output",
+                wxCMD_LINE_VAL_NONE, wxCMD_LINE_SWITCH},
+        { wxCMD_LINE_NONE}
 };
 
 DECLARE_APP(VM)

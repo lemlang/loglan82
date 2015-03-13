@@ -103,7 +103,6 @@ public:
     void disconnect_seq();
     void connect_seq ( char* );
     void accept_connection();
-    void get_internal();
     void remote_messages();
     void check_links();
     void get_message ( NETlink* );
@@ -290,127 +289,6 @@ void NETMOD::check_node ( int n, int sc ) {
         pomlink = Links.next();
     }
     write ( sc,&m,sizeof ( MESSAGE ) );
-}
-
-// ************* Internal message from kernel or INT *******************
-void NETMOD::get_internal() {
-    int nr,nrset;
-    MESSAGE msg;
-    int si, sj;
-    fd_set readset,writeset;
-    struct timeval tout= {0,0};
-    INTlink *pomlink;
-    struct sockaddr_un svr;
-
-    FD_ZERO ( &readset );
-    FD_ZERO ( &writeset );
-    FD_SET ( kernel_sock,&readset );
-    nrset=kernel_sock;
-
-    pomlink = Interpreters.first();
-    while ( pomlink!=NULL ) {
-        FD_SET ( pomlink->sock,&readset );
-        if ( nrset<pomlink->sock ) nrset=pomlink->sock;
-        pomlink=Interpreters.next();
-    }
-
-    if ( select ( nrset+1,&readset,&writeset,0, ( struct timeval * ) &tout ) >0 ) {
-
-        /* Check request sockets */
-        pomlink = Interpreters.first();
-        while ( pomlink!=NULL ) {
-            if ( FD_ISSET ( pomlink->sock,&readset ) ) {
-                nr = read ( pomlink->sock,&msg,sizeof ( MESSAGE ) );
-                if ( nr>0 ) {
-                    if ( msg.msg_type == MSG_NET )
-                        switch ( msg.param.pword[0] ) {
-                        case NET_PROPAGATE:
-                            propagate_msg ( &msg );
-                            break;
-                        case NET_NODE_EXIST:
-                            check_node ( msg.param.pword[1],pomlink->sock );
-                            break;
-                        case NET_GET_INFO:
-                            conn_info ( pomlink->sock );
-                            break;
-                        case NET_NODES_NUM:
-                            msg.param.pword[0]=NET_NODES_NUM_RESPONSE;
-                            msg.param.pword[1]=Links.count();
-                            write ( pomlink->sock,&msg,sizeof ( MESSAGE ) );
-                            break;
-                        }/* switch */
-                }
-            } /* ISSET */
-            pomlink=Interpreters.next();
-        } // while
-
-        /* Check internal socket */
-        if ( FD_ISSET ( kernel_sock,&readset ) ) {
-            nr = read ( kernel_sock, &msg, sizeof ( MESSAGE ) );
-            if ( nr>0 ) {
-                if ( msg.msg_type == MSG_NET ) {
-                    switch ( msg.param.pword[0] ) {
-                    case NET_TRANSMIT_CODE:
-                        transmit_file ( msg.param.pword[2],msg.param.pstr,msg.param.pword[1] );
-                        break;
-                    case NET_EXIT: {
-                        disconnect_seq();
-                        exit_sequence();
-                    }
-                    break;
-                    case NET_GET_INFO:
-                        conn_info ( kernel_sock );
-                        break;
-                    case NET_PROPAGATE:
-                        propagate_msg ( &msg );
-                        break;
-                    case NET_DISCONNECT:
-                        disconnect_seq();
-                        break;
-                    case NET_NODE_EXIST:
-                        check_node ( msg.param.pword[1],kernel_sock );
-                        break;
-                    case NET_CONNECT_TO:
-                        connect_seq ( msg.param.pstr );
-
-                    } /* end switch */
-                } /* MSg_NET */
-
-                if ( msg.msg_type == MSG_VLP )
-                    switch ( msg.param.pword[0] ) {
-                    case VLP_REGINT: {
-                        pomlink = new INTlink;
-                        pomlink->sock = socket ( AF_UNIX,SOCK_STREAM,0 );
-                        bzero ( &svr,sizeof ( svr ) );
-                        svr.sun_family = AF_UNIX;
-                        strcpy ( svr.sun_path,msg.param.pstr );
-                        si = strlen ( svr.sun_path ) +sizeof ( svr.sun_family );
-                        sj = connect ( pomlink->sock, ( struct sockaddr* ) &svr,si );
-                        if ( sj==0 )
-                            fcntl ( pomlink->sock,F_SETFL, O_NONBLOCK|
-                                    fcntl ( pomlink->sock,F_GETFL,0 ) );
-                        int on=1;
-                        setsockopt ( pomlink->sock,IPPROTO_TCP,TCP_NODELAY, ( char* ) &on,sizeof ( on ) );
-                        pomlink->ID = msg.param.pword[1];
-                        pomlink->connected=TRUE;
-                        Interpreters.append ( pomlink );
-
-                    };
-                    break;
-                    case VLP_INTERPRETER_DOWN: {
-                        pomlink = findINTlink ( msg.param.pword[1] );
-                        if ( pomlink!=NULL ) {
-                            close ( pomlink->sock );
-                            Interpreters.remove ( pomlink );
-                        }
-                    };
-                    break;
-
-                    break;
-                    } /* MSg_VLP */
-            }
-        }/* ISSET */
-    } /* select >0 */
 }
 
 void NETMOD::get_message ( NETlink *lnk ) {
@@ -853,9 +731,6 @@ void NETMOD::send_to_all ( MESSAGE *msg ) {
 
 void NETMOD::run() {
     while ( 1 ) {
-        /*accept_connection();
-        get_internal();
-        remote_messages(); */
         // 2010
         doitall();
     }

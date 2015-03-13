@@ -26,7 +26,9 @@ class Launcher: public wxApp {
     virtual int OnExit();
     void OnClientEvent(wxSocketEvent& event);
     void OnSocketEvent(wxSocketEvent& event);
-    private:
+    static void OnSigTerm(int sig);
+
+private:
         VLPMainWindow *mainWindow;
         wxSocketClient* client;
         DECLARE_EVENT_TABLE()

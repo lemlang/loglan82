@@ -134,6 +134,8 @@ typedef struct {
 #define VLP_INTERPRETER_DOWN		7
 #define VLP_CONNECT                 8
 #define VLP_DISCONNECT              9
+#define VLP_CONNECTION_FAILED       10
+#define VLP_CONNECTED               11
 /* ------------------------------------------------------------ */
 /*                Message structure                            */
 /*------------------------------------------------------------*/

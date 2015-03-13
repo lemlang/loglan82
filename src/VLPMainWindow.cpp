@@ -13,14 +13,19 @@
 
 VLPMainWindow::VLPMainWindow(const wxString& title)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
+
     menubar = new wxMenuBar;
     file = new wxMenu;
     file->Append(wxID_EXECUTE, wxT("&Execute"));
     file->Append(wxID_ABORT, wxT("&Kill"));
     file->AppendSeparator();
     file->Append(wxID_EXIT, wxT("&Quit"));
+    network = new wxMenu;
+    network->Append(VLPMenu_Connect, <#(const wxString&)text#>, <#(wxMenu*)submenu#>, <#(wxString const &)help#>)
     menubar->Append(file, wxT("&Program"));
     SetMenuBar(menubar);
+    text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
+            wxTE_MULTILINE | wxTE_READONLY, wxTextValidator(wxFILTER_NONE), wxTextCtrlNameStr);
 
     Connect(wxID_EXIT, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(VLPMainWindow::OnQuit));
@@ -29,6 +34,8 @@ VLPMainWindow::VLPMainWindow(const wxString& title)
             wxCommandEventHandler(VLPMainWindow::OnExecute));
     Connect(wxID_ABORT, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(VLPMainWindow::OnKill));
+    Connect(VLPMenu_Connect, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(VLPMainWindow::OnConnect));
     Centre();
 }
 
@@ -37,13 +44,14 @@ void VLPMainWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void VLPMainWindow::OnClose(wxCloseEvent& event) {
-    if (showQuitDialog() == wxID_YES) {
-        this->Destroy();
-    } else {
-        if (event.CanVeto()) {
+    if (event.CanVeto()) {
+        if (showQuitDialog() != wxID_YES) {
+
             event.Veto();
+            return;
         }
     }
+    this->Destroy();
 }
 
 int VLPMainWindow::showKillDialog() {
@@ -92,6 +100,29 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
 
     }
 }
+
+
+int VLPMainWindow::showConnectDialog() {
+    wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
+            wxT("Submit IP to connect?"), wxT("Question"),wxT(""),
+            wxTextEntryDialogStyle);
+    const wxString allow[] = { wxT("1"), wxT("1"), wxT("2"), wxT("3"), wxT("4"), wxT("5"), wxT("6"), wxT("7"), wxT("8"),
+            wxT("9"), wxT("0"), wxT(".")};
+
+    wxArrayString* str = new wxArrayString(4, allow);
+    wxTextValidator validTxt(wxFILTER_INCLUDE_CHAR_LIST);
+    validTxt.SetIncludes(*str);
+
+    dial->SetTextValidator(validTxt);
+    dial->ShowModal();
+    wxString target = dial->GetValue ();
+    int num = wxAtoi(target );
+    dial->Destroy();
+    wxLogDebug(wxString::Format(_("Connect Dialog returns %d."), num));
+    return num;
+    return 0;
+}
+
 BEGIN_EVENT_TABLE(VLPMainWindow, wxFrame)
 EVT_CLOSE(VLPMainWindow::OnClose)
 END_EVENT_TABLE()
