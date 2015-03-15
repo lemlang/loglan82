@@ -55,7 +55,7 @@ private:
     int nodeNumber;
     wxSingleInstanceChecker *m_checker;
     wxSocketServer *server;
-    wxSocketBase *vlp = NULL;
+    wxSocketBase *vlp;
     DECLARE_EVENT_TABLE()
     void ForwardToGraphModule ( MESSAGE*,wxSocketBase*);
     void ProcessMessageInt ( MESSAGE*, wxSocketBase*);

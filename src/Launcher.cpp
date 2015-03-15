@@ -6,6 +6,7 @@
  */
 
 
+#include <libzvbi.h>
 #include "Launcher.h"
 
 
@@ -48,7 +49,7 @@ bool Launcher::OnInit() {
     wxLogMessage(wxString::Format("[VLP::OnInit] Connecting VM\n"));
     this->client->Write(&msg, sizeof(MESSAGE));
 
-    mainWindow = new VLPMainWindow(wxT("Virtual Loglan Processor"));
+    mainWindow = new VLPMainWindow(wxT("Virtual Loglan Processor"), this);
     return true;
 }
 
@@ -120,7 +121,12 @@ void Launcher::OnSigTerm(int sig) {;
     }
 }
 
+wxSocketClient *Launcher::getSocketClient() {
+    return client;
+}
+
 BEGIN_EVENT_TABLE(Launcher, wxApp)
                 EVT_SOCKET(CLIENT_EVENT_ID, Launcher::OnClientEvent)
                 EVT_SOCKET(SOCKET_EVENT_ID, Launcher::OnSocketEvent)
 END_EVENT_TABLE()
+

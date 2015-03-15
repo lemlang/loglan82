@@ -7,13 +7,18 @@
 
 #ifndef VLPMAINWINDOW_H
 #define	VLPMAINWINDOW_H
+
 #include <wx/wx.h>
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
+#include <wx/socket.h>
+#include "Launcher.h"
 
+
+class Launcher;
 class VLPMainWindow: public wxFrame  {
 public:
-    VLPMainWindow(const wxString& title);
+    VLPMainWindow(const wxString& title, Launcher*parent);
     void OnQuit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
     void OnExecute(wxCommandEvent& WXUNUSED(event));
@@ -28,8 +33,8 @@ private:
     wxTextCtrl *text;
     int showQuitDialog();
     int showKillDialog();
-    int showConnectDialog();
-
+    wxString showConnectDialog();
+    Launcher*parent;
 };
 
 enum  {

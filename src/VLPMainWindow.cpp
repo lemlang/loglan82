@@ -7,13 +7,10 @@
 
 
 #include "VLPMainWindow.h"
-#include "../head/comm.h"
-#include <wx/wfstream.h>
-#include <wx/filename.h>
 
-VLPMainWindow::VLPMainWindow(const wxString& title)
+VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
-
+    this->parent = parent;
     menubar = new wxMenuBar;
     file = new wxMenu;
     file->Append(wxID_EXECUTE, wxT("&Execute"));
@@ -21,8 +18,11 @@ VLPMainWindow::VLPMainWindow(const wxString& title)
     file->AppendSeparator();
     file->Append(wxID_EXIT, wxT("&Quit"));
     network = new wxMenu;
-    network->Append(VLPMenu_Connect, wxT("&Network"));
     menubar->Append(file, wxT("&Program"));
+    file = new wxMenu;
+    file->Append(VLPMenu_Connect, wxT("&Connect"));
+
+    menubar->Append(file, wxT("&Network"));
     SetMenuBar(menubar);
     text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
             wxTE_MULTILINE | wxTE_READONLY, wxTextValidator(wxFILTER_NONE), wxTextCtrlNameStr);
@@ -100,30 +100,33 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
 
     }
 }void VLPMainWindow::OnConnect(wxCommandEvent &event) {
-    int id = showConnectDialog();
+    wxString address = showConnectDialog();
+    MESSAGE m;
+    m.msg_type = MSG_NET;
+    m.param.pword[0] = NET_CONNECT_TO;
+    strcpy(m.param.pstr,address);
+    this->parent->getSocketClient()->Write(&m,sizeof(MESSAGE));
     //todo send connection signals
 }
 
 
-int VLPMainWindow::showConnectDialog() {
+wxString VLPMainWindow::showConnectDialog() {
     wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
             wxT("Submit IP to connect?"), wxT("Question"),wxT(""),
             wxTextEntryDialogStyle);
-    const wxString allow[] = { wxT("1"), wxT("1"), wxT("2"), wxT("3"), wxT("4"), wxT("5"), wxT("6"), wxT("7"), wxT("8"),
+    const wxString allow[] = { wxT("1"),  wxT("2"), wxT("3"), wxT("4"), wxT("5"), wxT("6"), wxT("7"), wxT("8"),
             wxT("9"), wxT("0"), wxT(".")};
 
-    wxArrayString* str = new wxArrayString(4, allow);
+    wxArrayString* str = new wxArrayString(11, allow);
     wxTextValidator validTxt(wxFILTER_INCLUDE_CHAR_LIST);
     validTxt.SetIncludes(*str);
 
     dial->SetTextValidator(validTxt);
     dial->ShowModal();
     wxString target = dial->GetValue ();
-    int num = wxAtoi(target );
     dial->Destroy();
-    wxLogDebug(wxString::Format(_("Connect Dialog returns %d."), num));
-    return num;
-    return 0;
+    wxLogDebug(wxString::Format(_("Connect Dialog returns %s."), target));
+    return target;
 }
 
 BEGIN_EVENT_TABLE(VLPMainWindow, wxFrame)

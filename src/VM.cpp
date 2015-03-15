@@ -9,6 +9,7 @@
 #include "../head/comm.h"
 
 VM::VM() {
+    this->vlp = NULL;
     this->port = 3600;
 
 }
