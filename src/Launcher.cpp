@@ -6,7 +6,6 @@
  */
 
 
-#include <libzvbi.h>
 #include "Launcher.h"
 
 
