@@ -19,8 +19,9 @@
 
 #include "Configurations.h"
 
-Configurations::Configurations() {
 
+Configurations::Configurations() {
+    lastIndex = 1;
 }
 
 Configurations::~Configurations() {
@@ -82,4 +83,44 @@ std::size_t hash_value(const wxIPV4address &ipv4address)
     boost::hash_combine(seed, ipv4address.IPAddress().ToStdString());
     boost::hash_combine(seed, ipv4address.Service());
     return seed;
+}
+
+wxSocketBase *Configurations::GetRemoteSocket(int remote_id) {
+    RemoteIndexByNodeNumber::iterator it1;
+    it1 = get<remote_entry::ByNodeNumber>(ri).find(remote_id);
+    wxLogMessage (  wxString::Format("get remote socket %lu for node number  %d\n",(it1)->socket, remote_id));
+
+    return (it1)->socket;
+}
+
+int Configurations::AddRemoteInstance(wxSocketBase *base, int remote_id ) {
+    ri.get<1>().insert(remote_entry(remote_id, base, wxFalse  ));
+    return remote_id;
+}
+
+void Configurations::CloseRemoteConnections(int MyNodeId) {
+    MESSAGE message;
+
+    message.msg_type = MSG_NET;
+    message.param.pword[0] = NET_DISCONNECT;
+    message.param.pword[1] = MyNodeId;
+
+    RemoteIndexByNodeNumber::iterator rit;
+    rit = get<remote_entry::ByNodeNumber>(ri).begin();
+
+    while (rit != get<remote_entry::ByNodeNumber>(ri).end() ) {
+        printf("%d\n",(rit)->node_number);
+        (rit)->socket->Write(&message, sizeof(MESSAGE));
+        (rit)->socket->Close();
+        ri.erase(rit);
+        ++rit;
+    }
+}
+
+void Configurations::RemoveRemote(int remote_id) {
+    RemoteIndexByNodeNumber::iterator rit;
+    rit = get<remote_entry::ByNodeNumber>(ri).find(remote_id);
+    wxLogMessage (  wxString::Format("remove remote socket %lu for node number  %d\n",(rit)->socket, remote_id));
+    (rit)->socket->Close();
+    ri.erase(rit);
 }

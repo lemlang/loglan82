@@ -100,7 +100,7 @@ public:
 
     void run();
     void exit_sequence();
-    void disconnect_seq();
+    void NET_EXIT();
     void connect_seq ( char* );
     void accept_connection();
     void remote_messages();

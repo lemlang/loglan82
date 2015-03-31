@@ -22,6 +22,8 @@ class VM;
 #include <wx/hashset.h>
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
+#include <wx/fileconf.h>
+#include <arpa/inet.h>
 #include "backward.hpp"
 enum
 {
@@ -69,6 +71,19 @@ private:
     void ForwardToIntModule(MESSAGE *message, wxSocketBase *socket);
 
     bool verbose;
+
+    void initialize_remote_connection(char string[]);
+
+    void send_connect_info(wxSocketClient *pClient);
+
+    void write_at_console(wxString *data);
+    wxFileConfig* config;
+
+    void send_accept_info(wxSocketBase *pClient);
+
+    void disconnect_seq();
+
+    void exit_sequence();
 };
 
 static const wxCmdLineEntryDesc g_cmdLineDesc [] ={

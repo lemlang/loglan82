@@ -84,7 +84,16 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
                             this->Exit();
                             break;
                         default:
-                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_VLP type: %d", (long)&event, readValue.param.pword[0]));
+                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_VLP type: %d", (long) &event, readValue.param.pword[0]));
+                            break;
+                    }
+                } else if (readValue.msg_type == MSG_NET) {
+                    switch (readValue.param.pword[0]) {
+                        case NET_CSWRITELN:
+                            this->mainWindow->text->AppendText(wxString::FromUTF8(readValue.param.pstr)+"\n");
+                            break;
+                        default:
+                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_NET type: %d", (long) &event, readValue.param.pword[0]));
                             break;
                     }
                 } else {

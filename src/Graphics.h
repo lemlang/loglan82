@@ -22,9 +22,9 @@ enum
     CLIENT_EVENT_ID = 2000,
     SOCKET_EVENT_ID
 };
-
+class GraphicsWindow;
 class Graphics: public wxApp {
-
+public:
     virtual bool OnInit();
     virtual int OnExit();
 
@@ -32,10 +32,15 @@ class Graphics: public wxApp {
     void OnSocketEvent(wxSocketEvent& event);
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
-    private:
+    wxSocketClient* getSocketClient();
+private:
         wxSocketClient* client;
         GraphicsWindow* window;
         unsigned short int interpreter_identifier;
+    void InkeyRespond();
+    void ReadlnRespond();
+    void ReadCharRespond();
+
         DECLARE_EVENT_TABLE()
 };
 

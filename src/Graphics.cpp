@@ -6,7 +6,6 @@
  */
 
 #include "Graphics.h"
-#include "../head/comm.h"
 
 
 void Graphics::OnInitCmdLine(wxCmdLineParser &parser) {
@@ -46,8 +45,7 @@ bool Graphics::OnInit() {
     msg.param.pword[1] = this->interpreter_identifier;
     this->client->Write(&msg, sizeof(MESSAGE));
 
-
-    this->window = new GraphicsWindow(wxT("VLP - Graphics Resource"));
+    this->window = new GraphicsWindow(wxT("VLP - Graphics Resource"), this);
     this->window->Show(true);
     return true;
 }
@@ -69,7 +67,7 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
             case wxSOCKET_INPUT:
                 //wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Socket wxSOCKET_INPUT %ld", (long)&event));
 
-                MESSAGE readValue, writeValue;
+                MESSAGE readValue;
                 event.GetSocket()->Read(&readValue, sizeof(MESSAGE));
                 //wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Readed MESSAGE %ld", (long)&event));
                 if (readValue.msg_type == MSG_GRAPH) {
@@ -83,17 +81,28 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
                             break;
                         case GRAPH_INKEY:
                             wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] GRAPH_INKEY %ld", __LINE__, (long)&event));
-                            event.GetSocket()->WaitForWrite(-1, 0);
-                            writeValue.msg_type = MSG_GRAPH;
-                            writeValue.param.pword[3] = window->ReadChar();
-                            writeValue.param.pword[0] = GRAPH_INKEY_RESPONSE;
-                            wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] GRAPH_INKEY writing response %ld", __LINE__, (long)&event));
-                            this->client->Write(&writeValue, sizeof(MESSAGE));
-                            wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] GRAPH_INKEY wrote response %ld", __LINE__, (long)&event));
+                            this->InkeyRespond();
+                            break;
+                        case GRAPH_READLN:
+                            this->ReadlnRespond();
+                            break;
+                        case GRAPH_READSTR:
+                            this->window->WaitRead(GRAPH_READSTR);
+                            break;
+                        case GRAPH_READCHAR:
+                            this->ReadCharRespond();
                             break;
                         case GRAPH_FREE:
                             this->client->Close();
-                            this->window->Close(false);
+                            //todo close window?
+                            this->window->SetTitle(this->window->GetTitle()+" ::Finished");
+                            //this->window->Close(false);
+                            break;
+                        case GRAPH_WRITE:
+                            this->window->WriteText(readValue.param.pstr);
+                            break;
+                        case GRAPH_CLEAR:
+                            this->window->ClearAll();
                             break;
                         default:
                             wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Got unhandled event %ld MSG_GRAPH type: %d", (long)&event, readValue.param.pword[0]));
@@ -127,6 +136,48 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
 
         //wxLogMessage ( wxString::Format( _ ( "[Graphics::OnSocketEvent] An exception occurred. ") ));
     }
+}
+
+wxSocketClient* Graphics::getSocketClient() {
+    return client;
+}
+
+void Graphics::InkeyRespond() {
+    MESSAGE message;
+    message.msg_type = MSG_GRAPH;
+    message.param.pword[0] = GRAPH_INKEY_RESPONSE;
+    message.param.pword[3] = 0;
+    if(! this->window->PopInputQueue(&message.param.pword[3]) ) {
+        this->window->WaitRead(GRAPH_INKEY);
+    }
+    this->client->WaitForWrite(-1, 0);
+    this->client->Write(&message,sizeof ( MESSAGE ));
+}
+
+
+void Graphics::ReadlnRespond() {
+    if( this->window->GetLine() ) {
+        MESSAGE message;
+        message.msg_type = MSG_GRAPH;
+        message.param.pword[0] = GRAPH_READLN_RESPONSE;
+        this->client->WaitForWrite(-1, 0);
+        this->client->Write(&message,sizeof ( MESSAGE ));
+    } else {
+        wxLogMessage(_("Registered GRAPH_READLN"));
+
+        this->window->WaitRead(GRAPH_READLN);
+    }
+}
+void Graphics::ReadCharRespond() {
+    MESSAGE message;
+    message.msg_type = MSG_GRAPH;
+    message.param.pword[0] = GRAPH_READCHAR_RESPONSE;
+    message.param.pword[3] = 0;
+    if(! this->window->PopInputQueue(&message.param.pword[3]) ) {
+        this->window->WaitRead(GRAPH_READCHAR);
+    }
+    this->client->WaitForWrite(-1, 0);
+    this->client->Write(&message,sizeof ( MESSAGE ));
 }
 
 BEGIN_EVENT_TABLE(Graphics, wxApp)

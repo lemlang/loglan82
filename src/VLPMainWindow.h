@@ -24,13 +24,15 @@ public:
     void OnExecute(wxCommandEvent& WXUNUSED(event));
     void OnKill(wxCommandEvent& WXUNUSED(event));
     void OnConnect(wxCommandEvent& WXUNUSED(event));
+    void OnDisconnect(wxCommandEvent& WXUNUSED(event));
 
+    wxTextCtrl *text;
     DECLARE_EVENT_TABLE()
 private:
+    wxString lastIpConnected;
     wxMenuBar *menubar;
     wxMenu *file;
     wxMenu *network;
-    wxTextCtrl *text;
     int showQuitDialog();
     int showKillDialog();
     wxString showConnectDialog();
@@ -39,7 +41,8 @@ private:
 
 enum  {
     TEXT_Main = wxID_HIGHEST + 1,
-    VLPMenu_Connect = TEXT_Main+ 1
+    VLPMenu_Connect = TEXT_Main+ 1,
+    VLPMenu_Disconnect = TEXT_Main+ 2
 };
 #endif	/* VLPMAINWINDOW_H */
 

@@ -21,11 +21,13 @@ VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
     menubar->Append(file, wxT("&Program"));
     file = new wxMenu;
     file->Append(VLPMenu_Connect, wxT("&Connect"));
+    file->Append(VLPMenu_Disconnect, wxT("&Disconnect"));
 
     menubar->Append(file, wxT("&Network"));
     SetMenuBar(menubar);
     text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
             wxTE_MULTILINE | wxTE_READONLY, wxTextValidator(wxFILTER_NONE), wxTextCtrlNameStr);
+
 
     Connect(wxID_EXIT, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(VLPMainWindow::OnQuit));
@@ -36,6 +38,8 @@ VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
             wxCommandEventHandler(VLPMainWindow::OnKill));
     Connect(VLPMenu_Connect, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(VLPMainWindow::OnConnect));
+    Connect(VLPMenu_Disconnect, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(VLPMainWindow::OnDisconnect));
     Centre();
 }
 
@@ -110,9 +114,17 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
 }
 
 
+void VLPMainWindow::OnDisconnect(wxCommandEvent &event) {
+    MESSAGE m;
+    m.msg_type = MSG_VLP;
+    m.param.pword[0] = NET_DISCONNECT;
+    this->parent->getSocketClient()->Write(&m,sizeof(MESSAGE));
+    this->text->AppendText(_("Disconnecting from remote machines\n"));
+}
+
 wxString VLPMainWindow::showConnectDialog() {
     wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
-            wxT("Submit IP to connect?"), wxT("Question"),wxT(""),
+            wxT("Submit IP to connect?"), wxT("Question"),lastIpConnected,
             wxTextEntryDialogStyle);
     const wxString allow[] = { wxT("1"),  wxT("2"), wxT("3"), wxT("4"), wxT("5"), wxT("6"), wxT("7"), wxT("8"),
             wxT("9"), wxT("0"), wxT(".")};
@@ -123,13 +135,12 @@ wxString VLPMainWindow::showConnectDialog() {
 
     dial->SetTextValidator(validTxt);
     dial->ShowModal();
-    wxString target = dial->GetValue ();
+    lastIpConnected = dial->GetValue ();
     dial->Destroy();
-    wxLogDebug(wxString::Format(_("Connect Dialog returns %s."), target));
-    return target;
+    wxLogDebug(wxString::Format(_("Connect Dialog returns %s."), lastIpConnected));
+    return lastIpConnected;
 }
 
 BEGIN_EVENT_TABLE(VLPMainWindow, wxFrame)
 EVT_CLOSE(VLPMainWindow::OnClose)
 END_EVENT_TABLE()
-
