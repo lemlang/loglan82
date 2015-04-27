@@ -343,12 +343,16 @@ void VM::send_connect_info(wxSocketClient *pClient) {
 }
 
 void VM::write_at_console(wxString *data) {
-    MESSAGE message;
+    if( this->vlp != NULL && this->vlp->IsConnected() ) {
+        MESSAGE message;
 
-    message.msg_type = MSG_NET;
-    message.param.pword[0] = NET_CSWRITELN;
-    strncpy(message.param.pstr, (const char*)data->mb_str(wxConvUTF8), 254);
-    this->vlp->Write(&message, sizeof(message));
+        message.msg_type = MSG_NET;
+        message.param.pword[0] = NET_CSWRITELN;
+        strncpy(message.param.pstr, (const char *) data->mb_str(wxConvUTF8), 254);
+        this->vlp->Write(&message, sizeof(message));
+    } else {
+        wxLog(data);
+    }
 }
 
 void VM::send_accept_info(wxSocketBase *pClient) {

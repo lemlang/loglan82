@@ -20,7 +20,7 @@ int main(int, char **);
 bool has_network_socket();
 
 int internal_sock, graph_sock, net_sock, connected = 0;
-SOCKET network_socket;
+SOCKET network_socket = INVALID_SOCKET;
 struct sockaddr_in svr;
 int GraphRes = -1;
 char ProgName[255];
@@ -558,9 +558,10 @@ void read_line() {
     int main(int argc, char **argv) {
 
         initiate(argc, argv); /* initialize executor */
-
+        #ifndef BASIC
         socket_setup();
         network_socket = socket_connect();
+        #endif
         runsys(); /* initialize running system */
         if (has_network_socket()) {
             request_id();

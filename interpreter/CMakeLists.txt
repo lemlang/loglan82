@@ -9,7 +9,9 @@ project(loglanint)
 #          passivations and returns are written to stderr
 # NO_GRAPH -    nonstand.c defines only INKEY grom IIUWGRAPH
 add_definitions(-DOBJECTADDR -DSYSV )
-
+IF(${BASIC})
+add_definitions(-DBASIC=1)
+ENDIF()
 
 find_package(wxWidgets COMPONENTS base net REQUIRED)
 # wxWidgets include (this will do all the magic to configure everything)
