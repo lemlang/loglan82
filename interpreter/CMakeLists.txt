@@ -28,7 +28,7 @@ if(WIN32)
 link_libraries(wsock32)
 endif(WIN32)
 
-set(SRC cint.c sockets.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
+set(SRC cint.c getline.c sockets.c compact.c control.c util.c handler.c intdt.c memory.c object.c runsys.c standard.c execute.c fileio.c nonstand.c process.c procaddr.c queue.c rpcall.c typchk.c)
 
 add_executable(loglanint ${SRC})
 target_link_libraries(loglanint ${wxWidgets_LIBRARIES})

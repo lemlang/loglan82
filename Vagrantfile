@@ -87,7 +87,13 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     ubuntu64precisetest.vm.provision "shell", inline: $script_precise_test
   end
   config.vm.define "windows7" do |windows7|
-    windows7.vm.communication = "winrm"
+    config.vm.box = "windows7"
+    config.vm.guest = :windows
+    config.vm.boot_timeout = 100
+    config.vm.box_url = "http://vagrantboxes.devopslive.org/windows-7-enterprise-i386.box"
+    config.vm.provider "virtualbox" do |vb|
+      vb.gui = true
+    end
   end
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs

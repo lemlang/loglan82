@@ -1,0 +1,35 @@
+version: 0.1.14.{build}
+branches:
+  only:
+  - next
+os: MinGW
+configuration: Release
+platform: x86
+clone_folder: c:\projects\loglan
+init:
+- git config --global core.autocrlf input
+environment:
+  P: c:/projects/libs
+install:
+- appveyor DownloadFile "http://sunet.dl.sourceforge.net/project/nsis/NSIS 2/2.46/nsis-2.46-setup.exe" -FileName nsissetup.exe
+- nsissetup /S /D=%NSIS_ROOT%
+- appveyor DownloadFile "http://sunet.dl.sourceforge.net/project/loglan82/dependencies/wxWidgets-gcc_lib_win32-3.0.2.7z"
+- 7z -y x wxWidgets-gcc_lib_win32-3.0.2.7z -oc:\ | FIND /V "ing  "
+- appveyor DownloadFile "http://sunet.dl.sourceforge.net/project/loglan82/dependencies/f2c_lib_win_binnary.7z"
+- 7z -y x f2c_lib_win_binnary.7z -oc:\ | FIND /V "ing  "
+- appveyor DownloadFile "http://sunet.dl.sourceforge.net/project/loglan82/dependencies/f2c.exe.gz"
+- 7z -y x f2c.exe.gz -oc:\f2c | FIND /V "ing  "
+
+build_script:
+#- path
+- set PATH=C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Program Files (x86)\CMake\bin;C:\Chocolatey\bin;C:\Program Files\AppVeyor\BuildAgent\;C:\MinGW\bin
+- mkdir build
+- cd build
+- cmake -G"MinGW Makefiles" ..
+- mingw32-make
+- cpack -G NSIS -C Release
+test_script:
+- ctest -C Debug --output-on-failure
+artifacts:
+  - path: '**\vlp-*.msi'
+    name: VLP

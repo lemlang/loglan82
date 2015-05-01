@@ -10,12 +10,13 @@
 
 
 bool Launcher::OnInit() {
-     ;
+    #if ndefined __WINDOWS__
     if( SetSignalHandler(SIGINT,&Launcher::OnSigTerm) || SetSignalHandler(SIGTERM,&Launcher::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
         wxLogError ( _( "Failed to install handler." ) );
     }
+	#endif
     wxLog::SetActiveTarget(new wxLogStderr);
 
     this->client = new wxSocketClient();;
@@ -34,7 +35,7 @@ bool Launcher::OnInit() {
                 executablesDir.GetFullPath(),
                 wxFileName::GetPathSeparators());
         wxExecute(graphcsCommand, wxEXEC_ASYNC);
-        sleep(2);
+        boost::this_thread::sleep(boost::posix_time::millisec(2000));
 
         if( this->client->Connect(address, true) == false) {
             wxLogError(wxString::Format("[VLP::OnInit] Cannot connect to VM\n"));

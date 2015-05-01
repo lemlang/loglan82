@@ -13,7 +13,12 @@
 
 #include "VLPMainWindow.h"
 #include "../head/comm.h"
+#include <windows.h>
+#include <signal.h>
+#include <stdio.h>
 
+#include <boost/thread/thread.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 enum
 {

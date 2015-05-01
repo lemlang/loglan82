@@ -25,12 +25,13 @@ bool VM::OnInit() {
     Connect(wxID_ANY,wxEVT_END_SESSION,(wxObjectEventFunction)&VM::OnClose, NULL, this);
     //void (VM::*OnSigTerm)(int) = &::add;
 
-
+	#if ndefined __WINDOWS__
     if(SetSignalHandler(SIGINT,&VM::OnSigTerm)|| SetSignalHandler(SIGTERM,&VM::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
         wxLogError ( _( "Failed to install handler." ) );
     }
+	#endif
 
     wxLog::SetActiveTarget ( new wxLogStderr );
 

@@ -22,6 +22,8 @@ SET(CPACK_PACKAGE_CONTACT "Andrzej Zadrozny <azadrozny@gmail.com>")
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Loglan language and Virtual Loglan Processor")
 #deb
 SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+SET(CPACK_DEBIAN_PACKAGE_REPLACES vlp)
+SET(CPACK_DEBIAN_PACKAGE_REPLACES vlp-basic)
 #debian package name
 if( DISTRIBUTION AND ARCHITECTURE)
 set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}_${PACKAGE_VERSION}-${DISTRIBUTION}_${ARCHITECTURE}")
@@ -31,19 +33,24 @@ SET(CPACK_MONOLITHIC_INSTALL 1)
 SET(CPACK_NSIS_MODIFY_PATH ON)
 
 IF(NOT ${BASIC})
-#inclide cpack
 IF(WIN32)
-INSTALL(DIRECTORY examples DESTINATION /)
-INSTALL(FILES C:/wxWidgets-3.0.1/lib/gcc_dll/wxbase30u_gcc_cl.dll DESTINATION bin)
+	INSTALL(DIRECTORY examples DESTINATION /)
+	if( MINGW )
+		MESSAGE( STATUS "    Installing system-libraries: MinGW DLLs." )
+		get_filename_component( Mingw_Path ${CMAKE_CXX_COMPILER} PATH )
+		SET( CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} ${Mingw_Path}/mingwm10.dll ${Mingw_Path}/libgcc_s_dw2-1.dll ${Mingw_Path}/libstdc++-6.dll )
+	endif( MINGW )
+	SET(CPACK_PACKAGE_EXECUTABLES "vlp" "Virtual Loglan Processor")
 ELSE(WIN32)
-install(DIRECTORY examples DESTINATION share/vlp)
-#rpm
-SET(CPACK_RPM_PACKAGE_GROUP "Development/Languages")
+	install(DIRECTORY examples DESTINATION share/vlp)
+	#rpm
+	SET(CPACK_RPM_PACKAGE_GROUP "Development/Languages")
 ENDIF(WIN32)
 ENDIF()
 
 SET(CPACK_RESOURCE_FILE_LICENSE ${PROJECT_SOURCE_DIR}/license.txt)
 SET(CPACK_NSIS_MODIFY_PATH ON)
 
+INCLUDE( InstallRequiredSystemLibraries )
 INCLUDE(CPack)
 enable_testing()

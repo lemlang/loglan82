@@ -15,7 +15,6 @@ class VM;
 #include "Configurations.h"
 #include "VMServerThread.h"
 #include <wx/msgdlg.h>
-#include <sys/socket.h>
 #include <wx/snglinst.h>
 #include <wx/cmdline.h>
 #include <wx/socket.h>
@@ -23,8 +22,10 @@ class VM;
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/fileconf.h>
-#include <arpa/inet.h>
 #include "backward.hpp"
+#include <windows.h>
+#include <signal.h>
+#include <stdio.h>
 enum
 {
     // id for sockets

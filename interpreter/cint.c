@@ -314,7 +314,7 @@ void read_line() {
     } else {
         size_t limit = 255;
         char s[limit];
-        getline((char**)&s, &limit , stdin);
+        _getline((char**)&s, &limit , stdin);
     }
 }
 
@@ -341,7 +341,7 @@ void read_line() {
             }
             strcpy(s, ss);
         } else {
-            getline(&s, &limit , stdin);
+            _getline(&s, &limit , stdin);
 
         }
 
