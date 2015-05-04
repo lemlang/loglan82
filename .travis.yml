@@ -7,7 +7,7 @@ before_install:
   - sudo apt-mark hold oracle-java7-installer oracle-java8-installer
   - sudo apt-get update
   - sudo apt-get install --reinstall linux-libc-dev
-  - sudo apt-get install -y libwxgtk3.0-dev libboost-dev cmake libc6-dev libc6-dev-i386 multiarch-support cpp g++ gcc gcc-multilib libf2c2:i386 libf2c2-dev:i386 f2c:i386
+  - sudo apt-get install -y libwxgtk3.0-dev libboost-dev cmake libc6-dev libc6-dev-i386 multiarch-support cpp g++ gcc gcc-multilib libf2c2:i386 libf2c2-dev:i386 f2c:i386 libboost-system-dev libboost-thread-dev
 install: 
   - cmake -G "Unix Makefiles" -DDISTRIBUTION=precise -DARCHITECTURE=amd64
   - make

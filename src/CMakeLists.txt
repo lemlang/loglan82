@@ -6,7 +6,7 @@ set(wxWidgets_EXCLUDE_COMMON_LIBRARIES TRUE)
 find_package(wxWidgets COMPONENTS core base net REQUIRED)
 include(${wxWidgets_USE_FILE})
 
-find_package(Boost 1.50.0 REQUIRED  COMPONENTS system thread)
+find_package(Boost 1.48.0 REQUIRED  COMPONENTS system thread)
 include_directories(${Boost_INCLUDE_DIRS})
 
 
