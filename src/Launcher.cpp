@@ -10,7 +10,7 @@
 
 
 bool Launcher::OnInit() {
-    #if ndefined __WINDOWS__
+    #if defined (__WINDOWS__)
     if( SetSignalHandler(SIGINT,&Launcher::OnSigTerm) || SetSignalHandler(SIGTERM,&Launcher::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {

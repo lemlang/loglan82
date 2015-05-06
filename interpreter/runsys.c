@@ -248,14 +248,14 @@ void endrun ( int status ) {
         fclose ( tracefile );
     }
 
+    m.msg_type = MSG_GRAPH;
+    m.param.pword[0] = GRAPH_FREE;
+    send_message( network_socket,&m );
+
     msg.msg_type = MSG_INT;
     msg.param.pword[0] = INT_EXITING;
     strcpy ( msg.param.pstr,ProgName );
     write ( network_socket, &msg, sizeof ( MESSAGE ) );
-
-    m.msg_type = MSG_GRAPH;
-    m.param.pword[0] = GRAPH_FREE;
-    send_message( network_socket,&m );
 
     for ( i=0; i<255; i++ )
         if ( DirConn[i]!=-1 ) close ( DirConn[i] );

@@ -87,7 +87,7 @@ std::size_t hash_value(const wxIPV4address &ipv4address)
 
 wxSocketBase *Configurations::GetRemoteSocket(int remote_id) {
     RemoteIndexByNodeNumber::iterator it1;
-    it1 = get<remote_entry::ByNodeNumber>(ri).find(remote_id);
+    it1 = get<remote_entry::ByInterpreterPort>(ri).find(remote_id);
     wxLogMessage (  wxString::Format("get remote socket %lu for node number  %d\n",(it1)->socket, remote_id));
 
     return (it1)->socket;
@@ -106,10 +106,10 @@ void Configurations::CloseRemoteConnections(int MyNodeId) {
     message.param.pword[1] = MyNodeId;
 
     RemoteIndexByNodeNumber::iterator rit;
-    rit = get<remote_entry::ByNodeNumber>(ri).begin();
+    rit = get<remote_entry::ByInterpreterPort>(ri).begin();
 
-    while (rit != get<remote_entry::ByNodeNumber>(ri).end() ) {
-        printf("%d\n",(rit)->node_number);
+    while (rit != get<remote_entry::ByInterpreterPort>(ri).end() ) {
+        printf("%d\n",(rit)->interpreter_port);
         (rit)->socket->Write(&message, sizeof(MESSAGE));
         (rit)->socket->Close();
         ri.erase(rit);
@@ -117,10 +117,14 @@ void Configurations::CloseRemoteConnections(int MyNodeId) {
     }
 }
 
-void Configurations::RemoveRemote(int remote_id) {
+void Configurations::RemoveRemote(int interpreter_port) {
     RemoteIndexByNodeNumber::iterator rit;
-    rit = get<remote_entry::ByNodeNumber>(ri).find(remote_id);
-    wxLogMessage (  wxString::Format("remove remote socket %lu for node number  %d\n",(rit)->socket, remote_id));
-    (rit)->socket->Close();
-    ri.erase(rit);
+    rit = get<remote_entry::ByInterpreterPort>(ri).find(interpreter_port);
+    while (rit != get<remote_entry::ByInterpreterPort>(ri).end() )
+    {
+        wxLogMessage(wxString::Format("remove remote socket %lu for node number  %d\n", (rit)->socket, interpreter_port));
+        (rit)->socket->Close();
+        ri.erase(rit);
+        ++rit;
+    }
 }

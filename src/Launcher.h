@@ -13,9 +13,11 @@
 
 #include "VLPMainWindow.h"
 #include "../head/comm.h"
+#if defined (__WINDOWS__)
 #include <windows.h>
 #include <signal.h>
 #include <stdio.h>
+#endif
 
 #include <boost/thread/thread.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>

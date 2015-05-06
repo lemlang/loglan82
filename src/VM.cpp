@@ -25,7 +25,7 @@ bool VM::OnInit() {
     Connect(wxID_ANY,wxEVT_END_SESSION,(wxObjectEventFunction)&VM::OnClose, NULL, this);
     //void (VM::*OnSigTerm)(int) = &::add;
 
-	#if ndefined __WINDOWS__
+	#if defined (__WINDOWS__)
     if(SetSignalHandler(SIGINT,&VM::OnSigTerm)|| SetSignalHandler(SIGTERM,&VM::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
@@ -133,10 +133,19 @@ void VM::OnSocketEvent ( wxSocketEvent& event ) {
 void VM::ProcessMessageInt ( MESSAGE*message, wxSocketBase*socket){
     MESSAGE responseMessage;
     wxLogVerbose ( wxString::Format( _ ( "[VM::ProcessMessageInt]int message type %d" ),message->param.pword[0] ) );
+
+    wxIPV4address address;
+    socket->GetPeer(address);
+    wxString log_message ;
     switch(message->param.pword[0]) {
+        case INT_EXITING:
+            //check if from local int module
+            socket->Close();
+            this->configuration.RemoveRemote(address.Service());
+            log_message = (wxString::Format(_("%s : End of program execution"),message->param.pstr ));
+            write_at_console(&log_message);
+            break;
         case INT_CTX_REQ:
-            wxIPV4address address;
-            socket->GetPeer(address);
 
             responseMessage.param.pword[2] = configuration.AddLocalInstance(address.Service(),socket);
             responseMessage.msg_type = MSG_INT;

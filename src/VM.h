@@ -23,9 +23,11 @@ class VM;
 #include <wx/filename.h>
 #include <wx/fileconf.h>
 #include "backward.hpp"
+#if defined (__WIDOWS__)
 #include <windows.h>
 #include <signal.h>
 #include <stdio.h>
+#endif
 enum
 {
     // id for sockets

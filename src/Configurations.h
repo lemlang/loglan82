@@ -47,16 +47,16 @@ struct local_entry {
 };
 
 struct remote_entry {
-    int node_number;
+    int interpreter_port;
     wxSocketBase* socket;
     bool connected;
 
-    struct ByNodeNumber{}; struct BySocket{};
+    struct ByInterpreterPort {}; struct BySocket{};
     remote_entry(
-        int node_number,
+        int interpreter_port,
         wxSocketBase*socket,
         bool connected):
-            node_number(node_number),
+            interpreter_port(interpreter_port),
             socket(socket),
             connected(connected)
         {}
@@ -85,8 +85,8 @@ using namespace boost::multi_index;
 typedef boost::multi_index_container<
     remote_entry,
     indexed_by<
-    hashed_unique<
-    tag<remote_entry::ByNodeNumber>, member<remote_entry,int,&remote_entry::node_number>
+            hashed_non_unique<
+    tag<remote_entry::ByInterpreterPort>, member<remote_entry,int,&remote_entry::interpreter_port>
         >,
         hashed_unique<
 
@@ -96,7 +96,7 @@ typedef boost::multi_index_container<
 > RemoteIndex;
 
 
-typedef RemoteIndex::index<remote_entry::ByNodeNumber>::type RemoteIndexByNodeNumber;
+typedef RemoteIndex::index<remote_entry::ByInterpreterPort>::type RemoteIndexByNodeNumber;
 typedef RemoteIndex::index<remote_entry::BySocket>::type RemoteIndexBySocket;
 
 
@@ -125,7 +125,7 @@ public:
 
     void CloseConnections();
 
-    void RemoveRemote(int remote_id);
+    void RemoveRemote(int interpreter_port);
 
 private:
     LocalIndex li;
