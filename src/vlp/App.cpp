@@ -6,12 +6,12 @@
  */
 
 
-#include "Launcher.h"
+#include "App.h"
 
 
-bool Launcher::OnInit() {
+bool App::OnInit() {
     #if defined (__WINDOWS__)
-    if( SetSignalHandler(SIGINT,&Launcher::OnSigTerm) || SetSignalHandler(SIGTERM,&Launcher::OnSigTerm) ) {
+    if( SetSignalHandler(SIGINT,&App::OnSigTerm) || SetSignalHandler(SIGTERM,&App::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
         wxLogError ( _( "Failed to install handler." ) );
@@ -49,11 +49,11 @@ bool Launcher::OnInit() {
     wxLogMessage(wxString::Format("[VLP::OnInit] Connecting VM\n"));
     this->client->Write(&msg, sizeof(MESSAGE));
 
-    mainWindow = new VLPMainWindow(wxT("Virtual Loglan Processor"), this);
+    mainWindow = new MainWindow(wxT("Virtual Loglan Processor"), this);
     return true;
 }
 
-int Launcher::OnExit() {
+int App::OnExit() {
     MESSAGE msg;
     msg.msg_type = MSG_VLP;
     msg.param.pword[0] = VLP_DISCONNECT;
@@ -62,11 +62,11 @@ int Launcher::OnExit() {
     return 0;
 }
 
-void Launcher::OnClientEvent(wxSocketEvent &event) {
+void App::OnClientEvent(wxSocketEvent &event) {
     wxLogMessage(wxString::Format("[VLP::OnClientEvent] Proccesing event %d", event.GetId()));
 }
 
-void Launcher::OnSocketEvent(wxSocketEvent &event) {
+void App::OnSocketEvent(wxSocketEvent &event) {
     try {
         wxLogMessage(wxString::Format("[VLP:%d::OnSocketEvent] Proccesing event %ld", __LINE__, (long)&event));
         switch (event.GetSocketEvent()) {
@@ -75,6 +75,7 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
                 event.GetSocket()->Read(&readValue, sizeof(MESSAGE));
                 if (readValue.msg_type == MSG_VLP) {
                     switch (readValue.param.pword[0]) {
+
                         case VLP_CONNECTED:
                             wxLogMessage(_("[VLP] Connected to VM"));
                             mainWindow->Show(true);
@@ -93,6 +94,53 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
                         case NET_CSWRITELN:
                             this->mainWindow->text->AppendText(wxString::FromUTF8(readValue.param.pstr)+"\n");
                             break;
+                        case NET_PROPAGATE:
+                            switch(readValue.param.pword[1]) {
+                                case MSG_INT:
+                                    /*  pom = find_link_by_ID(msg.param.pword[5]);
+                                     msg.msg_type = MSG_NET;
+                                     msg.param.pword[0] = NET_PROPAGATE;
+                                     send_int(pom,&msg);
+                                     todo what to do here? */
+                                    break;
+                                case MSG_VLP:
+                                    switch(readValue.param.pword[6])
+                                    {
+                                        case VLP_WRITE:
+                                            this->mainWindow->text->AppendText("\n### Incoming Messsage ###");
+                                            this->mainWindow->text->AppendText(wxString::Format("Mesg from Node %d: %s\n",readValue.param.pword[2],readValue.param.pstr));
+                                            break;
+                                        /*case VLP_REMOTE_INSTANCE:
+                                            sprintf(ss,"%s/%s",REMOTE_PATH,msg.param.pstr);
+                                            if (info_messages)
+                                            {
+                                                WriteMessage("Running program:");
+                                                WriteMessage(ss);
+                                            }
+                                            pom = RunIntModule(ss,1);
+                                            if (pom!=NULL)
+                                            {
+                                                pom->p_ctx.node = msg.param.pword[2];
+                                                pom->p_ctx.program_id = msg.param.pword[7];
+                                                pom->RInstances[msg.param.pword[2]] = msg.param.pword[7];
+                                            }
+                                            break;
+                                        case VLP_CLOSE_INSTANCE:
+                                            msg.msg_type = MSG_INT;
+                                            msg.param.pword[0] = INT_CLOSE_INSTANCE;
+                                            pom = findINTbyID(msg.param.pword[7]);
+                                            if (pom!=NULL)
+                                            {
+                                                write(pom->sock,&msg,sizeof(MESSAGE));
+                                                MESSAGE m1;
+                                                m1.msg_type = MSG_VLP;
+                                                m1.param.pword[0] = VLP_INTERPRETER_DOWN;
+                                                m1.param.pword[1] = pom->ID;
+                                                write(net_sock,&m1,sizeof(MESSAGE));
+                                            } else WriteMessage("Instance not found");
+                                            break;*/
+                                    } /* VLP switch */
+                            }
                         default:
                             wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_NET type: %d", (long) &event, readValue.param.pword[0]));
                             break;
@@ -122,7 +170,7 @@ void Launcher::OnSocketEvent(wxSocketEvent &event) {
     }
 }
 
-void Launcher::OnSigTerm(int sig) {;
+void App::OnSigTerm(int sig) {;
     wxLogError(wxString::Format("got signal %d",sig));
     if(sig == SIGTERM || sig == SIGINT) {
         wxGetApp().mainWindow->Close(true);
@@ -130,12 +178,12 @@ void Launcher::OnSigTerm(int sig) {;
     }
 }
 
-wxSocketClient *Launcher::getSocketClient() {
+wxSocketClient *App::getSocketClient() {
     return client;
 }
 
-BEGIN_EVENT_TABLE(Launcher, wxApp)
-                EVT_SOCKET(CLIENT_EVENT_ID, Launcher::OnClientEvent)
-                EVT_SOCKET(SOCKET_EVENT_ID, Launcher::OnSocketEvent)
+BEGIN_EVENT_TABLE(App, wxApp)
+                EVT_SOCKET(CLIENT_EVENT_ID, App::OnClientEvent)
+                EVT_SOCKET(SOCKET_EVENT_ID, App::OnSocketEvent)
 END_EVENT_TABLE()
 

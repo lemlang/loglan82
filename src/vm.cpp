@@ -1,3 +1,3 @@
-#include "VM.h"
+#include "vm/VM.h"
 
 wxIMPLEMENT_APP_CONSOLE(VM);

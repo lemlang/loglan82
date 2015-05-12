@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef VMSERVERTHREAD_H
-#define VMSERVERTHREAD_H
+#ifndef SERVERTHREAD_H
+#define SERVERTHREAD_H
 
 
 #include "wx/app.h"
@@ -26,17 +26,17 @@
 #include <wx/process.h>
 #include "VM.h"
 
-class VMServerThread : public wxThread {
+class ServerThread : public wxThread {
 public:
     VM*   m_pServer;  //Our server
     wxSocketBase* m_pSocket;  //The client socket for read/write ops
-    VMServerThread();
-    VMServerThread(VM* pServer, wxSocketBase* pSocket);
-    ~VMServerThread();
+    ServerThread();
+    ServerThread(VM* pServer, wxSocketBase* pSocket);
+    ~ServerThread();
     virtual void* Entry();
 private:
     void AllocateGraphResource(wxSocketBase*);
 
 };
 
-#endif // VMSERVERTHREAD_H
+#endif // SERVERTHREAD_H

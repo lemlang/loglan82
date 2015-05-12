@@ -17,10 +17,10 @@
  *
  */
 
-#include "VMServerThread.h"
+#include "ServerThread.h"
 
 
-void VMServerThread::AllocateGraphResource(wxSocketBase* socket) {
+void ServerThread::AllocateGraphResource(wxSocketBase* socket) {
     wxIPV4address address;
     wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)socket));
     socket->GetPeer(address);
@@ -49,17 +49,17 @@ void VMServerThread::AllocateGraphResource(wxSocketBase* socket) {
 }
 
 
-void* VMServerThread::Entry() {
+void*ServerThread::Entry() {
     wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)this->m_pSocket));
      AllocateGraphResource(this->m_pSocket);
      wxLogMessage(wxString::Format("thread ending"));
 }
-VMServerThread::VMServerThread(VM* pServer, wxSocketBase* pSocket): wxThread()
+ServerThread::ServerThread(VM* pServer, wxSocketBase* pSocket): wxThread()
 {
     m_pServer = pServer;
     m_pSocket = pSocket;
 }
-VMServerThread::~VMServerThread()
+ServerThread::~ServerThread()
 {
 
 }

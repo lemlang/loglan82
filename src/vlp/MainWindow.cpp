@@ -6,11 +6,13 @@
  */
 
 
-#include "VLPMainWindow.h"
+#include "MainWindow.h"
 
-VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
+MainWindow::MainWindow(const wxString& title, App * parent)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
     this->parent = parent;
+    //(wxWindow* parent, wxWindowID id, const wxString& title, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = wxDEFAULT_DIALOG_STYLE, const wxString& name = "dialogBox")
+    this->messageDialog = new MessageDialog(this, wxWindow::NewControlId(), _("Send message to node") );
     menubar = new wxMenuBar;
     file = new wxMenu;
     file->Append(wxID_EXECUTE, wxT("&Execute"));
@@ -22,6 +24,7 @@ VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
     file = new wxMenu;
     file->Append(VLPMenu_Connect, wxT("&Connect"));
     file->Append(VLPMenu_Disconnect, wxT("&Disconnect"));
+    file->Append(VLPMenu_SendMessage, wxT("&Send message"));
 
     menubar->Append(file, wxT("&Network"));
     SetMenuBar(menubar);
@@ -30,24 +33,26 @@ VLPMainWindow::VLPMainWindow(const wxString& title, Launcher* parent)
 
 
     Connect(wxID_EXIT, wxEVT_COMMAND_MENU_SELECTED,
-            wxCommandEventHandler(VLPMainWindow::OnQuit));
+            wxCommandEventHandler(MainWindow::OnQuit));
     
     Connect(wxID_EXECUTE, wxEVT_COMMAND_MENU_SELECTED,
-            wxCommandEventHandler(VLPMainWindow::OnExecute));
+            wxCommandEventHandler(MainWindow::OnExecute));
     Connect(wxID_ABORT, wxEVT_COMMAND_MENU_SELECTED,
-            wxCommandEventHandler(VLPMainWindow::OnKill));
+            wxCommandEventHandler(MainWindow::OnKill));
     Connect(VLPMenu_Connect, wxEVT_COMMAND_MENU_SELECTED,
-            wxCommandEventHandler(VLPMainWindow::OnConnect));
+            wxCommandEventHandler(MainWindow::OnConnect));
     Connect(VLPMenu_Disconnect, wxEVT_COMMAND_MENU_SELECTED,
-            wxCommandEventHandler(VLPMainWindow::OnDisconnect));
+            wxCommandEventHandler(MainWindow::OnDisconnect));
+    Connect(VLPMenu_SendMessage, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(MainWindow::OnSendMessage));
     Centre();
 }
 
-void VLPMainWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
+void MainWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
     Close(FALSE);
 }
 
-void VLPMainWindow::OnClose(wxCloseEvent& event) {
+void MainWindow::OnClose(wxCloseEvent& event) {
     if (event.CanVeto()) {
         if (showQuitDialog() != wxID_YES) {
 
@@ -58,7 +63,7 @@ void VLPMainWindow::OnClose(wxCloseEvent& event) {
     this->Destroy();
 }
 
-int VLPMainWindow::showKillDialog() {
+int MainWindow::showKillDialog() {
     wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
             wxT("Which proccess to kill?"), wxT("Question"),wxT(""),
             wxTextEntryDialogStyle);
@@ -70,7 +75,7 @@ int VLPMainWindow::showKillDialog() {
     wxLogDebug(wxString::Format(_("Kill Dialog returns %d."), num));
     return num;
 }
-int VLPMainWindow::showQuitDialog() {
+int MainWindow::showQuitDialog() {
     wxMessageDialog *dial = new wxMessageDialog(NULL,
             wxT("Are you sure to quit?"), wxT("Question"),
             wxYES_NO | wxNO_DEFAULT | wxICON_QUESTION);
@@ -80,7 +85,7 @@ int VLPMainWindow::showQuitDialog() {
     return ret;
 }
 
-void VLPMainWindow::OnExecute(wxCommandEvent& WXUNUSED(event)) {
+void MainWindow::OnExecute(wxCommandEvent& WXUNUSED(event)) {
     wxFileDialog
     openFileDialog(this, _("Open Loglan file"), "", "",
             "log files (*.log)|*.log", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -94,7 +99,7 @@ void VLPMainWindow::OnExecute(wxCommandEvent& WXUNUSED(event)) {
     wxExecute(graphcsCommand, wxEXEC_ASYNC);
 }
 
-void VLPMainWindow::OnKill(wxCommandEvent &event) {
+void MainWindow::OnKill(wxCommandEvent &event) {
     int id = showKillDialog();
     if( id > 0) {
         MESSAGE m;
@@ -103,7 +108,7 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
         m.param.pword[1] = id;
 
     }
-}void VLPMainWindow::OnConnect(wxCommandEvent &event) {
+}void MainWindow::OnConnect(wxCommandEvent &event) {
     wxString address = showConnectDialog();
     MESSAGE m;
     m.msg_type = MSG_NET;
@@ -114,7 +119,7 @@ void VLPMainWindow::OnKill(wxCommandEvent &event) {
 }
 
 
-void VLPMainWindow::OnDisconnect(wxCommandEvent &event) {
+void MainWindow::OnDisconnect(wxCommandEvent &event) {
     MESSAGE m;
     m.msg_type = MSG_VLP;
     m.param.pword[0] = NET_DISCONNECT;
@@ -122,7 +127,7 @@ void VLPMainWindow::OnDisconnect(wxCommandEvent &event) {
     this->text->AppendText(_("Disconnecting from remote machines\n"));
 }
 
-wxString VLPMainWindow::showConnectDialog() {
+wxString MainWindow::showConnectDialog() {
     wxTextEntryDialog *dial = new wxTextEntryDialog(NULL,
             wxT("Submit IP to connect?"), wxT("Question"),lastIpConnected,
             wxTextEntryDialogStyle);
@@ -141,6 +146,25 @@ wxString VLPMainWindow::showConnectDialog() {
     return lastIpConnected;
 }
 
-BEGIN_EVENT_TABLE(VLPMainWindow, wxFrame)
-EVT_CLOSE(VLPMainWindow::OnClose)
+BEGIN_EVENT_TABLE(MainWindow, wxFrame)
+EVT_CLOSE(MainWindow::OnClose)
 END_EVENT_TABLE()
+
+
+void MainWindow::OnSendMessage(wxCommandEvent &event) {
+    if ( this->messageDialog->ShowModal() == wxID_OK ) {
+        wxLogDebug(_("Send Message dialog."));
+        MESSAGE message;
+        message.msg_type = MSG_NET;
+        message.param.pword[0] = NET_PROPAGATE;
+        message.param.pword[1] = MSG_VLP;
+        message.param.pword[2] = 0;
+        message.param.pword[4] = this->messageDialog->getNode();
+        message.param.pword[6] = VLP_WRITE;
+        strcpy(message.param.pstr,this->messageDialog->GetName().c_str());
+        this->parent->getSocketClient()->Write(&message,sizeof(MESSAGE));
+    } else {
+        wxLogDebug(_("Send Message dialog cancel."));
+    }
+
+}

@@ -10,8 +10,8 @@ find_package(Boost 1.46.0 REQUIRED  COMPONENTS system thread)
 include_directories(${Boost_INCLUDE_DIRS})
 
 
-set(SRCSL launchermain.cpp Launcher.cpp VLPMainWindow.cpp backward.cpp)
-set(SRCSR vmmain.cpp VMServerThread.cpp VM.cpp Configurations.cpp backward.cpp)
+set(SRCSL vlp.cpp vlp/App.cpp vlp/MainWindow.cpp backward.cpp)
+set(SRCSR vm.cpp vm/ServerThread.cpp vm/VM.cpp vm/Configurations.cpp backward.cpp)
 set(SRCSG graphicsmain.cpp Graphics.cpp GraphicsWindow.cpp backward.cpp)
 
 # If we build for windows systems, we also include the resource file
@@ -25,7 +25,7 @@ if(WIN32)
   set(CMAKE_CXX_FLAGS "-mwindows")
 endif(WIN32)
 
-add_executable(vlp ${SRCSL})
+add_executable(vlp ${SRCSL} vlp/MessageDialog.h vlp/MessageDialog.h vlp/MessageDialog.cpp vlp/MessageDialog.cpp vlp/MessageDialog.h)
 add_executable(vlpvm ${SRCSR})
 add_executable(vlpgr ${SRCSG})
 

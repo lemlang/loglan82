@@ -11,9 +11,9 @@ class VM;
 
 #define __WXDEBUG__ 1
 #include "wx/app.h"
-#include "../head/comm.h"
+#include "../../head/comm.h"
 #include "Configurations.h"
-#include "VMServerThread.h"
+#include "ServerThread.h"
 #include <wx/msgdlg.h>
 #include <wx/snglinst.h>
 #include <wx/cmdline.h>
@@ -22,7 +22,7 @@ class VM;
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/fileconf.h>
-#include "backward.hpp"
+#include "../backward.hpp"
 #if defined (__WIDOWS__)
 #include <windows.h>
 #include <signal.h>
@@ -79,7 +79,7 @@ private:
 
     void send_connect_info(wxSocketClient *pClient);
 
-    void write_at_console(wxString *data);
+    void WriteAtConsole(wxString *data);
     wxFileConfig* config;
 
     void send_accept_info(wxSocketBase *pClient);
@@ -87,6 +87,10 @@ private:
     void disconnect_seq();
 
     void exit_sequence();
+
+    void SendToVlp(MESSAGE *message);
+
+    void SendToInt(MESSAGE *message);
 };
 
 static const wxCmdLineEntryDesc g_cmdLineDesc [] ={

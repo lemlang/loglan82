@@ -12,19 +12,22 @@
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/socket.h>
-#include "Launcher.h"
+#include "App.h"
+#include "MessageDialog.h"
 
 
-class Launcher;
-class VLPMainWindow: public wxFrame  {
+class App;
+class MessageDialog;
+class MainWindow : public wxFrame  {
 public:
-    VLPMainWindow(const wxString& title, Launcher*parent);
+    MainWindow(const wxString& title, App *parent);
     void OnQuit(wxCommandEvent& event);
     void OnClose(wxCloseEvent& event);
     void OnExecute(wxCommandEvent& WXUNUSED(event));
     void OnKill(wxCommandEvent& WXUNUSED(event));
     void OnConnect(wxCommandEvent& WXUNUSED(event));
     void OnDisconnect(wxCommandEvent& WXUNUSED(event));
+    void OnSendMessage(wxCommandEvent& WXUNUSED(event));
 
     wxTextCtrl *text;
     DECLARE_EVENT_TABLE()
@@ -36,13 +39,15 @@ private:
     int showQuitDialog();
     int showKillDialog();
     wxString showConnectDialog();
-    Launcher*parent;
+    App *parent;
+    MessageDialog*messageDialog;
 };
 
 enum  {
     TEXT_Main = wxID_HIGHEST + 1,
     VLPMenu_Connect = TEXT_Main+ 1,
-    VLPMenu_Disconnect = TEXT_Main+ 2
+    VLPMenu_Disconnect = TEXT_Main+ 2,
+    VLPMenu_SendMessage = TEXT_Main+ 3
 };
 #endif	/* VLPMAINWINDOW_H */
 

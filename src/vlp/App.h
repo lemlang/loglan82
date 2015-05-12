@@ -11,8 +11,8 @@
 #include <wx/app.h>
 #include <wx/socket.h>
 
-#include "VLPMainWindow.h"
-#include "../head/comm.h"
+#include "MainWindow.h"
+#include "../../head/comm.h"
 #if defined (__WINDOWS__)
 #include <windows.h>
 #include <signal.h>
@@ -28,8 +28,8 @@ enum
     CLIENT_EVENT_ID = 3000,
     SOCKET_EVENT_ID
 };
-class VLPMainWindow;
-class Launcher: public wxApp {
+class MainWindow;
+class App : public wxApp {
 public:
     virtual bool OnInit();
     virtual int OnExit();
@@ -38,13 +38,13 @@ public:
     static void OnSigTerm(int sig);
     wxSocketClient* getSocketClient();
 private:
-        VLPMainWindow *mainWindow;
+        MainWindow *mainWindow;
         wxSocketClient* client;
         DECLARE_EVENT_TABLE()
 
 };
 
 
-DECLARE_APP(Launcher)
+DECLARE_APP(App)
 #endif	/* LAUNCHER_H */
 
