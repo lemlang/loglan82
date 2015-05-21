@@ -499,6 +499,7 @@ void read_line() {
 
         m.msg_type = MSG_INT;
         m.param.pword[0] = INT_CTX_REQ;
+        strcpy(m.param.pstr,ProgName);
         send_and_select_response(network_socket, &m, &m);
         if ((m.msg_type != MSG_INT) || (m.param.pword[0] != INT_CTX)) {
             // todo should throw exception, bad response from VM

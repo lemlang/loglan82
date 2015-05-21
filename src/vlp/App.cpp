@@ -110,21 +110,7 @@ void App::OnSocketEvent(wxSocketEvent &event) {
                                             this->mainWindow->text->AppendText("\n### Incoming Messsage ###");
                                             this->mainWindow->text->AppendText(wxString::Format("Mesg from Node %d: %s\n",readValue.param.pword[2],readValue.param.pstr));
                                             break;
-                                        /*case VLP_REMOTE_INSTANCE:
-                                            sprintf(ss,"%s/%s",REMOTE_PATH,msg.param.pstr);
-                                            if (info_messages)
-                                            {
-                                                WriteMessage("Running program:");
-                                                WriteMessage(ss);
-                                            }
-                                            pom = RunIntModule(ss,1);
-                                            if (pom!=NULL)
-                                            {
-                                                pom->p_ctx.node = msg.param.pword[2];
-                                                pom->p_ctx.program_id = msg.param.pword[7];
-                                                pom->RInstances[msg.param.pword[2]] = msg.param.pword[7];
-                                            }
-                                            break;
+                                        /*
                                         case VLP_CLOSE_INSTANCE:
                                             msg.msg_type = MSG_INT;
                                             msg.param.pword[0] = INT_CLOSE_INSTANCE;

@@ -27,31 +27,35 @@
 #include <boost/multi_index/composite_key.hpp>
 #include "../../head/comm.h"
 
-struct local_entry {
+struct LocalEntry {
     int node_id;
     unsigned short interpreter_port;
     unsigned short graphic_resource_port;
     wxSocketBase* graphic_socket;
     wxSocketBase* interpreter_socket;
+    wxString* filename;
     struct ByNodeId {};
     struct ByInterpreter {};
     struct ByGraphics{};
-    local_entry(
+    LocalEntry(
         int node_id,
         unsigned short interpreter_port,
         unsigned short graphic_resource_port,
         wxSocketBase* interpreter_socket,
-        wxSocketBase* graphic_socket):
+        wxSocketBase* graphic_socket,
+        wxString* filename):
         node_id(node_id),
         interpreter_port(interpreter_port),
         graphic_resource_port(graphic_resource_port),
         interpreter_socket(interpreter_socket),
-        graphic_socket(graphic_socket)
+        graphic_socket(graphic_socket),
+        filename(filename)
         {}
 
 };
 
-struct remote_entry {
+/* structure to store remote VM instances */
+struct RemoteEntry {
     int node_id;
     unsigned short interpreter_port;
     wxSocketBase* socket;
@@ -59,7 +63,7 @@ struct remote_entry {
     struct ByNodeId {};
     struct ByInterpreterPort {};
     struct BySocket{};
-    remote_entry(
+    RemoteEntry(
         int node_id,
         unsigned short interpreter_port,
         wxSocketBase*socket,
@@ -73,40 +77,40 @@ struct remote_entry {
 
 using namespace boost::multi_index;
 typedef multi_index_container<
-    local_entry,
+        LocalEntry,
     indexed_by<
-        hashed_unique<tag<local_entry::ByNodeId>, member<local_entry,int,&local_entry::node_id> >,
-        hashed_unique<tag<local_entry::ByInterpreter>, member<local_entry,unsigned short,&local_entry::interpreter_port> >,
-        hashed_unique<tag<local_entry::ByGraphics>, member<local_entry,unsigned short,&local_entry::graphic_resource_port> >
+        hashed_unique<tag<LocalEntry::ByNodeId>, member<LocalEntry,int,&LocalEntry::node_id> >,
+        hashed_unique<tag<LocalEntry::ByInterpreter>, member<LocalEntry,unsigned short,&LocalEntry::interpreter_port> >,
+        hashed_unique<tag<LocalEntry::ByGraphics>, member<LocalEntry,unsigned short,&LocalEntry::graphic_resource_port> >
     >
 > LocalIndex;
 
-typedef LocalIndex::index<local_entry::ByNodeId>::type LocalIndexByNodeId;
-typedef LocalIndex::index<local_entry::ByInterpreter>::type LocalIndexByIntepreter;
-typedef LocalIndex::index<local_entry::ByGraphics>::type LocalIndexByGraphics;
+typedef LocalIndex::index<LocalEntry::ByNodeId>::type LocalIndexByNodeId;
+typedef LocalIndex::index<LocalEntry::ByInterpreter>::type LocalIndexByIntepreter;
+typedef LocalIndex::index<LocalEntry::ByGraphics>::type LocalIndexByGraphics;
 
 
 using namespace boost::multi_index;
 typedef multi_index_container<
-    remote_entry,
+        RemoteEntry,
     indexed_by<
-        hashed_non_unique<tag<remote_entry::ByNodeId>, member<remote_entry,int,&remote_entry::node_id> >,
-        hashed_non_unique<tag<remote_entry::ByInterpreterPort>, member<remote_entry,unsigned short,&remote_entry::interpreter_port> >,
-        hashed_unique<tag<remote_entry::BySocket>, member<remote_entry,wxSocketBase*,&remote_entry::socket> >
+        hashed_non_unique<tag<RemoteEntry::ByNodeId>, member<RemoteEntry,int,&RemoteEntry::node_id> >,
+        hashed_non_unique<tag<RemoteEntry::ByInterpreterPort>, member<RemoteEntry,unsigned short,&RemoteEntry::interpreter_port> >,
+        hashed_unique<tag<RemoteEntry::BySocket>, member<RemoteEntry,wxSocketBase*,&RemoteEntry::socket> >
     >
 > RemoteIndex;
 
 
-typedef RemoteIndex::index<remote_entry::ByNodeId>::type RemoteIndexByNodeId;
-typedef RemoteIndex::index<remote_entry::ByInterpreterPort>::type RemoteIndexByInterpreterPort;
-typedef RemoteIndex::index<remote_entry::BySocket>::type RemoteIndexBySocket;
+typedef RemoteIndex::index<RemoteEntry::ByNodeId>::type RemoteIndexByNodeId;
+typedef RemoteIndex::index<RemoteEntry::ByInterpreterPort>::type RemoteIndexByInterpreterPort;
+typedef RemoteIndex::index<RemoteEntry::BySocket>::type RemoteIndexBySocket;
 
 
 class Configurations {
 public:
     Configurations();
     ~Configurations();
-    int AddLocalInstance(int node_id, unsigned short interpreter_port, wxSocketBase* socket);
+    int AddLocalInstance(int node_id, unsigned short interpreter_port, wxSocketBase* socket, wxString* filename);
     void ChangeLocalInstance(int node_id, unsigned short interpreter_port,
                                   unsigned short graphic_resource_port,wxSocketBase*);
     unsigned short int GetGraphicalResource(unsigned short int interpreter_port);
@@ -118,6 +122,7 @@ public:
     wxSocketBase *GetIntSocketById(int node_id);
 
     wxSocketBase* GetRemoteSocketById(int node_id);
+    const LocalEntry*GetLocalEntry(int node_id);
 
 
     int AddRemoteInstance(int node_id, wxSocketBase *base, unsigned  short remote_id );
@@ -130,6 +135,10 @@ public:
     void CloseConnections();
 
     void RemoveRemote(int interpreter_port);
+
+    void RemoveInt(int id);
+
+    void CloseRemote(unsigned short local_port);
 
 private:
     LocalIndex li;

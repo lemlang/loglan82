@@ -6,27 +6,26 @@
  */
 
 #include "VM.h"
-#include "../../head/comm.h"
 
 VM::VM() {
     this->vlp = NULL;
     this->port = 3600;
-    this->config = new wxFileConfig(wxT("VLP")  );
+    this->config = new wxFileConfig(wxT("VLP"));
 }
 
 bool VM::OnInit() {
     if (!wxAppConsole::OnInit()) {
         return false;
     }
-    if( verbose ) {
+    if (verbose) {
         wxLog::SetVerbose();
     }
     //This call enables us to use wxSocket calls in secondary threads
     wxSocketBase::Initialize();
-    Connect(wxID_ANY,wxEVT_END_SESSION,(wxObjectEventFunction)&VM::OnClose, NULL, this);
+    Connect(wxID_ANY, wxEVT_END_SESSION, (wxObjectEventFunction) &VM::OnClose, NULL, this);
     //void (VM::*OnSigTerm)(int) = &::add;
 
-	#if defined (__WINDOWS__)
+    #if defined (__WINDOWS__)
     if(SetSignalHandler(SIGINT,&VM::OnSigTerm)|| SetSignalHandler(SIGTERM,&VM::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
@@ -34,172 +33,180 @@ bool VM::OnInit() {
     }
 	#endif
 
-    wxLog::SetActiveTarget ( new wxLogStderr );
+    wxLog::SetActiveTarget(new wxLogStderr);
 
     m_checker = new wxSingleInstanceChecker;
-    if ( m_checker->IsAnotherRunning() ) {
-        wxLogError ( _( "Another program instance is already running, aborting." ) );
+    if (m_checker->IsAnotherRunning()) {
+        wxLogError(_("Another program instance is already running, aborting."));
         delete m_checker; // OnExit() won't be called if we return false
         m_checker = NULL;
         return false;
     }
 
-    this->config->Read("NodeNumber",&this->nodeNumber, 0);
+    this->config->Read("NodeNumber", &this->nodeNumber, 0);
 
     wxIPV4address address;
-    address.Hostname ( "0.0.0.0" );
-    address.Service ( 3600 );
+    address.Hostname("0.0.0.0");
+    address.Service(3600);
 
-    server = new wxSocketServer ( address, wxSOCKET_REUSEADDR);
-    server->SetEventHandler ( *this, SERVER_EVENT_ID );
-    server->SetNotify ( wxSOCKET_CONNECTION_FLAG );
-    server->Notify ( true );
+    server = new wxSocketServer(address, wxSOCKET_REUSEADDR);
+    server->SetEventHandler(*this, SERVER_EVENT_ID);
+    server->SetNotify(wxSOCKET_CONNECTION_FLAG);
+    server->Notify(true);
 
-    this->executablesDir = wxPathOnly( wxStandardPaths::Get().GetExecutablePath() );
-    wxLogVerbose( this->executablesDir.GetFullPath() );
+    this->executablesDir = wxPathOnly(wxStandardPaths::Get().GetExecutablePath());
+    wxLogVerbose(this->executablesDir.GetFullPath());
     return true;
 }
 
 int VM::OnExit() {
-    wxLogVerbose ( _ ( "[VM] OnExit" ) );
+    wxLogVerbose(_ ("[VM] OnExit"));
     this->configuration.CloseConnections();
     this->server->Close();
-    this->config->Write("NodeNumber", wxString::Format(_T("%d"),this->nodeNumber));
+    this->config->Write("NodeNumber", wxString::Format(_T("%d"), this->nodeNumber));
     this->config->Flush();
     delete m_checker;
     return 0;
 }
 
-void VM::OnServerEvent ( wxSocketEvent& event ) {
-    wxLogVerbose ( wxString::Format ( _( "Server Event %d" ),event.GetEventType()) );
+void VM::OnServerEvent(wxSocketEvent &event) {
+    wxLogVerbose(wxString::Format(_("Server Event %d"), event.GetEventType()));
 
     // Accept the new connection and get the socket pointer
-    wxSocketBase* sock = server->Accept ( false );
+    wxSocketBase *sock = server->Accept(false);
 
     // Tell the new socket how and where to process its events
-    sock->SetEventHandler ( *this, SOCKET_EVENT_ID );
-    sock->SetNotify ( wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG | wxSOCKET_OUTPUT_FLAG| wxSOCKET_CONNECTION_FLAG );
-    sock->Notify ( true );
+    sock->SetEventHandler(*this, SOCKET_EVENT_ID);
+    sock->SetNotify(wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG | wxSOCKET_OUTPUT_FLAG | wxSOCKET_CONNECTION_FLAG);
+    sock->Notify(true);
 
-    wxLogVerbose ( _ ( "\nAccepted incoming connection.\n" ) );
+    wxLogVerbose(_ ("\nAccepted incoming connection.\n"));
 }
-void VM::OnSocketEvent ( wxSocketEvent& event ) {
+
+void VM::OnSocketEvent(wxSocketEvent &event) {
     wxSocketBase *sock = event.GetSocket();
 
     // Process the event
-    switch ( event.GetSocketEvent() ) {
-    case wxSOCKET_INPUT: {
-        MESSAGE readValue;
-        // Read the data
-        sock->Read ( &readValue, sizeof ( MESSAGE ) );
+    switch (event.GetSocketEvent()) {
+        case wxSOCKET_INPUT: {
+            MESSAGE readValue;
+            // Read the data
+            sock->Read(&readValue, sizeof(MESSAGE));
 
-        switch ( readValue.msg_type ) {
-            case MSG_VLP:
-                wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageVLP]  %lu"), (intptr_t)sock));
-            this->ProcessMessageVLP ( &readValue,sock );
-            break;
-        case MSG_NET:
-            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageNet]  %lu"), (intptr_t)sock));
-            this->ProcessMessageNet ( &readValue,sock );
-            break;
-        case MSG_GRAPH:
-            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageGraph] %lu"), (intptr_t)sock));
-            this->ProcessMessageGraph ( &readValue,sock );
-            break;
-        case MSG_INT:
-            wxLogVerbose ( wxString::Format ( _ ( "[VM::ProcessMessageInt]  %lu"), (intptr_t)sock));
-            this->ProcessMessageInt ( &readValue,sock );
-            break;
-        default:
-            wxLogVerbose ( wxString::Format ( _ ( "[VM::Received from client] %d" ), readValue.msg_type ) );
+            switch (readValue.msg_type) {
+                case MSG_VLP:
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]  %lu"), (intptr_t) sock));
+                    this->ProcessMessageVLP(&readValue, sock);
+                    break;
+                case MSG_NET:
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageNet]  %lu"), (intptr_t) sock));
+                    this->ProcessMessageNet(&readValue, sock);
+                    break;
+                case MSG_GRAPH:
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageGraph] %lu"), (intptr_t) sock));
+                    this->ProcessMessageGraph(&readValue, sock);
+                    break;
+                case MSG_INT:
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageInt]  %lu"), (intptr_t) sock));
+                    this->ProcessMessageInt(&readValue, sock);
+                    break;
+                default:
+                    wxLogVerbose(wxString::Format(_ ("[VM::Received from client] %d"), readValue.msg_type));
+                    break;
+            }
             break;
         }
-        break;
-    }
-    case wxSOCKET_LOST: {
-        wxLogVerbose ( wxString::Format( _ ( "[VM::Socket lost] %lu" ), (intptr_t)sock) );
-        break;
-    }
-    case wxSOCKET_OUTPUT: {
-        wxLogVerbose ( wxString::Format( _ ( "wxSOCKET_OUTPUT event: %d" ),event.GetEventType()) );
-        break;
-    }
-    default: {
-        wxLogVerbose ( wxString::Format( _ ( "Socket other event: %d" ),event.GetSocketEvent()) );
-        break;
-    }
+        case wxSOCKET_LOST: {
+            wxLogVerbose(wxString::Format(_ ("[VM::Socket lost] %lu"), (intptr_t) sock));
+            break;
+        }
+        case wxSOCKET_OUTPUT: {
+            wxLogVerbose(wxString::Format(_ ("wxSOCKET_OUTPUT event: %d"), event.GetEventType()));
+            break;
+        }
+        default: {
+            wxLogVerbose(wxString::Format(_ ("Socket other event: %d"), event.GetSocketEvent()));
+            break;
+        }
     }
 }
 
-void VM::ProcessMessageInt ( MESSAGE*message, wxSocketBase*socket){
+void VM::ProcessMessageInt(MESSAGE *message, wxSocketBase *socket) {
     MESSAGE responseMessage;
-    wxLogVerbose ( wxString::Format( _ ( "[VM::ProcessMessageInt]int message type %d" ),message->param.pword[0] ) );
+    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageInt]int message type %d"), message->param.pword[0]));
 
     wxIPV4address address;
     socket->GetPeer(address);
-    wxString log_message ;
-    switch(message->param.pword[0]) {
+    wxString log_message;
+    switch (message->param.pword[0]) {
         case INT_EXITING:
             //check if from local int module
             socket->Close();
-            this->configuration.RemoveRemote(address.Service());
-            log_message = (wxString::Format(_("%s : End of program execution"),message->param.pstr ));
+            this->configuration.CloseRemote(address.Service());
+            log_message = (wxString::Format(_("%s : End of program execution"), message->param.pstr));
             WriteAtConsole(&log_message);
             break;
         case INT_CTX_REQ:
 
-            responseMessage.param.pword[2] = configuration.AddLocalInstance(this->nodeNumber, address.Service(),socket);
+            responseMessage.param.pword[2] = configuration.AddLocalInstance(this->nodeNumber, address.Service(),
+                                                            socket, new wxString( message->param.pstr) );
             responseMessage.msg_type = MSG_INT;
             responseMessage.param.pword[0] = INT_CTX;
-            responseMessage.param.pword[1] = this->getNodeNumber();
+            responseMessage.param.pword[1] = this->nodeNumber;
             /** if (e->remote)
             {
                 msg.param.pword[3] = e->p_ctx.node;
                 msg.param.pword[4] = e->p_ctx.program_id;
             }*/
-            socket->Write(&responseMessage,sizeof(MESSAGE));
+            socket->Write(&responseMessage, sizeof(MESSAGE));
             //socket->Close();
             //socket->Destroy();
             break;
     }
 }
-void VM::ProcessMessageGraph ( MESSAGE*message, wxSocketBase*socket){
-    if (message->param.pword[0]==GRAPH_ALLOCATE) {
-        wxLogVerbose(wxString::Format("[VM::Socket address] %lu",(intptr_t)socket));
-        ServerThread * pThread = new ServerThread(this, socket);
+
+void VM::ProcessMessageGraph(MESSAGE *message, wxSocketBase *socket) {
+    if (message->param.pword[0] == GRAPH_ALLOCATE) {
+        wxLogVerbose(wxString::Format("[VM::Socket address] %lu", (intptr_t) socket));
+        ServerThread *pThread = new ServerThread(this, socket);
         pThread->Create();
         pThread->Run();
-    } else if (message->param.pword[0]== GRAPH_ALLOCATING) {
+    } else if (message->param.pword[0] == GRAPH_ALLOCATING) {
         wxIPV4address address;
         socket->GetPeer(address);
-        configuration.ChangeLocalInstance(this->nodeNumber, message->param.pword[1],address.Service(),socket);
-        wxLogVerbose(wxString::Format("[VM::MessageGraph Processed] %lu",(intptr_t)socket));
-    } else if  (message->param.pword[0]== GRAPH_INKEY_RESPONSE || message->param.pword[0]== GRAPH_READLN_RESPONSE || message->param.pword[0]== GRAPH_READCHAR_RESPONSE || message->param.pword[0]== GRAPH_READSTR_RESPONSE) {
-        this->ForwardToIntModule(message,socket);
+        configuration.ChangeLocalInstance(this->nodeNumber, message->param.pword[1], address.Service(), socket);
+        wxLogVerbose(wxString::Format("[VM::MessageGraph Processed] %lu", (intptr_t) socket));
+    } else if (message->param.pword[0] == GRAPH_INKEY_RESPONSE || message->param.pword[0] == GRAPH_READLN_RESPONSE ||
+               message->param.pword[0] == GRAPH_READCHAR_RESPONSE ||
+               message->param.pword[0] == GRAPH_READSTR_RESPONSE) {
+        this->ForwardToIntModule(message, socket);
     } else {
-        this->ForwardToGraphModule(message,socket);
+        this->ForwardToGraphModule(message, socket);
     }
 }
-void VM::ProcessMessageNet ( MESSAGE* message, wxSocketBase* socket) {
+
+void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
-    wxLogVerbose(wxString::Format("ProcessMessageNet %d %s",message->msg_type,address.IPAddress () ));
+    wxLogVerbose(wxString::Format("ProcessMessageNet %d %s", message->msg_type, address.IPAddress()));
     wxString log_message;
-    switch(message->param.pword[0]){
+    switch (message->param.pword[0]) {
 
         case NET_CONNECT_TO:
             this->initialize_remote_connection(message->param.pstr);
             break;
         case NET_CONNECT:
             configuration.AddRemoteInstance(this->nodeNumber, socket, message->param.pword[1]);
-            log_message = (wxString::Format("New remote connection %d %s",message->param.pword[1], address.IPAddress () ));
+            log_message = (wxString::Format("New remote connection %d %s", message->param.pword[1],
+                                            address.IPAddress()));
             WriteAtConsole(&log_message);
             wxLogVerbose(log_message);
-            this->send_accept_info ( socket );
+            this->send_accept_info(socket);
             break;
         case NET_ACCEPT:
             configuration.AddRemoteInstance(this->nodeNumber, socket, message->param.pword[1]);
-            log_message = (wxString::Format("New remote connection %d %s",message->param.pword[1], address.IPAddress () ));
+            log_message = (wxString::Format("New remote connection %d %s", message->param.pword[1],
+                                            address.IPAddress()));
             WriteAtConsole(&log_message);
             wxLogVerbose(log_message);
             break;
@@ -208,44 +215,62 @@ void VM::ProcessMessageNet ( MESSAGE* message, wxSocketBase* socket) {
             exit_sequence();
             break;
         case NET_DISCONNECT:
-            log_message = (wxString::Format("Node: %d (%s) disconnected",message->param.pword[1], address.IPAddress () ));
+            log_message = (wxString::Format("Node: %d (%s) disconnected", message->param.pword[1],
+                                            address.IPAddress()));
             this->configuration.RemoveRemote(message->param.pword[1]);
             WriteAtConsole(&log_message);
-            wxLogVerbose(log_message );
+            wxLogVerbose(log_message);
             break;
         case NET_PROPAGATE:
-            wxSocketBase*rsocket = this->configuration.GetRemoteSocketById(message->param.pword[4]);
-            if( rsocket != NULL) {
-                rsocket->Write(message,sizeof(message));
-                log_message = (wxString::Format("Net propagate to node: %d",message->param.pword[4] ));
+            wxSocketBase *rsocket = this->configuration.GetRemoteSocketById(message->param.pword[4]);
+            if (rsocket != NULL) {
+                rsocket->Write(message, sizeof(message));
+                log_message = (wxString::Format("Net propagate to node: %d", message->param.pword[4]));
             } else {
                 /* maybe we are the target? */
-                  if( nodeNumber == message->param.pword[4]) {
-                      if (message->param.pword[1] == MSG_VLP) SendToVlp(message);
-                      else if (message->param.pword[1] == MSG_INT) SendToInt(message);
-                      else {
-                          /* todo what to do now? */
-                      }
-                  } else {
-                      log_message = (wxString::Format("Net propagate failed, canot find node: %d",
-                                                      message->param.pword[4]));
-                  }
+                if (nodeNumber == message->param.pword[4]) {
+                    if (message->param.pword[1] == MSG_VLP) {
+                        switch(message->param.pword[6]) {
+                            case VLP_CLOSE_INSTANCE:
+                                rsocket =this->configuration.GetIntSocketById(message->param.pword[7]);
+                                if( socket != NULL) {
+                                    MESSAGE m1;
+                                    m1.msg_type = MSG_INT;
+                                    m1.param.pword[0] = INT_CLOSE_INSTANCE;
+                                    socket->Write(&m1,sizeof(MESSAGE));
+                                    this->configuration.RemoveInt(message->param.pword[7]);
+                                }
+
+
+                                break;
+                            default:
+                                SendToVlp(message);
+                                break;
+                        }
+                    } else if (message->param.pword[1] == MSG_INT) SendToInt(message);
+                    else {
+                        /* todo what to do now? */
+                    }
+                } else {
+                    log_message = (wxString::Format("Net propagate failed, canot find node: %d",
+                                                    message->param.pword[4]));
+                }
             }
-            wxLogVerbose(log_message );
+            wxLogVerbose(log_message);
             break;
     }
 }
 
-void VM::ProcessMessageVLP ( MESSAGE* message, wxSocketBase* socket) {
+void VM::ProcessMessageVLP(MESSAGE *message, wxSocketBase *socket) {
     MESSAGE responseMessage;
 
-    switch(message->param.pword[0]) {
+    switch (message->param.pword[0]) {
         case NET_DISCONNECT:
 
             disconnect_seq();
             break;
         case VLP_CONNECT:
-            if( vlp != NULL&& vlp->IsConnected() ) {
+            if (vlp != NULL && vlp->IsConnected()) {
                 //todo reply VLP_CONNECTION_FAILED
                 responseMessage.msg_type = MSG_VLP;
                 responseMessage.param.pword[0] = VLP_CONNECTION_FAILED;
@@ -259,45 +284,75 @@ void VM::ProcessMessageVLP ( MESSAGE* message, wxSocketBase* socket) {
             break;
         case VLP_DISCONNECT:
             //disconnect client
-            if(vlp == socket) {
+            if (vlp == socket) {
                 socket->Close();
                 vlp = NULL;
-                wxLogVerbose ( _ ( "[VM::ProcessMessageVLP] Disconnected client"));
+                wxLogVerbose(_ ("[VM::ProcessMessageVLP] Disconnected client"));
             }
+            break;
         case VLP_INTERPRETER_DOWN:
             //forget interpreter
-            wxLogVerbose ( _ ( "[VM::ProcessMessageVLP] Interpreter down - NOT implemented"));
+            wxLogVerbose(_ ("[VM::ProcessMessageVLP] Interpreter down - NOT implemented"));
             //todo close graph module?
-            default:
-                wxLogVerbose ( wxString::Format( _ ( "[VM::ProcessMessageVLP]VLP message type %d" ),message->param.pword[0] ) );
+            break;
+        case VLP_REMOTE_INSTANCE: {
+            wxString txtMessage(wxString::Format("Running remote program: %s", message->param.pstr));
+            this->WriteAtConsole(&txtMessage);
+            this->RunRemoteInt(new wxString(message->param.pstr));
+            //todo copy parameters
+            /*this->configuration.AddRemoteInstance();
+
+                pom->p_ctx.node = message->param.pword[2];
+                pom->p_ctx.program_id = message->param.pword[7];
+                pom->RInstances[message->param.pword[2]] = message->param.pword[7];*/
+            break;
+        }
+        case VLP_REMOTE_INSTANCE_PLEASE:
+            this->AllocateRemoteInstance(this->nodeNumber, message->param.pword[2]);
+            break;
+        case VLP_REMOTE_INSTANCE_OK:
+            //todo
+            message->param.pword[2];
+            wxLogVerbose(_("[VM::ProcessMessageVLP]VLP message type VLP_REMOTE_INSTANCE_OK"));
+
+            responseMessage.msg_type = MSG_VLP;
+            responseMessage.param.pword[0] = VLP_REMOTE_INSTANCE_HERE;
+            responseMessage.param.pword[8] = message->param.pword[8];
+            this->configuration.GetIntSocketById(this->nodeNumber)->Write(&responseMessage,sizeof(MESSAGE));
+        default:
+            wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]VLP message type %d"), message->param.pword[0]));
     }
 }
 
-void VM::ForwardToGraphModule( MESSAGE *message,wxSocketBase*socket) {
+void VM::ForwardToGraphModule(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
-    wxSocketBase* graph_socket = this->configuration.GetGraphicalSocket(address.Service());
-    graph_socket->Write(message,sizeof(MESSAGE));
+    wxSocketBase *graph_socket = this->configuration.GetGraphicalSocket(address.Service());
+    graph_socket->Write(message, sizeof(MESSAGE));
     wxLogVerbose(wxString::Format("Message forwarded to GraphModule"));
 }
-void VM::ForwardToIntModule  ( MESSAGE *message,wxSocketBase*socket) {
+
+void VM::ForwardToIntModule(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
-    wxSocketBase* int_socket = this->configuration.GetIntSocket(address.Service());
-    int_socket->Write(message,sizeof(MESSAGE));
-    if( int_socket->Error() ) {
+    wxSocketBase *int_socket = this->configuration.GetIntSocket(address.Service());
+    int_socket->Write(message, sizeof(MESSAGE));
+    if (int_socket->Error()) {
         wxLogVerbose(wxString::Format("Message forwarding to InthModule failed"));
     } else {
         wxLogVerbose(wxString::Format("Message forwarded to InthModule"));
     }
 }
+
 int VM::getNodeNumber() {
     return nodeNumber;
 }
-Configurations* VM::getConfiguration() {
+
+Configurations *VM::getConfiguration() {
     return &configuration;
 }
-wxFileName* VM::getExecutablesDir() {
+
+wxFileName *VM::getExecutablesDir() {
     return &executablesDir;
 }
 
@@ -309,13 +364,13 @@ void VM::OnClose(wxCloseEvent &event) {
 
 }
 
-void VM::OnInitCmdLine(wxCmdLineParser& parser) {
+void VM::OnInitCmdLine(wxCmdLineParser &parser) {
     parser.SetDesc(g_cmdLineDesc);
     // must refuse '/' as parameter starter or cannot use "/path" style paths
     parser.SetSwitchChars(wxT("-"));
 }
 
-bool VM::OnCmdLineParsed(wxCmdLineParser& parser) {
+bool VM::OnCmdLineParsed(wxCmdLineParser &parser) {
     if (parser.Found("h")) {
         return false;
     }
@@ -323,14 +378,15 @@ bool VM::OnCmdLineParsed(wxCmdLineParser& parser) {
     return true;
 }
 
-BEGIN_EVENT_TABLE ( VM, wxAppConsole )
-    EVT_SOCKET ( SERVER_EVENT_ID,  VM::OnServerEvent )
-    EVT_SOCKET ( SOCKET_EVENT_ID,  VM::OnSocketEvent )
+BEGIN_EVENT_TABLE (VM, wxAppConsole)
+                EVT_SOCKET (SERVER_EVENT_ID, VM::OnServerEvent)
+                EVT_SOCKET (SOCKET_EVENT_ID, VM::OnSocketEvent)
 END_EVENT_TABLE()
 
-void VM::OnSigTerm(int sig) {;
-    wxLogVerbose(wxString::Format("got signal %d",sig));
-    if(sig == SIGTERM || sig == SIGINT) {
+void VM::OnSigTerm(int sig) {
+    ;
+    wxLogVerbose(wxString::Format("got signal %d", sig));
+    if (sig == SIGTERM || sig == SIGINT) {
         wxLogError("NOT IMPLEMENTED GRACEFUL SHUTDOWN");
         //todo properrly close all connections, send shutdown notification for all loglanint etc
         wxGetApp().Exit();
@@ -338,7 +394,7 @@ void VM::OnSigTerm(int sig) {;
 }
 
 void VM::initialize_remote_connection(char string[]) {
-    wxSocketClient* client;
+    wxSocketClient *client;
     client = new wxSocketClient();;
     client->SetEventHandler(*this, SOCKET_EVENT_ID);
     client->SetNotify(wxSOCKET_CONNECTION_FLAG | wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG);
@@ -347,8 +403,8 @@ void VM::initialize_remote_connection(char string[]) {
     wxIPV4address address;
     address.Hostname(string);
     address.Service(3600);
-    if( client->Connect(address, true) == false) {
-        wxLogError ( _( "Remote not responding." ) );
+    if (client->Connect(address, true) == false) {
+        wxLogError(_("Remote not responding."));
         wxString s(wxT("Remote not responding"));
         WriteAtConsole(&s);
     } else {
@@ -361,12 +417,12 @@ void VM::send_connect_info(wxSocketClient *pClient) {
     message.param.pword[0] = NET_CONNECT;
     message.param.pword[1] = this->nodeNumber;
     message.msg_type = MSG_NET;
-    if ( pClient->IsConnected()) {
+    if (pClient->IsConnected()) {
         pClient->Write(&message, sizeof(message));
-        wxLogError ( _( "Send init message." ) );
+        wxLogError(_("Send init message."));
     } else {
 
-        wxLogError ( _( "Remote not connected." ) );
+        wxLogError(_("Remote not connected."));
         wxString s(wxT("Connection failed"));
         WriteAtConsole(&s);
     }
@@ -374,7 +430,7 @@ void VM::send_connect_info(wxSocketClient *pClient) {
 }
 
 void VM::WriteAtConsole(wxString *data) {
-    if( this->vlp != NULL && this->vlp->IsConnected() ) {
+    if (this->vlp != NULL && this->vlp->IsConnected()) {
         MESSAGE message;
 
         message.msg_type = MSG_NET;
@@ -391,12 +447,12 @@ void VM::send_accept_info(wxSocketBase *pClient) {
     message.param.pword[0] = NET_ACCEPT;
     message.param.pword[1] = this->nodeNumber;
     message.msg_type = MSG_NET;
-    if ( pClient->IsConnected()) {
+    if (pClient->IsConnected()) {
         pClient->Write(&message, sizeof(message));
-        wxLogError ( _( "Send net accept message." ) );
+        wxLogError(_("Send net accept message."));
     } else {
 
-        wxLogError ( _( "Remote not connected." ) );
+        wxLogError(_("Remote not connected."));
         wxString s(wxT("Connection failed"));
         WriteAtConsole(&s);
     }
@@ -404,17 +460,17 @@ void VM::send_accept_info(wxSocketBase *pClient) {
 
 void VM::disconnect_seq() {
 
-    wxLogError ( _( "Disconnect sequence." ) );
+    wxLogError(_("Disconnect sequence."));
     this->configuration.CloseRemoteConnections(this->nodeNumber);
 }
 
 void VM::exit_sequence() {
 
-    wxLogError ( _( "Exit sequence." ) );
+    wxLogError(_("Exit sequence."));
 }
 
 void VM::SendToVlp(MESSAGE *message) {
-    if( this->vlp != NULL && this->vlp->IsConnected() ) {
+    if (this->vlp != NULL && this->vlp->IsConnected()) {
         this->vlp->Write(message, sizeof(message));
     } else {
         /* todo what to do */
@@ -422,5 +478,46 @@ void VM::SendToVlp(MESSAGE *message) {
 }
 
 void VM::SendToInt(MESSAGE *message) {
-this->configuration.GetIntSocket(message->param.pword[5]);
+    this->configuration.GetIntSocket(message->param.pword[5]);
+}
+
+void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
+    MESSAGE msg;
+    char s[255];
+    wxSocketBase * socketBase = this->configuration.GetRemoteSocketById(remoteNodeNumber);
+    if( socketBase != NULL) {
+        this->TransmitFile(remoteNodeNumber,this->configuration.GetLocalEntry(localNodeNumber)->filename,localNodeNumber);
+        msg.msg_type = MSG_VLP;
+        msg.param.pword[0] = VLP_REMOTE_INSTANCE;
+        msg.param.pword[2] = localNodeNumber;
+        msg.param.pword[4] = remoteNodeNumber;
+        msg.param.pword[7] = localNodeNumber;
+        strcpy(msg.param.pstr,this->configuration.GetLocalEntry(localNodeNumber)->filename->mb_str());
+        socketBase->Write(&msg,sizeof(MESSAGE));
+    } else {
+        //There is no such a node!
+        wxString s(wxString::Format("Warning: Node number %d not found!",remoteNodeNumber));
+        wxLogError(s);
+        WriteAtConsole(&s);
+        wxLogError(_("Allocating O-process on the local node"));
+        msg.msg_type = MSG_VLP;
+        msg.param.pword[0] = VLP_REMOTE_INSTANCE_HERE;
+        msg.param.pword[1] = localNodeNumber;
+        socketBase = this->configuration.GetIntSocketById(localNodeNumber);
+        socketBase->Write(&msg,sizeof(MESSAGE));
+    }
+
+}
+
+void VM::TransmitFile(int remoteNodeNumber, wxString *filename, int localNodeNumber) {
+//todo TransmitFile not implemented
+}
+
+void VM::RunRemoteInt(wxString *filename) {
+    wxString wxString1 = wxString::Format("%s%s",
+                                          executablesDir.GetFullPath(),
+                                          wxFileName::GetPathSeparators());
+
+    wxString graphcsCommand = wxString::Format("%sloglanint %s", wxString1, filename);
+    wxExecute(graphcsCommand, wxEXEC_ASYNC);
 }

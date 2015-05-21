@@ -91,6 +91,12 @@ private:
     void SendToVlp(MESSAGE *message);
 
     void SendToInt(MESSAGE *message);
+
+    void AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber);
+
+    void TransmitFile(int remoteNodeNumber, wxString *filename, int localNodeNumber);
+
+    void RunRemoteInt(wxString *filename);
 };
 
 static const wxCmdLineEntryDesc g_cmdLineDesc [] ={
