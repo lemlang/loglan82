@@ -9,15 +9,18 @@ set(SRCS main.cpp Compiller.cpp IncludeFile.cpp)
 add_executable(vlpc ${SRCS})
 target_link_libraries(vlpc ${wxWidgets_LIBRARIES})
 install (TARGETS vlpc DESTINATION bin)
+get_filename_component(EXAMPLES_DIR ${PROJECT_SOURCE_DIR} DIRECTORY)
+set(EXAMPLES_DIR ${EXAMPLES_DIR}/examples)
+message(STATUS ${EXAMPLES_DIR})
 enable_testing()
 set(TEST_FILES bank2.log chartres.log complex.log differ.log geo.log graphcol.log mat.log merge.log roundcm.log treegen.log winograd.log )
 FOREACH (TEST_FILE ${TEST_FILES})
 add_test(
     NAME "compile_${TEST_FILE}"
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/../examples/
+    WORKING_DIRECTORY ${EXAMPLES_DIR}
     COMMAND ${CMAKE_INSTALL_PREFIX}/bin/vlpc ${TEST_FILE} )
 ENDFOREACH(TEST_FILE)
 add_test(
     NAME "md5check"
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/../examples/
+    WORKING_DIRECTORY ${EXAMPLES_DIR}
     COMMAND md5sum -c md5sums )
