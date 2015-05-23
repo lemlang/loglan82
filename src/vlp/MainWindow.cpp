@@ -201,17 +201,15 @@ bool MainWindow::ReadOutput(wxInputStream& s)
     s.Reset();
     wxTextInputStream tis(s, " ", wxConvUTF8);
 
-    while (true)
-    {
+    while (true) {
         wxString line = tis.ReadLine();
-        if ( !line.empty() )
+        if ( !line.empty() ) {
             this->text->AppendText(line);
+        }
         this->text->AppendText(wxTextFile::GetEOL());
-            //this->text->AppendText("\n");
-        if (s.Eof())
+        if (s.Eof()) {
             break;
-        if ( !s )
-            return false;
+        }
     }
 
     return true;
