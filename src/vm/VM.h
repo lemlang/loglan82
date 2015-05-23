@@ -27,7 +27,7 @@ class VM;
 #include <wx/fileconf.h>
 #include <wx/time.h>
 #include "../backward.hpp"
-#if defined (__WIDOWS__)
+#if defined (__WINDOWS__)
 #include <windows.h>
 #include <signal.h>
 #include <stdio.h>
