@@ -16,6 +16,7 @@ MainWindow::MainWindow(const wxString& title, App * parent)
     menubar = new wxMenuBar;
     file = new wxMenu;
     file->Append(wxID_EXECUTE, wxT("&Execute"));
+    file->Append(wxID_CONVERT, wxT("&Compile"));
     file->Append(wxID_ABORT, wxT("&Kill"));
     file->AppendSeparator();
     file->Append(wxID_EXIT, wxT("&Quit"));
@@ -35,6 +36,8 @@ MainWindow::MainWindow(const wxString& title, App * parent)
     Connect(wxID_EXIT, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(MainWindow::OnQuit));
     
+    Connect(wxID_CONVERT, wxEVT_COMMAND_MENU_SELECTED,
+            wxCommandEventHandler(MainWindow::OnCompile));
     Connect(wxID_EXECUTE, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(MainWindow::OnExecute));
     Connect(wxID_ABORT, wxEVT_COMMAND_MENU_SELECTED,
@@ -168,3 +171,49 @@ void MainWindow::OnSendMessage(wxCommandEvent &event) {
     }
 
 }
+
+void MainWindow::OnCompile(wxCommandEvent &event) {
+    wxFileDialog
+            openFileDialog(this, _("Compile Loglan file"), "", "",
+                           "log files (*.log)|*.log", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (openFileDialog.ShowModal() == wxID_CANCEL)
+        return; // the user changed idea...
+    wxFileName executablesDir = wxPathOnly( wxStandardPaths::Get().GetExecutablePath() );
+    wxString wxString1 = wxString::Format("%s%s",
+                                          executablesDir.GetFullPath(),
+                                          wxFileName::GetPathSeparators());
+    wxString graphcsCommand = wxString::Format("%svlpc %s", wxString1, openFileDialog.GetPath());
+    this->text->AppendText(graphcsCommand);
+
+    wxScopedPtr<wxProcess> process(new wxProcess);
+    process->Redirect();
+
+    wxExecute(graphcsCommand, wxEXEC_BLOCK, process.get());
+
+    this->ReadOutput(*(process->GetErrorStream()));
+    this->ReadOutput(*(process->GetInputStream()));
+
+}
+
+bool MainWindow::ReadOutput(wxInputStream& s)
+{
+    // the stream could be already at EOF or in wxSTREAM_BROKEN_PIPE state
+    s.Reset();
+    wxTextInputStream tis(s, " ", wxConvUTF8);
+
+    while (true)
+    {
+        wxString line = tis.ReadLine();
+        if ( !line.empty() )
+            this->text->AppendText(line);
+        this->text->AppendText(wxTextFile::GetEOL());
+            //this->text->AppendText("\n");
+        if (s.Eof())
+            break;
+        if ( !s )
+            return false;
+    }
+
+    return true;
+}
+

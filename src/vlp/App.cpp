@@ -10,7 +10,7 @@
 
 
 bool App::OnInit() {
-    #if defined (__WINDOWS__)
+    #if defined (__LINUX__)
     if( SetSignalHandler(SIGINT,&App::OnSigTerm) || SetSignalHandler(SIGTERM,&App::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {

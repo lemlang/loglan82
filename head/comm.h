@@ -150,4 +150,8 @@ typedef struct {
     messg int_msg;
 } MESSAGE;
 
+
+#define VM_PORT 3600
+#define CODE_PORT 3601
+
 #endif

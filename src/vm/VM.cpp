@@ -5,19 +5,22 @@
  * Created on 11 marzec 2014, 22:33
  */
 
+
 #include "VM.h"
 
 VM::VM() {
     this->vlp = NULL;
-    this->port = 3600;
     this->config = new wxFileConfig(wxT("VLP"));
+    wxMilliClock_t now = wxGetLocalTimeMillis();
+    temporaryDirectory = wxFileName::GetTempDir().Append(wxString::Format(wxT("%svlpvm_%lu"), wxFileName::GetPathSeparators(), now));
+    wxFileName::Mkdir(temporaryDirectory.GetFullPath());
 }
 
 bool VM::OnInit() {
     if (!wxAppConsole::OnInit()) {
         return false;
     }
-    if (verbose) {
+    if (this->verbose) {
         wxLog::SetVerbose();
     }
     //This call enables us to use wxSocket calls in secondary threads
@@ -25,7 +28,7 @@ bool VM::OnInit() {
     Connect(wxID_ANY, wxEVT_END_SESSION, (wxObjectEventFunction) &VM::OnClose, NULL, this);
     //void (VM::*OnSigTerm)(int) = &::add;
 
-    #if defined (__WINDOWS__)
+    #if defined (__LINUX__)
     if(SetSignalHandler(SIGINT,&VM::OnSigTerm)|| SetSignalHandler(SIGTERM,&VM::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
@@ -47,7 +50,7 @@ bool VM::OnInit() {
 
     wxIPV4address address;
     address.Hostname("0.0.0.0");
-    address.Service(3600);
+    address.Service(VM_PORT);
 
     server = new wxSocketServer(address, wxSOCKET_REUSEADDR);
     server->SetEventHandler(*this, SERVER_EVENT_ID);
@@ -61,11 +64,17 @@ bool VM::OnInit() {
 
 int VM::OnExit() {
     wxLogVerbose(_ ("[VM] OnExit"));
+
+    disconnect_seq();
+
     this->configuration.CloseConnections();
     this->server->Close();
     this->config->Write("NodeNumber", wxString::Format(_T("%d"), this->nodeNumber));
     this->config->Flush();
     delete m_checker;
+    wxLogVerbose(wxT("Remove directory"));
+    wxLogVerbose(temporaryDirectory.GetFullPath());
+    wxFileName::Rmdir(temporaryDirectory.GetFullPath(), wxPATH_RMDIR_RECURSIVE);
     return 0;
 }
 
@@ -191,7 +200,14 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
     wxLogVerbose(wxString::Format("ProcessMessageNet %d %s", message->msg_type, address.IPAddress()));
     wxString log_message;
     switch (message->param.pword[0]) {
-
+        case NET_GET_INFO:
+            this->ConnectionInfo(socket);
+            break;
+        case NET_NODES_NUM:
+            message->param.pword[0]=NET_NODES_NUM_RESPONSE;
+            message->param.pword[1]=this->configuration.GetRemoteVMCount();
+            socket->Write ( message, sizeof ( MESSAGE ) );
+            break;
         case NET_CONNECT_TO:
             this->initialize_remote_connection(message->param.pstr);
             break;
@@ -210,16 +226,25 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             WriteAtConsole(&log_message);
             wxLogVerbose(log_message);
             break;
-        case NET_EXIT:
-            disconnect_seq();
-            exit_sequence();
-            break;
         case NET_DISCONNECT:
             log_message = (wxString::Format("Node: %d (%s) disconnected", message->param.pword[1],
                                             address.IPAddress()));
             this->configuration.RemoveRemote(message->param.pword[1]);
             WriteAtConsole(&log_message);
             wxLogVerbose(log_message);
+            break;
+        case NET_CCD_START:
+            socket->Notify(false);
+            this->ReciveFile(socket,message->param.pstr,"ccd", message->param.pword[1]);
+            socket->Notify(true);
+            break;
+        case NET_PCD_START:
+            socket->Notify(false);
+            this->ReciveFile(socket,message->param.pstr,"pcd", message->param.pword[1]);
+            socket->Notify(true);
+            break;
+        case NET_NODE_EXIST:
+            this->CheckNode( message->param.pword[1], socket);
             break;
         case NET_PROPAGATE:
             wxSocketBase *rsocket = this->configuration.GetRemoteSocketById(message->param.pword[4]);
@@ -402,7 +427,7 @@ void VM::initialize_remote_connection(char string[]) {
 
     wxIPV4address address;
     address.Hostname(string);
-    address.Service(3600);
+    address.Service(VM_PORT);
     if (client->Connect(address, true) == false) {
         wxLogError(_("Remote not responding."));
         wxString s(wxT("Remote not responding"));
@@ -486,7 +511,8 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
     char s[255];
     wxSocketBase * socketBase = this->configuration.GetRemoteSocketById(remoteNodeNumber);
     if( socketBase != NULL) {
-        this->TransmitFile(remoteNodeNumber,this->configuration.GetLocalEntry(localNodeNumber)->filename,localNodeNumber);
+        this->TransmitFiles(socketBase, remoteNodeNumber, this->configuration.GetLocalEntry(localNodeNumber)->filename,
+                            localNodeNumber);
         msg.msg_type = MSG_VLP;
         msg.param.pword[0] = VLP_REMOTE_INSTANCE;
         msg.param.pword[2] = localNodeNumber;
@@ -509,8 +535,57 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
 
 }
 
-void VM::TransmitFile(int remoteNodeNumber, wxString *filename, int localNodeNumber) {
-//todo TransmitFile not implemented
+void VM::TransmitFiles(wxSocketBase*socket, int remoteNodeNumber, wxString *filename, int localNodeNumber) {
+
+    MESSAGE msg;
+    wxLogVerbose(wxT("Sending ccd file: %s"),filename);
+    wxString ccdFileName = wxString::Format("%s.ccd", filename);
+    msg.param.pword[1] = wxFileName::GetSize(ccdFileName).GetValue();
+    msg.param.pword[0] = NET_CCD_START;
+    strcpy(msg.param.pstr,filename->c_str());
+    socket->Write(&msg, sizeof(MESSAGE));
+    this->SendFile(ccdFileName, socket);
+    wxLogVerbose(wxT("Sending pcd file: %s"),filename);
+    wxString pcdFileName = wxString::Format("%s.pcd", filename);
+    msg.param.pword[1] = wxFileName::GetSize(pcdFileName ).GetValue();
+    msg.param.pword[0] = NET_PCD_START;
+    strcpy(msg.param.pstr,filename->c_str());
+    socket->Write(&msg, sizeof(MESSAGE));
+    this->SendFile(pcdFileName, socket);
+}
+
+bool VM::SendFile(const wxString& fileName, wxSocketBase* socket)
+{
+    wxASSERT( socket );
+    if ( !socket->IsOk() )
+        return false; // should also report an error
+
+    wxFFile inFile;
+    if ( !inFile.Open(fileName, wxS("rb")) )
+        return false;
+
+    wxFileOffset bytesLeft = inFile.Length();
+    char buffer[g_fileTransferChunkSize];
+    size_t chunkSize = sizeof(buffer);
+
+    // code for sending the file name and size should be added here
+
+    while ( bytesLeft > 0 && !inFile.Error() && !socket->Error() )
+    {
+        if ( chunkSize > bytesLeft )
+            chunkSize = bytesLeft;
+        if ( inFile.Read(&buffer, chunkSize) != chunkSize )
+            break; // error
+        if ( socket->WriteMsg(&buffer, chunkSize).LastCount() != chunkSize )
+            break; // error
+        bytesLeft -= chunkSize;
+    }
+
+    if ( bytesLeft > 0 || inFile.Error() || socket->Error() )
+    {
+        return false; // should also report an error
+    }
+    return true;
 }
 
 void VM::RunRemoteInt(wxString *filename) {
@@ -520,4 +595,88 @@ void VM::RunRemoteInt(wxString *filename) {
 
     wxString graphcsCommand = wxString::Format("%sloglanint %s", wxString1, filename);
     wxExecute(graphcsCommand, wxEXEC_ASYNC);
+}
+
+bool VM::ReciveFile(wxSocketBase *socket, char filename[], const char *filetype, int fileSize) {
+    wxString fileName = temporaryDirectory.GetFullPath().Append(wxString::Format(wxT("%s%s.%s"), wxFileName::GetPathSeparators(), filename, filetype));
+    wxASSERT( socket );
+    if ( !socket->IsOk() )
+        return false; // should also report an error
+
+    wxFFile outFile;
+    if ( !outFile.Open(fileName, wxS("wb")) )
+    {
+        // it would be probably wise to notify the sender
+        // it needn't bother to send the file any more
+        return false;
+    }
+
+    wxFileOffset bytesLeft = fileSize;
+    char buffer[g_fileTransferChunkSize];
+    size_t chunkSize = sizeof(buffer);
+
+    while ( bytesLeft > 0 && !outFile.Error() && !socket->Error() )
+    {
+        if ( chunkSize > bytesLeft )
+            chunkSize = bytesLeft;
+        if ( socket->ReadMsg(&buffer, chunkSize).LastCount() != chunkSize )
+            break; // error
+        if ( outFile.Write(&buffer, chunkSize) != chunkSize )
+            break; // error
+        bytesLeft -= chunkSize;
+    }
+
+    if ( bytesLeft > 0 || outFile.Error() || socket->Error() )
+    {
+        return false; // should also report an error and remove the incomplete received file
+    }
+    return true;
+}
+
+void VM::CheckNode(int nodeId, wxSocketBase *socket) {
+    MESSAGE m;
+
+    m.msg_type = MSG_NET;
+    m.param.pword[0] = NET_NODE_EXIST;
+    const RemoteVM* remoteVM = this->configuration.GetRemoteVMByNodeId(nodeId);
+    if( remoteVM == NULL ) {
+    m.param.pword[1] = 0;
+    } else {
+        m.param.pword[1] = 1;
+        wxIPV4address address;
+        remoteVM->socket->GetPeer(address);
+        strcpy ( m.param.pstr,address.IPAddress().c_str() );
+    }
+    socket->Write ( &m, sizeof ( MESSAGE ) );
+}
+
+void VM::ConnectionInfo(wxSocketBase *socket) {
+    MESSAGE m;
+    int k = 0;
+    m.msg_type = MSG_NET;
+    m.param.pword[0] = NET_INFO;
+    strcpy ( m.param.pstr,"" );
+    RemoteVMIndexByNodeId::iterator rit =  this->configuration.GetRemoteVMIterator();
+    while (rit != this->configuration.GetRemoteVMIIndexEnd() ) {
+
+        wxIPV4address address;
+        (rit)->socket->GetPeer(address);
+
+        strcat ( m.param.pstr, wxString::Format("%d=%s;",(rit)->node_id, address.IPAddress()).c_str());
+        k++;
+        if ( k==12 ) {
+            m.param.pword[1]=12;
+            socket->Write ( &m,sizeof ( MESSAGE ) );
+            k=0;
+            strcpy ( m.param.pstr,"" );
+        }
+    }
+    if(k >0) {
+        m.param.pword[1]=k;
+        socket->Write ( &m,sizeof ( MESSAGE ) );
+    }
+
+    m.param.pword[0] = NET_INFO_END;
+    socket->Write ( &m,sizeof( MESSAGE ) );
+
 }

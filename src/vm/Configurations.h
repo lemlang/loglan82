@@ -53,6 +53,18 @@ struct LocalEntry {
         {}
 
 };
+struct RemoteVM {
+    int node_id;
+    wxSocketBase* socket;
+    struct ByNodeId {};
+    struct BySocket {};
+    RemoteVM(
+            int node_id,
+            wxSocketBase* socket):
+            node_id(node_id),
+            socket(socket)
+    {}
+};
 
 /* structure to store remote VM instances */
 struct RemoteEntry {
@@ -100,10 +112,21 @@ typedef multi_index_container<
     >
 > RemoteIndex;
 
-
 typedef RemoteIndex::index<RemoteEntry::ByNodeId>::type RemoteIndexByNodeId;
 typedef RemoteIndex::index<RemoteEntry::ByInterpreterPort>::type RemoteIndexByInterpreterPort;
 typedef RemoteIndex::index<RemoteEntry::BySocket>::type RemoteIndexBySocket;
+
+using namespace boost::multi_index;
+typedef multi_index_container<
+        RemoteVM,
+    indexed_by<
+        hashed_unique<tag<RemoteVM::ByNodeId>, member<RemoteVM,int,&RemoteVM::node_id> >,
+        hashed_unique<tag<RemoteVM::BySocket>, member<RemoteVM,wxSocketBase*,&RemoteVM::socket> >
+    >
+> RemoteVMIndex;
+
+typedef RemoteVMIndex::index<RemoteVM::ByNodeId>::type RemoteVMIndexByNodeId;
+typedef RemoteVMIndex::index<RemoteVM::BySocket>::type RemoteVMIndexBySocket;
 
 
 class Configurations {
@@ -128,8 +151,6 @@ public:
     int AddRemoteInstance(int node_id, wxSocketBase *base, unsigned  short remote_id );
     //void ChangeRemoteInstance(wxSocketBase*);
 
-
-
     void CloseRemoteConnections(int MyNodeId);
 
     void CloseConnections();
@@ -140,11 +161,21 @@ public:
 
     void CloseRemote(unsigned short local_port);
 
+    const RemoteVM* GetRemoteVMByNodeId(int node_id);
+    const RemoteVM* GetRemoteVMBySocket(wxSocketBase*socket);
+    void RemoveRemoteVM(int node_id);
+    void AddRemoteVM(int node_id, wxSocketBase*socket);
+    int GetRemoteVMCount();
+
+    RemoteVMIndexByNodeId::iterator GetRemoteVMIterator();
+
+    RemoteVMIndexByNodeId::iterator GetRemoteVMIIndexEnd();
+
 private:
     LocalIndex li;
     RemoteIndex ri;
+    RemoteVMIndex vmi;
     int lastIndex;
-
 };
 
 #endif // CONFIGURATIONS_H

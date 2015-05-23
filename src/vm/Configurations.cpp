@@ -180,3 +180,32 @@ MESSAGE msg;
         ++rit;
     }
 }
+
+const RemoteVM* Configurations::GetRemoteVMByNodeId(int node_id) {
+    RemoteVMIndexByNodeId::iterator rvmit = get<RemoteVM::ByNodeId>(vmi).find(node_id);
+
+    return &(*rvmit);
+}
+
+void Configurations::AddRemoteVM(int node_id, wxSocketBase *socket) {
+    get<RemoteVM::ByNodeId>(vmi).insert(RemoteVM(node_id, socket));
+}
+
+void Configurations::RemoveRemoteVM(int node_id) {
+
+    RemoteVMIndexByNodeId::iterator rvmit = get<RemoteVM::ByNodeId>(this->vmi).find(node_id);
+    get<RemoteVM::ByNodeId>(this->vmi).erase(rvmit);
+
+}
+
+int Configurations::GetRemoteVMCount() {
+    return get<RemoteVM::ByNodeId>(this->vmi).size();
+}
+
+RemoteVMIndexByNodeId::iterator Configurations::GetRemoteVMIterator() {
+    return get<RemoteVM::ByNodeId>(this->vmi).begin();
+}
+
+RemoteVMIndexByNodeId::iterator Configurations::GetRemoteVMIIndexEnd() {
+    return get<RemoteVM::ByNodeId>(this->vmi).end();
+}

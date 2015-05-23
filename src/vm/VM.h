@@ -10,6 +10,8 @@
 class VM;
 
 #define __WXDEBUG__ 1
+
+
 #include "wx/app.h"
 #include "../../head/comm.h"
 #include "Configurations.h"
@@ -21,7 +23,9 @@ class VM;
 #include <wx/hashset.h>
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
+#include <wx/ffile.h>
 #include <wx/fileconf.h>
+#include <wx/time.h>
 #include "../backward.hpp"
 #if defined (__WIDOWS__)
 #include <windows.h>
@@ -57,6 +61,7 @@ public:
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
 private:
+    static const size_t g_fileTransferChunkSize = 8192;
     int nodeNumber;
     wxSingleInstanceChecker *m_checker;
     wxSocketServer *server;
@@ -67,9 +72,9 @@ private:
     void ProcessMessageGraph ( MESSAGE*, wxSocketBase*);
     void ProcessMessageNet ( MESSAGE*, wxSocketBase*);
     void ProcessMessageVLP ( MESSAGE*, wxSocketBase*);
-    unsigned short port;
     Configurations configuration;
     wxFileName executablesDir;
+    wxFileName temporaryDirectory;
 
     void ForwardToIntModule(MESSAGE *message, wxSocketBase *socket);
 
@@ -94,9 +99,17 @@ private:
 
     void AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber);
 
-    void TransmitFile(int remoteNodeNumber, wxString *filename, int localNodeNumber);
+    void TransmitFiles(wxSocketBase*socket, int remoteNodeNumber, wxString *filename, int localNodeNumber);
 
     void RunRemoteInt(wxString *filename);
+
+    bool ReciveFile(wxSocketBase *socket, char filename[], const char *filetype, int filesize);
+
+    bool SendFile(const wxString &fileName, wxSocketBase *socket);
+
+    void CheckNode(int nodeId, wxSocketBase *socket);
+
+    void ConnectionInfo(wxSocketBase *socket);
 };
 
 static const wxCmdLineEntryDesc g_cmdLineDesc [] ={
