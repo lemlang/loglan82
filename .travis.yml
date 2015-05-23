@@ -11,7 +11,7 @@ before_install:
 install: 
   - mkdir build
   - cd build
-  - cmake -G "Unix Makefiles" -DDISTRIBUTION=precise -DARCHITECTURE=amd64
+  - cmake -G "Unix Makefiles" -DDISTRIBUTION=precise -DARCHITECTURE=amd64 ..
   - make
   - sudo make install
 compiler: gcc
