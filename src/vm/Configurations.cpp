@@ -129,6 +129,14 @@ void Configurations::CloseRemoteConnections(int MyNodeId) {
         get<RemoteEntry::ByNodeId>(ri).erase(rit);
         ++rit;
     }
+
+    RemoteVMIndexByNodeId::iterator itr = this->GetRemoteVMIterator();
+    while(itr != this->GetRemoteVMIIndexEnd()) {
+        (itr)->socket->Write(&message, sizeof(MESSAGE));
+        (itr)->socket->Close();
+        this->RemoveRemoteVM(itr->node_id);
+        itr++;
+    }
 }
 
 void Configurations::RemoveRemote(int interpreter_port) {

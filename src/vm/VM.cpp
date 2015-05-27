@@ -490,7 +490,7 @@ void VM::send_accept_info(wxSocketBase *pClient) {
 
 void VM::disconnect_seq() {
 
-    wxLogError(_("Disconnect sequence."));
+    wxLogVerbose(_("Disconnect sequence."));
     this->configuration.CloseRemoteConnections(this->nodeNumber);
 }
 
