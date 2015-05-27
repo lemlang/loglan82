@@ -183,7 +183,11 @@ MESSAGE msg;
 
 const RemoteVM* Configurations::GetRemoteVMByNodeId(int node_id) {
     RemoteVMIndexByNodeId::iterator rvmit = get<RemoteVM::ByNodeId>(vmi).find(node_id);
-
+    if ( rvmit == get<RemoteVM::ByNodeId>(vmi).end()) {
+        wxLogMessage("Remote VM not found\n");
+        return NULL;
+    }
+    wxLogMessage(wxString::Format("number of remote nodes: %d\n", this->GetRemoteVMCount()));;
     return &(*rvmit);
 }
 

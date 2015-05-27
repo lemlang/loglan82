@@ -26,8 +26,8 @@ public:
         nodeId->GetValue().ToLong(&log, 0);
         return  log;
     }
-    const wxStdWideString & getName()    {
-        return message->GetValue().ToStdWstring();    }
+    const wxString getValue()    {
+        return message->GetValue();    }
 
 private:
     wxTextCtrl* nodeId;

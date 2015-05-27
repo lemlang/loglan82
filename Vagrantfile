@@ -5,7 +5,7 @@
 VAGRANTFILE_API_VERSION = "2"
 $script_trusty32 = <<SCRIPT
 apt-get update
-apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2 libf2c2-dev f2c
+apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2 libf2c2-dev f2c libboost-all-dev
 SCRIPT
 $script_trusty_test32 = <<SCRIPT
 SCRIPT
@@ -15,7 +15,7 @@ apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc
 apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
 add-apt-repository ppa:kalakris/cmake
 apt-get update
-apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2 libf2c2-dev f2c
+apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2 libf2c2-dev f2c libboost-all-dev
 SCRIPT
 $script_precise_test32 = <<SCRIPT
 apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc
@@ -25,7 +25,7 @@ SCRIPT
 $script_trusty = <<SCRIPT
 dpkg --add-architecture i386
 apt-get update
-apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev libc6-dev-i386 multiarch-support build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2:i386 libf2c2-dev:i386 f2c:i386
+apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev libc6-dev-i386 multiarch-support build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2:i386 libf2c2-dev:i386 f2c:i386 libboost-all-dev
 SCRIPT
 $script_trusty_test = <<SCRIPT
 SCRIPT
@@ -35,12 +35,20 @@ apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc
 apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
 add-apt-repository ppa:kalakris/cmake
 apt-get update
-apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev libc6-dev-i386 multiarch-support build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2:i386 libf2c2-dev:i386 f2c:i386
+apt-get install -y libwxgtk3.0-dev libboost-dev cmake build-essential libc6-dev libc6-dev-i386 multiarch-support build-essential cpp dkms g++ gcc gcc-multilib virtualbox-guest-dkms libf2c2:i386 libf2c2-dev:i386 f2c:i386 libboost-all-dev
 SCRIPT
 $script_precise_test = <<SCRIPT
 apt-key adv --fetch-keys http://repos.codelite.org/CodeLite.asc
 apt-add-repository 'deb http://repos.codelite.org/wx3.0-1/ubuntu/ precise universe'
 apt-get update
+SCRIPT
+$script_centos6 = <<SCRIPT
+yum install boost boost-devel
+SCRIPT
+$script_centos7 = <<SCRIPT
+wget http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+rpm -i epel-release-7-5.noarch.rpm
+yum install boost boost-devel cmake wxGTK3-devel
 SCRIPT
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # All Vagrant configuration is done here. The most common configuration
@@ -85,6 +93,16 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Every Vagrant virtual environment requires a box to build off of.
     ubuntu64precisetest.vm.box = "ubuntu/precise64"
     ubuntu64precisetest.vm.provision "shell", inline: $script_precise_test
+  end
+  config.vm.define "centos6" do |centos6|
+  # Every Vagrant virtual environment requires a box to build off of.
+    centos6.vm.box = "centos6"
+    centos6.vm.provision "shell", inline: $script_centos6
+  end
+  config.vm.define "centos7" do |centos7|
+  # Every Vagrant virtual environment requires a box to build off of.
+    centos7.vm.box = "centos7"
+    centos7.vm.provision "shell", inline: $script_centos7
   end
   config.vm.define "windows7" do |windows7|
     config.vm.box = "windows7"

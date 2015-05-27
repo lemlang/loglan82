@@ -107,8 +107,8 @@ void App::OnSocketEvent(wxSocketEvent &event) {
                                     switch(readValue.param.pword[6])
                                     {
                                         case VLP_WRITE:
-                                            this->mainWindow->text->AppendText("\n### Incoming Messsage ###");
-                                            this->mainWindow->text->AppendText(wxString::Format("Mesg from Node %d: %s\n",readValue.param.pword[2],readValue.param.pstr));
+                                            this->mainWindow->text->AppendText("### Incoming Messsage ###\n");
+                                            this->mainWindow->text->AppendText(wxString::Format("Mesg from Node %d: %s\n",readValue.param.pword[2],wxString(readValue.param.pstr, wxConvUTF8)));
                                             break;
                                         /*
                                         case VLP_CLOSE_INSTANCE:
@@ -127,8 +127,9 @@ void App::OnSocketEvent(wxSocketEvent &event) {
                                             break;*/
                                     } /* VLP switch */
                             }
+                            break;
                         default:
-                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_NET type: %d", (long) &event, readValue.param.pword[0]));
+                            wxLogMessage(wxString::Format("[VLP::OnSocketEvent] Got unhandled event %ld MSG_NET: %d %d %d %d",   (long) &event, readValue.param.pword[0], readValue.param.pword[2],  readValue.param.pword[4], readValue.param.pword[6]));
                             break;
                     }
                 } else {

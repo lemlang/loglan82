@@ -7,6 +7,7 @@
 
 
 #include "VM.h"
+#include "../../head/comm.h"
 
 VM::VM() {
     this->vlp = NULL;
@@ -100,15 +101,15 @@ void VM::OnSocketEvent(wxSocketEvent &event) {
         case wxSOCKET_INPUT: {
             MESSAGE readValue;
             // Read the data
+            bzero(&readValue, sizeof(MESSAGE));
             sock->Read(&readValue, sizeof(MESSAGE));
-
             switch (readValue.msg_type) {
                 case MSG_VLP:
                     wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]  %lu"), (intptr_t) sock));
                     this->ProcessMessageVLP(&readValue, sock);
                     break;
                 case MSG_NET:
-                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageNet]  %lu"), (intptr_t) sock));
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageNet] %d %d %d %d"),  readValue.param.pword[0], readValue.param.pword[2],  readValue.param.pword[4], readValue.param.pword[6]));
                     this->ProcessMessageNet(&readValue, sock);
                     break;
                 case MSG_GRAPH:
@@ -197,7 +198,7 @@ void VM::ProcessMessageGraph(MESSAGE *message, wxSocketBase *socket) {
 void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
-    wxLogVerbose(wxString::Format("ProcessMessageNet %d %s", message->msg_type, address.IPAddress()));
+    wxLogVerbose(wxString::Format("ProcessMessageNet %s", address.IPAddress()));
     wxString log_message;
     switch (message->param.pword[0]) {
         case NET_GET_INFO:
@@ -212,7 +213,7 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             this->initialize_remote_connection(message->param.pstr);
             break;
         case NET_CONNECT:
-            configuration.AddRemoteInstance(this->nodeNumber, socket, message->param.pword[1]);
+            configuration.AddRemoteVM(message->param.pword[1], socket);
             log_message = (wxString::Format("New remote connection %d %s", message->param.pword[1],
                                             address.IPAddress()));
             WriteAtConsole(&log_message);
@@ -220,7 +221,7 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             this->send_accept_info(socket);
             break;
         case NET_ACCEPT:
-            configuration.AddRemoteInstance(this->nodeNumber, socket, message->param.pword[1]);
+            configuration.AddRemoteVM(message->param.pword[1], socket);
             log_message = (wxString::Format("New remote connection %d %s", message->param.pword[1],
                                             address.IPAddress()));
             WriteAtConsole(&log_message);
@@ -247,10 +248,13 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             this->CheckNode( message->param.pword[1], socket);
             break;
         case NET_PROPAGATE:
-            wxSocketBase *rsocket = this->configuration.GetRemoteSocketById(message->param.pword[4]);
-            if (rsocket != NULL) {
-                rsocket->Write(message, sizeof(message));
-                log_message = (wxString::Format("Net propagate to node: %d", message->param.pword[4]));
+            const RemoteVM*  remoteVM = this->configuration.GetRemoteVMByNodeId(message->param.pword[4]);
+            wxSocketBase *rsocket = NULL;
+            if (remoteVM != NULL && remoteVM->socket != NULL) {
+                rsocket = remoteVM->socket;
+                rsocket->Write(message, sizeof(MESSAGE));
+
+                log_message = (wxString::Format("Net propagate to node: %d %d %d",rsocket->Error(), message->param.pword[4], (int) rsocket->LastWriteCount() ));
             } else {
                 /* maybe we are the target? */
                 if (nodeNumber == message->param.pword[4]) {
@@ -272,13 +276,14 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
                                 SendToVlp(message);
                                 break;
                         }
-                    } else if (message->param.pword[1] == MSG_INT) SendToInt(message);
-                    else {
+                    } else if (message->param.pword[1] == MSG_INT) {
+                        SendToInt(message);
+                    } else {
                         /* todo what to do now? */
                     }
                 } else {
-                    log_message = (wxString::Format("Net propagate failed, canot find node: %d",
-                                                    message->param.pword[4]));
+                    log_message = (wxString::Format("Net propagate failed, canot find node: %d, my node id: %d",
+                                                    message->param.pword[4], nodeNumber));
                 }
             }
             wxLogVerbose(log_message);
@@ -496,7 +501,7 @@ void VM::exit_sequence() {
 
 void VM::SendToVlp(MESSAGE *message) {
     if (this->vlp != NULL && this->vlp->IsConnected()) {
-        this->vlp->Write(message, sizeof(message));
+        this->vlp->Write(message, sizeof(MESSAGE));
     } else {
         /* todo what to do */
     }

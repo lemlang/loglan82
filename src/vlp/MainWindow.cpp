@@ -164,7 +164,7 @@ void MainWindow::OnSendMessage(wxCommandEvent &event) {
         message.param.pword[2] = 0;
         message.param.pword[4] = this->messageDialog->getNode();
         message.param.pword[6] = VLP_WRITE;
-        strcpy(message.param.pstr,this->messageDialog->GetName().c_str());
+        strcpy(message.param.pstr,(const char*)this->messageDialog->getValue().mb_str(wxConvUTF8));
         this->parent->getSocketClient()->Write(&message,sizeof(MESSAGE));
     } else {
         wxLogDebug(_("Send Message dialog cancel."));
