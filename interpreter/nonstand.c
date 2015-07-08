@@ -26,7 +26,7 @@ int wait_for_key() {
     bzero ( &msg,sizeof ( MESSAGE ) );
     while ( ( msg.msg_type != MSG_GRAPH ) && ( msg.param.pword[0] != GRAPH_INKEY_RESPONSE ) ) {
         receive_message (network_socket, &msg );
-        DEBUG_PRINT("wait_for_key  %d %d\n",msg.msg_type , msg.param.pword[0]);
+        DEBUG_PRINT("wait_for_key  %d %d key: %d\n",msg.msg_type , msg.param.pword[0], msg.param.pword[3]);
     }
     return ( msg.param.pword[3] );
 }
@@ -280,7 +280,7 @@ word nrproc;
             case 502: /* number of nodes */
                 msg1.msg_type = MSG_NET;
                 msg1.param.pword[0]=NET_NODES_NUM;
-                write ( net_sock,&msg1,sizeof ( MESSAGE ) );
+                write ( network_socket,&msg1,sizeof ( MESSAGE ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_NODES_NUM_RESPONSE ) )
                     receive_message (network_socket, &msg1 );
                 newarry ( ( word ) 0,2, ( word ) AINT,&param[8].xvirt,&ax );
@@ -291,7 +291,7 @@ word nrproc;
                 msg1.msg_type = MSG_NET;
                 msg1.param.pword[0]=NET_NODE_EXIST;
                 msg1.param.pword[1]=msg1.param.pword[2];
-                write ( net_sock,&msg1,sizeof ( MESSAGE ) );
+                write ( network_socket,&msg1,sizeof ( MESSAGE ) );
                 bzero ( &msg1,sizeof ( msg1 ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_NODE_EXIST ) )
                     receive_message (network_socket, &msg1 );
@@ -304,7 +304,7 @@ word nrproc;
                 strcpy ( ss,"" );
                 msg1.msg_type = MSG_NET;
                 msg1.param.pword[0]=NET_GET_INFO;
-                write ( net_sock,&msg1,sizeof ( MESSAGE ) );
+                write ( network_socket,&msg1,sizeof ( MESSAGE ) );
                 while ( ( msg1.msg_type!=MSG_NET ) || ( msg1.param.pword[0]!=NET_INFO_END ) ) {
                     receive_message (network_socket, &msg1 );
                     if ( msg1.param.pword[0]==NET_INFO )

@@ -48,9 +48,16 @@ bool VM::OnInit() {
     }
 
     this->config->Read("NodeNumber", &this->nodeNumber, 0);
+    wxLogVerbose(_("My node number: %d"),this->nodeNumber);
+    if(!this->config->Read("IP", &this->listenIP, wxString("0.0.0.0")) ) {
+        //not found
+        localIP = true;
+    } else {
+        localIP = false;
+    }
 
     wxIPV4address address;
-    address.Hostname("0.0.0.0");
+    address.Hostname(this->listenIP);
     address.Service(VM_PORT);
 
     server = new wxSocketServer(address, wxSOCKET_REUSEADDR);
@@ -70,8 +77,8 @@ int VM::OnExit() {
 
     this->configuration.CloseConnections();
     this->server->Close();
-    this->config->Write("NodeNumber", wxString::Format(_T("%d"), this->nodeNumber));
-    this->config->Flush();
+    //this->config->Write("NodeNumber", wxString::Format(_T("%d"), this->nodeNumber));
+    //this->config->Flush();
     delete m_checker;
     wxLogVerbose(wxT("Remove directory"));
     wxLogVerbose(temporaryDirectory.GetFullPath());
@@ -90,7 +97,7 @@ void VM::OnServerEvent(wxSocketEvent &event) {
     sock->SetNotify(wxSOCKET_INPUT_FLAG | wxSOCKET_LOST_FLAG | wxSOCKET_OUTPUT_FLAG | wxSOCKET_CONNECTION_FLAG);
     sock->Notify(true);
 
-    wxLogVerbose(_ ("\nAccepted incoming connection.\n"));
+    wxLogVerbose(_ ("[VM] Accepted incoming connection\n"));
 }
 
 void VM::OnSocketEvent(wxSocketEvent &event) {
@@ -105,7 +112,7 @@ void VM::OnSocketEvent(wxSocketEvent &event) {
             sock->Read(&readValue, sizeof(MESSAGE));
             switch (readValue.msg_type) {
                 case MSG_VLP:
-                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]  %lu"), (intptr_t) sock));
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]  %d"), readValue.param.pword[0]));
                     this->ProcessMessageVLP(&readValue, sock);
                     break;
                 case MSG_NET:
@@ -113,11 +120,11 @@ void VM::OnSocketEvent(wxSocketEvent &event) {
                     this->ProcessMessageNet(&readValue, sock);
                     break;
                 case MSG_GRAPH:
-                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageGraph] %lu"), (intptr_t) sock));
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageGraph] %d"), readValue.param.pword[0]));
                     this->ProcessMessageGraph(&readValue, sock);
                     break;
                 case MSG_INT:
-                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageInt]  %lu"), (intptr_t) sock));
+                    wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageInt]  %d"), readValue.param.pword[0]));
                     this->ProcessMessageInt(&readValue, sock);
                     break;
                 default:
@@ -128,6 +135,7 @@ void VM::OnSocketEvent(wxSocketEvent &event) {
         }
         case wxSOCKET_LOST: {
             wxLogVerbose(wxString::Format(_ ("[VM::Socket lost] %lu"), (intptr_t) sock));
+            this->RemoveLostSocket(sock);
             break;
         }
         case wxSOCKET_OUTPUT: {
@@ -155,19 +163,27 @@ void VM::ProcessMessageInt(MESSAGE *message, wxSocketBase *socket) {
             this->configuration.CloseRemote(address.Service());
             log_message = (wxString::Format(_("%s : End of program execution"), message->param.pstr));
             WriteAtConsole(&log_message);
+            this->configuration.RemoveInt(this->configuration.GetInterpreterByInterpreter(address.Service())->entry_id);
             break;
         case INT_CTX_REQ:
 
-            responseMessage.param.pword[2] = configuration.AddLocalInstance(this->nodeNumber, address.Service(),
-                                                            socket, new wxString( message->param.pstr) );
+            if( message->param.pword[1] ) {
+                //it is remote!
+                const LocalEntry* entry = configuration.GetLocalEntry(message->param.pword[2]);
+                configuration.ChangeLocalInstance(entry->entry_id, address.Service(),socket, entry->graphic_resource_port, entry->graphic_socket );
+                responseMessage.param.pword[2] = entry->entry_id;
+                responseMessage.param.pword[3] = entry->p_ctx.node;
+                responseMessage.param.pword[4] = entry->p_ctx.program_id;
+            } else {
+                responseMessage.param.pword[2] = configuration.AddLocalInstance(false,
+                                                                                address.Service(),
+                                                                                socket,
+                                                                                new wxString(message->param.pstr), ctx_struct());
+            }
             responseMessage.msg_type = MSG_INT;
             responseMessage.param.pword[0] = INT_CTX;
             responseMessage.param.pword[1] = this->nodeNumber;
-            /** if (e->remote)
-            {
-                msg.param.pword[3] = e->p_ctx.node;
-                msg.param.pword[4] = e->p_ctx.program_id;
-            }*/
+
             socket->Write(&responseMessage, sizeof(MESSAGE));
             //socket->Close();
             //socket->Destroy();
@@ -178,14 +194,28 @@ void VM::ProcessMessageInt(MESSAGE *message, wxSocketBase *socket) {
 void VM::ProcessMessageGraph(MESSAGE *message, wxSocketBase *socket) {
     if (message->param.pword[0] == GRAPH_ALLOCATE) {
         wxLogVerbose(wxString::Format("[VM::Socket address] %lu", (intptr_t) socket));
+        wxIPV4address address;
+        socket->GetPeer(address);
+
+        wxString wxString1 = wxString::Format("%s%s",
+                                              this->getExecutablesDir()->GetFullPath(),
+                                              wxFileName::GetPathSeparators());
+        const LocalEntry * entry = configuration.GetInterpreterByInterpreter(address.Service());
+        wxString graphcsCommand = wxString::Format("%svlpgr %d", wxString1, entry->entry_id);
+        wxLogVerbose(wxString::Format("[VM::ProcessMessageGraph run external command!:] %s", graphcsCommand));
+        wxExecute(graphcsCommand, wxEXEC_ASYNC);
+
+
         ServerThread *pThread = new ServerThread(this, socket);
         pThread->Create();
         pThread->Run();
     } else if (message->param.pword[0] == GRAPH_ALLOCATING) {
         wxIPV4address address;
         socket->GetPeer(address);
-        configuration.ChangeLocalInstance(this->nodeNumber, message->param.pword[1], address.Service(), socket);
-        wxLogVerbose(wxString::Format("[VM::MessageGraph Processed] %lu", (intptr_t) socket));
+        const LocalEntry* entry = configuration.GetLocalEntry(message->param.pword[1]);
+        configuration.ChangeLocalInstance(entry->entry_id, entry->interpreter_port, entry->interpreter_socket, address.Service(), socket);
+
+        wxLogVerbose(wxString::Format("[VM::MessageGraph Processed] %s", address.IPAddress()));
     } else if (message->param.pword[0] == GRAPH_INKEY_RESPONSE || message->param.pword[0] == GRAPH_READLN_RESPONSE ||
                message->param.pword[0] == GRAPH_READCHAR_RESPONSE ||
                message->param.pword[0] == GRAPH_READSTR_RESPONSE) {
@@ -235,11 +265,13 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             wxLogVerbose(log_message);
             break;
         case NET_CCD_START:
+            wxLogVerbose(_("NET_CCD_START"));
             socket->Notify(false);
             this->ReciveFile(socket,message->param.pstr,"ccd", message->param.pword[1]);
             socket->Notify(true);
             break;
         case NET_PCD_START:
+            wxLogVerbose(_("NET_PCD_START"));
             socket->Notify(false);
             this->ReciveFile(socket,message->param.pstr,"pcd", message->param.pword[1]);
             socket->Notify(true);
@@ -248,44 +280,63 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             this->CheckNode( message->param.pword[1], socket);
             break;
         case NET_PROPAGATE:
+            wxLogVerbose(wxString::Format("NET_PROPAGATE to %d type %d message %d", message->param.pword[4], message->param.pword[1], message->param.pword[6]));
             const RemoteVM*  remoteVM = this->configuration.GetRemoteVMByNodeId(message->param.pword[4]);
             wxSocketBase *rsocket = NULL;
-            if (remoteVM != NULL && remoteVM->socket != NULL) {
+            if (nodeNumber == message->param.pword[4]) {
+            wxLogVerbose("NET_PROPAGATE to ME :D");
+                if (message->param.pword[1] == MSG_VLP) {
+                    switch(message->param.pword[6]) {
+                        case VLP_CLOSE_INSTANCE:
+                            rsocket =this->configuration.GetIntSocketById(message->param.pword[7]);
+                            if( socket != NULL) {
+                                MESSAGE m1;
+                                m1.msg_type = MSG_INT;
+                                m1.param.pword[0] = INT_CLOSE_INSTANCE;
+                                socket->Write(&m1,sizeof(MESSAGE));
+                                this->configuration.RemoveInt(message->param.pword[7]);
+                            }
+
+
+                            break;
+                        case VLP_REMOTE_INSTANCE_OK: {
+                            wxLogVerbose("VLP_REMOTE_INSTANCE_OK to ME :D %d",message->param.pword[9]);
+                            remoteVM = configuration.GetRemoteVMBySocket(socket);
+                            configuration.AddRemoteInstance(message->param.pword[9], message->param.pword[7], socket,
+                                                            remoteVM->node_id);
+                            const LocalEntry *localEntry = configuration.GetLocalEntry(message->param.pword[9]);
+                            if( localEntry != NULL) {
+                                MESSAGE response;
+                                response.msg_type = MSG_VLP;
+                                response.param.pword[0] = VLP_REMOTE_INSTANCE_HERE;
+                                response.param.pword[1] = message->param.pword[7];
+                                response.param.pword[8] = message->param.pword[8];
+                                localEntry->interpreter_socket->Write(&response, sizeof(MESSAGE));
+                                wxLogVerbose("VLP_REMOTE_INSTANCE_HERE send %u",localEntry->interpreter_socket->GetLastIOWriteSize());
+                            } else {
+                                wxLogError(wxString::Format("Interpreter for id %d not found",message->param.pword[9]));
+                            }
+                            break;
+                        }
+                        default:
+                            SendToVlp(message);
+                            break;
+                    }
+                } else if (message->param.pword[1] == MSG_INT) {
+                    SendToInt(message);
+                } else {
+                    /* todo what to do now? */
+                }
+            } else if (remoteVM != NULL && remoteVM->socket != NULL) {
                 rsocket = remoteVM->socket;
                 rsocket->Write(message, sizeof(MESSAGE));
 
-                log_message = (wxString::Format("Net propagate to node: %d %d %d",rsocket->Error(), message->param.pword[4], (int) rsocket->LastWriteCount() ));
-            } else {
-                /* maybe we are the target? */
-                if (nodeNumber == message->param.pword[4]) {
-                    if (message->param.pword[1] == MSG_VLP) {
-                        switch(message->param.pword[6]) {
-                            case VLP_CLOSE_INSTANCE:
-                                rsocket =this->configuration.GetIntSocketById(message->param.pword[7]);
-                                if( socket != NULL) {
-                                    MESSAGE m1;
-                                    m1.msg_type = MSG_INT;
-                                    m1.param.pword[0] = INT_CLOSE_INSTANCE;
-                                    socket->Write(&m1,sizeof(MESSAGE));
-                                    this->configuration.RemoveInt(message->param.pword[7]);
-                                }
-
-
-                                break;
-                            default:
-                                SendToVlp(message);
-                                break;
-                        }
-                    } else if (message->param.pword[1] == MSG_INT) {
-                        SendToInt(message);
-                    } else {
-                        /* todo what to do now? */
-                    }
-                } else {
+                log_message = (wxString::Format("Net propagate to node: err: %d %d %d",rsocket->Error(), message->param.pword[4], (int) rsocket->LastWriteCount() ));
+            }  else {
                     log_message = (wxString::Format("Net propagate failed, canot find node: %d, my node id: %d",
                                                     message->param.pword[4], nodeNumber));
                 }
-            }
+
             wxLogVerbose(log_message);
             break;
     }
@@ -326,9 +377,15 @@ void VM::ProcessMessageVLP(MESSAGE *message, wxSocketBase *socket) {
             //todo close graph module?
             break;
         case VLP_REMOTE_INSTANCE: {
-            wxString txtMessage(wxString::Format("Running remote program: %s", message->param.pstr));
+            wxString txtMessage(_("Running remote program"));
+            ctx_struct * aStruct = new ctx_struct;
+            aStruct->node = message->param.pword[2];
+            aStruct->program_id = message->param.pword[7];
+            responseMessage.param.pword[2] = configuration.AddLocalInstance(true,  0, NULL, new wxString( message->param.pstr), *aStruct );
             this->WriteAtConsole(&txtMessage);
-            this->RunRemoteInt(new wxString(message->param.pstr));
+            this->RunRemoteInt(new wxString(message->param.pstr), responseMessage.param.pword[2]);
+            wxIPV4address address;
+            socket->GetPeer(address);
             //todo copy parameters
             /*this->configuration.AddRemoteInstance();
 
@@ -349,8 +406,9 @@ void VM::ProcessMessageVLP(MESSAGE *message, wxSocketBase *socket) {
             responseMessage.param.pword[0] = VLP_REMOTE_INSTANCE_HERE;
             responseMessage.param.pword[8] = message->param.pword[8];
             this->configuration.GetIntSocketById(this->nodeNumber)->Write(&responseMessage,sizeof(MESSAGE));
+            break;
         default:
-            wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]VLP message type %d"), message->param.pword[0]));
+            wxLogVerbose(wxString::Format(_ ("[VM::ProcessMessageVLP]Unhandled VLP message type %d"), message->param.pword[0]));
     }
 }
 
@@ -358,7 +416,9 @@ void VM::ForwardToGraphModule(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
     wxSocketBase *graph_socket = this->configuration.GetGraphicalSocket(address.Service());
-    graph_socket->Write(message, sizeof(MESSAGE));
+    MESSAGE output;
+    memcpy ( &output, message, sizeof(MESSAGE) );
+    graph_socket->Write(&output, sizeof(MESSAGE));
     wxLogVerbose(wxString::Format("Message forwarded to GraphModule"));
 }
 
@@ -417,8 +477,6 @@ void VM::OnSigTerm(int sig) {
     ;
     wxLogVerbose(wxString::Format("got signal %d", sig));
     if (sig == SIGTERM || sig == SIGINT) {
-        wxLogError("NOT IMPLEMENTED GRACEFUL SHUTDOWN");
-        //todo properrly close all connections, send shutdown notification for all loglanint etc
         wxGetApp().Exit();
     }
 }
@@ -468,7 +526,7 @@ void VM::WriteAtConsole(wxString *data) {
         strncpy(message.param.pstr, (const char *) data->mb_str(wxConvUTF8), 254);
         this->vlp->Write(&message, sizeof(message));
     } else {
-        wxLog(data);
+        wxLogVerbose(*data);
     }
 }
 
@@ -479,7 +537,7 @@ void VM::send_accept_info(wxSocketBase *pClient) {
     message.msg_type = MSG_NET;
     if (pClient->IsConnected()) {
         pClient->Write(&message, sizeof(message));
-        wxLogError(_("Send net accept message."));
+        wxLogVerbose(_("Send net accept message."));
     } else {
 
         wxLogError(_("Remote not connected."));
@@ -514,9 +572,9 @@ void VM::SendToInt(MESSAGE *message) {
 void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
     MESSAGE msg;
     char s[255];
-    wxSocketBase * socketBase = this->configuration.GetRemoteSocketById(remoteNodeNumber);
-    if( socketBase != NULL) {
-        this->TransmitFiles(socketBase, remoteNodeNumber, this->configuration.GetLocalEntry(localNodeNumber)->filename,
+    const RemoteVM* remotevm = this->configuration.GetRemoteVMByNodeId(remoteNodeNumber);
+    if( remotevm != NULL) {
+        this->TransmitFiles(remotevm->socket, remoteNodeNumber, this->configuration.GetLocalEntry(localNodeNumber)->filename,
                             localNodeNumber);
         msg.msg_type = MSG_VLP;
         msg.param.pword[0] = VLP_REMOTE_INSTANCE;
@@ -524,7 +582,7 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
         msg.param.pword[4] = remoteNodeNumber;
         msg.param.pword[7] = localNodeNumber;
         strcpy(msg.param.pstr,this->configuration.GetLocalEntry(localNodeNumber)->filename->mb_str());
-        socketBase->Write(&msg,sizeof(MESSAGE));
+        remotevm->socket->Write(&msg,sizeof(MESSAGE));
     } else {
         //There is no such a node!
         wxString s(wxString::Format("Warning: Node number %d not found!",remoteNodeNumber));
@@ -534,29 +592,30 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
         msg.msg_type = MSG_VLP;
         msg.param.pword[0] = VLP_REMOTE_INSTANCE_HERE;
         msg.param.pword[1] = localNodeNumber;
-        socketBase = this->configuration.GetIntSocketById(localNodeNumber);
+        wxSocketBase* socketBase = this->configuration.GetIntSocketById(localNodeNumber);
         socketBase->Write(&msg,sizeof(MESSAGE));
     }
 
 }
 
 void VM::TransmitFiles(wxSocketBase*socket, int remoteNodeNumber, wxString *filename, int localNodeNumber) {
-
     MESSAGE msg;
-    wxLogVerbose(wxT("Sending ccd file: %s"),filename);
-    wxString ccdFileName = wxString::Format("%s.ccd", filename);
-    msg.param.pword[1] = wxFileName::GetSize(ccdFileName).GetValue();
+    msg.msg_type = MSG_NET;
+    wxLogVerbose(_("Sending ccd file"));
+    wxFileName file(*filename);
+    file.SetExt("ccd");
+    msg.param.pword[1] = file.GetSize().GetValue();
     msg.param.pword[0] = NET_CCD_START;
-    strcpy(msg.param.pstr,filename->c_str());
+    strcpy(msg.param.pstr,file.GetName().c_str());
     socket->Write(&msg, sizeof(MESSAGE));
-    this->SendFile(ccdFileName, socket);
-    wxLogVerbose(wxT("Sending pcd file: %s"),filename);
-    wxString pcdFileName = wxString::Format("%s.pcd", filename);
-    msg.param.pword[1] = wxFileName::GetSize(pcdFileName ).GetValue();
+    this->SendFile(file.GetFullPath(), socket);
+    wxLogVerbose(_("Sending pcd file"));
+    file.SetExt("pcd");
+    msg.param.pword[1] = file.GetSize().GetValue();
     msg.param.pword[0] = NET_PCD_START;
-    strcpy(msg.param.pstr,filename->c_str());
+    strcpy(msg.param.pstr,file.GetName().c_str());
     socket->Write(&msg, sizeof(MESSAGE));
-    this->SendFile(pcdFileName, socket);
+    this->SendFile(file.GetFullPath(), socket);
 }
 
 bool VM::SendFile(const wxString& fileName, wxSocketBase* socket)
@@ -593,16 +652,22 @@ bool VM::SendFile(const wxString& fileName, wxSocketBase* socket)
     return true;
 }
 
-void VM::RunRemoteInt(wxString *filename) {
+void VM::RunRemoteInt(wxString *filename, int entryId) {
     wxString wxString1 = wxString::Format("%s%s",
                                           executablesDir.GetFullPath(),
                                           wxFileName::GetPathSeparators());
-
-    wxString graphcsCommand = wxString::Format("%sloglanint %s", wxString1, filename);
-    wxExecute(graphcsCommand, wxEXEC_ASYNC);
+    wxString executeCommand;
+    if( localIP) {
+        executeCommand = wxString::Format("%sloglanint -r %d -i 127.0.0.1 %s", wxString1, entryId, filename->wx_str());
+    } else {
+        executeCommand = wxString::Format("%sloglanint -r %d -i %s %s", wxString1, entryId, listenIP, filename->wx_str());
+    }
+    wxLogVerbose(executeCommand);
+    wxExecute(executeCommand, wxEXEC_ASYNC);
 }
 
 bool VM::ReciveFile(wxSocketBase *socket, char filename[], const char *filetype, int fileSize) {
+    wxLogVerbose( "[VM::ReciveFile]");
     wxString fileName = temporaryDirectory.GetFullPath().Append(wxString::Format(wxT("%s%s.%s"), wxFileName::GetPathSeparators(), filename, filetype));
     wxASSERT( socket );
     if ( !socket->IsOk() )
@@ -684,4 +749,32 @@ void VM::ConnectionInfo(wxSocketBase *socket) {
     m.param.pword[0] = NET_INFO_END;
     socket->Write ( &m,sizeof( MESSAGE ) );
 
+}
+
+void VM::RemoveLostSocket(wxSocketBase *pBase) {
+    wxIPV4address address;
+    pBase->GetPeer(address);
+    const RemoteVM* remotevm = this->configuration.GetRemoteVMBySocket(pBase);
+    if( remotevm != NULL) {
+        this->configuration.RemoveRemoteVM(remotevm->node_id);
+        return;
+    }
+    const LocalEntry* local = this->configuration.GetInterpreterByInterpreter(address.Service());
+    if( local  != NULL ){
+        this->configuration.RemoveInt(local->entry_id);
+        return;
+    }
+    const RemoteEntry* remote = this->configuration.GetRemoteInterpreterBySocket(pBase);
+    if( remote != NULL ) {
+        this->configuration.RemoveRemote(remote->interpreter_port);
+        return;
+    }
+    local =  this->configuration.GetInterpreterByGraphics(address.Service());
+    if( local  != NULL ){
+        configuration.ChangeLocalInstance(local->entry_id, local->interpreter_port, local->interpreter_socket, 0, NULL);
+        return;
+    }
+    if( pBase == vlp) {
+        vlp = NULL;
+    }
 }

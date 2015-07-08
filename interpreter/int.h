@@ -166,7 +166,7 @@ bool graphics;			/* is graphics active ? */
 
 extern jmp_buf contenv;         /* for continue execution */
 
-extern int internal_sock, graph_sock, net_sock;
+//extern int internal_sock, graph_sock, net_sock;
 extern int connected;
 extern int GraphRes;
 extern int fcol;

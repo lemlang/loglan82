@@ -10,6 +10,7 @@
 #include "intproto.h"
 #include "sockets.h"
 #include "debug.h"
+#include "../head/comm.h"
 
 static void load(char *);
 
@@ -110,30 +111,43 @@ static void load(char *_filename) {
 
 /* Establish configuration parameters */
 static void initiate(int argc, char **argv) {
-    if (argc < 2) {
-        printf("FATAL ERROR: Bad number of arguments %d\nNeed 1 or 2\n\nUsage: %s program-name.log [r]\n", argc - 1, argv[0]);
-        exit(8);
-    }
-    int i;
-
+    int c, i;
+    remote = FALSE;
     ournode = 0;
     network = TRUE;
-    if ((argc == 3) && (strcmp(argv[2], "r") == 0)) {
-        remote = TRUE;
-    } else if (argc == 2) {
-        remote = FALSE;
-    } else {
-        printf("FATAL ERROR: Bad number of arguments %d\nNeed 1 or 2\n\nUsage: %s program-name.log [r]\n", argc - 1, argv[0]);
-        exit(8);
+
+    while (optind < argc) {
+        if ((c = getopt(argc, argv, "r:i:")) != -1) {
+            // Option argument
+            switch (c) {
+                case 'i': {
+                    strcpy(listen_host, optarg);
+                    break;
+                }
+                case 'r': {
+                    remote = TRUE;
+                    remote_id = atoi(optarg);
+                    break;
+                }
+                default:
+                    break;
+            }
+        } else {
+                // Regular argument
+                strcpy(ProgName, argv[optind]);
+                optind++;  // Skip to the next argument
+        }
     }
     for (i = 0; i < 255; i++) {
         RInstance[i] = -1;
         DirConn[i] = -1;
     }
-    strcpy(ProgName, argv[1]);
 
     if (ProgName != NULL) {
         load(ProgName); /* load code and prototypes */
+    } else {
+        printf("FATAL ERROR: Cannot read program name.\n\nUsage: %s [-r] [-i 127.0.0.1|hostname] program-name.log\n", argv[0]);
+        exit(8);
     }
 }
 
@@ -157,22 +171,6 @@ void send_to_graph(MESSAGE *msg) {
     }
 }
 
-
-int read_from_net(MESSAGE *msg) {
-    fd_set rset, wset;
-    struct timeval tout = {0, 0};
-
-    FD_ZERO (&rset);
-    FD_ZERO (&wset);
-    FD_SET (network_socket, &rset);
-
-    if (select(net_sock + 1, &rset, &wset, 0, (struct timeval *) &tout) > 0) {
-        if (FD_ISSET (network_socket, &rset))
-            return (read(network_socket, msg, sizeof(MESSAGE)));
-    }
-    return (0);
-}
-
 /* Get graphic resource number */
 int get_graph_res() {
     MESSAGE in, out;
@@ -194,7 +192,7 @@ int get_graph_res() {
         return (1);
     } else {
         graphics = FALSE;
-        DEBUG_PRINT("Wrong answer for GRAPH_ALLOCATE; should frow protocol exception %d %d\n", out.msg_type, out.param.pword[0]);
+        DEBUG_PRINT("Wrong answer for GRAPH_ALLOCATE; should throw protocol exception (msg type: %d pword 0: %d\n", out.msg_type, out.param.pword[0]);
         return (-1);
     }
 }
@@ -367,11 +365,12 @@ void read_line() {
         m.param.pword[0] = NET_NODE_EXIST;
         m.param.pword[1] = k;
         m.param.pword[2] = my_ctx.program_id;
-        write(net_sock, &m, sizeof(MESSAGE));
+        write(network_socket, &m, sizeof(MESSAGE));
         bzero(&m, sizeof(MESSAGE));
         while ((m.msg_type != MSG_NET) && (m.param.pword[0] != NET_NODE_EXIST)) {
-            read(net_sock, &m, sizeof(MESSAGE));
+            read(network_socket, &m, sizeof(MESSAGE));
         }
+    DEBUG_PRINT("NET_NODE_EXIST");
         if (m.param.pword[1] != 1) return 0;
         strcpy(addr, m.param.pstr);
 
@@ -383,13 +382,14 @@ void read_line() {
             m.param.pword[2] = k;
             send_to_kernel(&m);
             bzero(&m, sizeof(MESSAGE));
+    DEBUG_PRINT("VLP_REMOTE_INSTANCE_PLEASE send");
 
             while (1) {
-                read(internal_sock, &m, sizeof(MESSAGE));
+                read(network_socket, &m, sizeof(MESSAGE));
                 if ((m.msg_type == MSG_VLP) && (m.param.pword[0] == VLP_REMOTE_INSTANCE_HERE)) break;
             }
 
-            /*printf("DEBUG: remote instance made with id: %d addr %s port %d\n",m.param.pword[1],addr, htons(m.param.pword[8]));*/
+            DEBUG_PRINT("remote instance made with id: %d addr %s port %d\n",m.param.pword[1],addr, htons(m.param.pword[8]));
             RInstance[k] = m.param.pword[1];
             /* Make direct connection */
             DirConn[k] = socket(AF_INET, SOCK_STREAM, 0);
@@ -400,7 +400,9 @@ void read_line() {
             if (len != 0) {
                 RInstance[k] = -1;
                 writeln_str("Cannot connect remote instance!");
+                DEBUG_PRINT("Cannot establish remote connection");
             } else {
+                DEBUG_PRINT("Remote connection established");
                 //fcntl ( DirConn[k], F_SETFL, O_NONBLOCK | fcntl ( DirConn[k], F_GETFL, 0 ) );
             }
         }
@@ -421,10 +423,10 @@ void read_line() {
         struct timeval tout = {0, 0};
 
         FD_ZERO (&rset);
-        FD_SET (net_sock, &rset);
-        FD_SET (internal_sock, &rset);
-        if (net_sock > internal_sock) max = net_sock;
-        else max = internal_sock;
+        FD_SET (network_socket, &rset);
+        //FD_SET (internal_sock, &rset);
+        max = network_socket;
+        //else max = internal_sock;
         /* 2010 */
         for (i = 0; i < 255; i++) {
             if (DirConn[i] != -1) {
@@ -447,8 +449,8 @@ void read_line() {
                 }
             }
 
-            if (FD_ISSET (net_sock, &rset)) {
-                r = read(net_sock, &m, sizeof(MESSAGE));
+            if (FD_ISSET (network_socket, &rset)) {
+                r = read(network_socket, &m, sizeof(MESSAGE));
                 if (r > 0) {
                     switch (m.msg_type) {
                         case MSG_NET:
@@ -461,15 +463,6 @@ void read_line() {
                                     break;
                             };
                             break;
-                    } /*switch */
-                }
-            } /* FD_ISSET */
-
-            if (FD_ISSET (internal_sock, &rset)) {
-                r = read(internal_sock, &m, sizeof(MESSAGE));
-
-                if (r > 0) {
-                    switch (m.msg_type) {
                         case MSG_INT:
                             switch (m.param.pword[0]) {
                                 case INT_CLOSE_INSTANCE:
@@ -479,14 +472,6 @@ void read_line() {
                                 default:
                                     break;
                             } /* switch int */
-                        case MSG_NET:
-                            if (m.param.pword[0] == NET_PROPAGATE) {
-                                /*printf("DEBUG: cint internal_sock MSG_NET NET_PROPAGATE cmd %d\n",m.param.pword[6]);*/
-                                memcpy(globmsgqueue + msgtail, &m.int_msg, sizeof(message));
-                                msgtail = (msgtail + 1) % MAXMSGQUEUE;
-                                msgready++;
-                            };
-                            break;
                     }/*switch type */
                 }
             } /* FD_ISSET */
@@ -499,6 +484,8 @@ void read_line() {
 
         m.msg_type = MSG_INT;
         m.param.pword[0] = INT_CTX_REQ;
+        m.param.pword[1] = remote;
+        m.param.pword[2] = remote_id;
         strcpy(m.param.pstr,ProgName);
         send_and_select_response(network_socket, &m, &m);
         if ((m.msg_type != MSG_INT) || (m.param.pword[0] != INT_CTX)) {
@@ -512,8 +499,10 @@ void read_line() {
         if (remote) {
             parent_ctx.node = m.param.pword[3];
             parent_ctx.program_id = m.param.pword[4];
+            DEBUG_PRINT("We are remote, setting parent_ctx node: %d and program_id: %d \n", parent_ctx.node, parent_ctx.program_id);
             RInstance[parent_ctx.node] = parent_ctx.program_id;
         } else {
+            DEBUG_PRINT("We are not remote\n");
             parent_ctx.node = my_ctx.node;
             parent_ctx.program_id = my_ctx.program_id;
         }
@@ -534,7 +523,8 @@ void read_line() {
         msg.param.pword[4] = parent_ctx.node;
         msg.param.pword[6] = VLP_REMOTE_INSTANCE_OK;
         msg.param.pword[7] = my_ctx.program_id;
-
+        msg.param.pword[9] = parent_ctx.program_id;
+        DEBUG_PRINT("NET_PROPAGATE VLP_REMOTE_INSTANCE_OK to program_id: %d on node_id: %d\n", msg.param.pword[8], msg.param.pword[4]);
         sock = socket(AF_INET, SOCK_STREAM, 0);
         bzero(&svr, sizeof(svr));
         svr.sin_family = AF_INET;
@@ -546,13 +536,14 @@ void read_line() {
         getsockname(sock, (struct sockaddr *) &svr, &len);
         msg.param.pword[8] = ntohs(svr.sin_port);
         gethostname(name, len);
-        info = (struct hostent *) gethostbyname(name);
+        info = gethostbyname(name);
         bcopy((char *) info->h_addr, (char *) &svr.sin_addr, info->h_length);
         sprintf(msg.param.pstr, "%s", inet_ntoa(svr.sin_addr));
         send_to_kernel(&msg);
 
         bzero(&svr, sizeof(svr));
         DirConn[parent_ctx.node] = accept(sock, (struct sockaddr *) &svr, &len);
+        DEBUG_PRINT("DirConn[parent_ctx.node] = accept(..... finished");
         //fcntl ( DirConn[parent_ctx.node], F_SETFL, O_NONBLOCK | fcntl ( DirConn[parent_ctx.node], F_GETFL, 0 ) );
     }
 

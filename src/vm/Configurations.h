@@ -28,28 +28,34 @@
 #include "../../head/comm.h"
 
 struct LocalEntry {
-    int node_id;
+    int entry_id;
+    bool remote;
     unsigned short interpreter_port;
     unsigned short graphic_resource_port;
     wxSocketBase* graphic_socket;
     wxSocketBase* interpreter_socket;
     wxString* filename;
-    struct ByNodeId {};
+    ctx_struct p_ctx;
+    struct ByEntryId {};
     struct ByInterpreter {};
     struct ByGraphics{};
     LocalEntry(
-        int node_id,
+        int entry_id,
+        bool remote,
         unsigned short interpreter_port,
         unsigned short graphic_resource_port,
         wxSocketBase* interpreter_socket,
         wxSocketBase* graphic_socket,
-        wxString* filename):
-        node_id(node_id),
+        wxString* filename,
+            ctx_struct p_ctx):
+        entry_id(entry_id),
+        remote(remote),
         interpreter_port(interpreter_port),
         graphic_resource_port(graphic_resource_port),
         interpreter_socket(interpreter_socket),
         graphic_socket(graphic_socket),
-        filename(filename)
+        filename(filename),
+        p_ctx(p_ctx)
         {}
 
 };
@@ -69,18 +75,23 @@ struct RemoteVM {
 /* structure to store remote VM instances */
 struct RemoteEntry {
     int node_id;
+    int entry_id;
     unsigned short interpreter_port;
     wxSocketBase* socket;
     bool connected;
     struct ByNodeId {};
+    struct ByEntryId {};
+    struct BySlotId {};
     struct ByInterpreterPort {};
     struct BySocket{};
     RemoteEntry(
         int node_id,
+        int entry_id,
         unsigned short interpreter_port,
         wxSocketBase*socket,
         bool connected):
             node_id(node_id),
+            entry_id(entry_id),
             interpreter_port(interpreter_port),
             socket(socket),
             connected(connected)
@@ -91,13 +102,13 @@ using namespace boost::multi_index;
 typedef multi_index_container<
         LocalEntry,
     indexed_by<
-        hashed_unique<tag<LocalEntry::ByNodeId>, member<LocalEntry,int,&LocalEntry::node_id> >,
+        hashed_unique<tag<LocalEntry::ByEntryId>, member<LocalEntry,int,&LocalEntry::entry_id> >,
         hashed_unique<tag<LocalEntry::ByInterpreter>, member<LocalEntry,unsigned short,&LocalEntry::interpreter_port> >,
         hashed_unique<tag<LocalEntry::ByGraphics>, member<LocalEntry,unsigned short,&LocalEntry::graphic_resource_port> >
     >
 > LocalIndex;
 
-typedef LocalIndex::index<LocalEntry::ByNodeId>::type LocalIndexByNodeId;
+typedef LocalIndex::index<LocalEntry::ByEntryId>::type LocalIndexByEntryId;
 typedef LocalIndex::index<LocalEntry::ByInterpreter>::type LocalIndexByIntepreter;
 typedef LocalIndex::index<LocalEntry::ByGraphics>::type LocalIndexByGraphics;
 
@@ -133,9 +144,8 @@ class Configurations {
 public:
     Configurations();
     ~Configurations();
-    int AddLocalInstance(int node_id, unsigned short interpreter_port, wxSocketBase* socket, wxString* filename);
-    void ChangeLocalInstance(int node_id, unsigned short interpreter_port,
-                                  unsigned short graphic_resource_port,wxSocketBase*);
+    int AddLocalInstance(bool remote, unsigned short interpreter_port, wxSocketBase* socket, wxString* filename, ctx_struct p_ctx);
+    void ChangeLocalInstance ( int entryId, unsigned  short  interpreter_port,  wxSocketBase* interpreter_socket, short unsigned int graphic_resource_port, wxSocketBase* graphics_socket );
     unsigned short int GetGraphicalResource(unsigned short int interpreter_port);
 
     wxSocketBase* GetGraphicalSocket(unsigned short int interpreter_port);
@@ -148,7 +158,7 @@ public:
     const LocalEntry*GetLocalEntry(int node_id);
 
 
-    int AddRemoteInstance(int node_id, wxSocketBase *base, unsigned  short remote_id );
+    int AddRemoteInstance(int node_id, int entry_id,  wxSocketBase *base, unsigned  short remote_id );
     //void ChangeRemoteInstance(wxSocketBase*);
 
     void CloseRemoteConnections(int MyNodeId);
@@ -171,11 +181,18 @@ public:
 
     RemoteVMIndexByNodeId::iterator GetRemoteVMIIndexEnd();
 
+    const LocalEntry *GetInterpreterByInterpreter(unsigned short interpreterPort);
+    const LocalEntry *GetInterpreterById(int entryId);
+
+    const RemoteEntry *GetRemoteInterpreterBySocket(wxSocketBase *pBase);
+
+    const LocalEntry *GetInterpreterByGraphics(unsigned short i);
+
 private:
     LocalIndex li;
     RemoteIndex ri;
     RemoteVMIndex vmi;
-    int lastIndex;
+    int localEntryLastId;
 };
 
 #endif // CONFIGURATIONS_H

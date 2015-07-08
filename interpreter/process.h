@@ -102,6 +102,7 @@ extern int msghead, msgtail;    /* pointers to message queue             */
 extern word ournode;            /* this machine node number              */
 extern word console;            /* console node number                   */
 extern bool remote;             /* TRUE if remote node                   */
+extern int remote_id;             /* TRUE if remote node                   */
 extern bool reschedule;         /* TRUE if rescheduling is mandatory     */
 
 void obj2mess ( word *,virtaddr *,procaddr* );

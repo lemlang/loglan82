@@ -30,7 +30,7 @@ var p:MyProcess,i:integer;
 begin
 pref IIUWGRAPH block
 begin
-p:=new MyProcess(1);
+p:=new MyProcess(2);
 resume(p);
 i:=inkey;
 while i<>ord('q') do

@@ -10,6 +10,7 @@
 
 #include <wx/socket.h>
 #include <wx/cmdline.h>
+#include <wx/fileconf.h>
 
 #include "wx/app.h"
 #include "../head/comm.h"
@@ -33,10 +34,11 @@ public:
     virtual void OnInitCmdLine(wxCmdLineParser& parser);
     virtual bool OnCmdLineParsed(wxCmdLineParser& parser);
     wxSocketClient* getSocketClient();
+    wxFileConfig *config;
 private:
         wxSocketClient* client;
         GraphicsWindow* window;
-        unsigned short int interpreter_identifier;
+        unsigned int interpreter_identifier;
     void InkeyRespond();
     void ReadlnRespond();
     void ReadCharRespond();

@@ -6,13 +6,16 @@
  */
 
 #ifndef LAUNCHER_H
-#define	LAUNCHER_H
+#define    LAUNCHER_H
 
 #include <wx/app.h>
 #include <wx/socket.h>
+#include <wx/fileconf.h>
+#include <wx/timer.h>
 
 #include "MainWindow.h"
 #include "../../head/comm.h"
+
 #if defined (__WINDOWS__)
 #include <windows.h>
 #include <signal.h>
@@ -22,29 +25,41 @@
 #include <boost/thread/thread.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-enum
-{
+enum {
     // id for sockets
-    CLIENT_EVENT_ID = 3000,
-    SOCKET_EVENT_ID
+            CLIENT_EVENT_ID = 3000,
+    SOCKET_EVENT_ID,
+    TIMER_ID
 };
+
 class MainWindow;
+
 class App : public wxApp {
 public:
     virtual bool OnInit();
+
     virtual int OnExit();
-    void OnClientEvent(wxSocketEvent& event);
-    void OnSocketEvent(wxSocketEvent& event);
+
+    void OnClientEvent(wxSocketEvent &event);
+
+    void OnSocketEvent(wxSocketEvent &event);
+
     static void OnSigTerm(int sig);
-    wxSocketClient* getSocketClient();
+
+    wxSocketClient *getSocketClient();
+
 private:
-        MainWindow *mainWindow;
-        wxSocketClient* client;
-        DECLARE_EVENT_TABLE()
+    MainWindow *mainWindow;
+    wxSocketClient *client;
+    wxFileConfig *config;
+    wxTimer *reconnectTimer;
+    void Reconnect(wxTimerEvent&);
+DECLARE_EVENT_TABLE()
 
 };
 
 
 DECLARE_APP(App)
+
 #endif	/* LAUNCHER_H */
 

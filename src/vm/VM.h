@@ -63,6 +63,8 @@ public:
 private:
     static const size_t g_fileTransferChunkSize = 8192;
     int nodeNumber;
+    bool localIP;
+    wxString listenIP;
     wxSingleInstanceChecker *m_checker;
     wxSocketServer *server;
     wxSocketBase *vlp;
@@ -101,7 +103,7 @@ private:
 
     void TransmitFiles(wxSocketBase*socket, int remoteNodeNumber, wxString *filename, int localNodeNumber);
 
-    void RunRemoteInt(wxString *filename);
+    void RunRemoteInt(wxString *filename, int entryId);
 
     bool ReciveFile(wxSocketBase *socket, char filename[], const char *filetype, int filesize);
 
@@ -110,6 +112,8 @@ private:
     void CheckNode(int nodeId, wxSocketBase *socket);
 
     void ConnectionInfo(wxSocketBase *socket);
+
+    void RemoveLostSocket(wxSocketBase *pBase);
 };
 
 static const wxCmdLineEntryDesc g_cmdLineDesc [] ={

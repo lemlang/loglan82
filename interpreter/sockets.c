@@ -13,24 +13,25 @@ SOCKET socket_connect()
     SOCKET   s;               // local socket
     int      r;               // will hold return values
     struct hostent* h;               // server host entry (holds IPs, etc)
-    const char local_host[] = "localhost";
 
     // get the server host entry
         memset((void *)&addr, 1, sizeof(addr));
-    addr.sin_addr.s_addr = inet_addr(local_host);
-    if(INADDR_NONE == addr.sin_addr.s_addr) {
-        h = gethostbyname(local_host);
+    //addr.sin_addr.s_addr = inet_addr(listen_host);
+    //if(INADDR_NONE == addr.sin_addr.s_addr) {
+        h = gethostbyname(listen_host);
         if(NULL == h) {
+
             perror("Could not get host by name");
+            perror(listen_host);
             return -1;
         }
-    } else {
+    /*} else {
         h = gethostbyaddr((const char*)&addr.sin_addr, sizeof(struct sockaddr_in), AF_INET);
         if(NULL == h) {
             perror("Could not get host by address");
             return -1;
         }
-    }
+    }*/
 
     // create the local socket
     s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);

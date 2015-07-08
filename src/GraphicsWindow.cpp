@@ -69,6 +69,9 @@ void GraphicsWindow::onChar(wxKeyEvent& aEvent)
     } else {
         wxLogMessage(wxString::Format(_("GraphicsWindow::onChar unicode %d\n"),aEvent.GetUnicodeKey()));
         key_char = aEvent.GetUnicodeKey();
+        if( ! aEvent.ShiftDown() ) {
+            key_char = tolower(key_char);
+        }
     }
     if ( read_queue.size() > 0 ) {
         int key = read_queue.front();
@@ -79,7 +82,7 @@ void GraphicsWindow::onChar(wxKeyEvent& aEvent)
                 writeValue.param.pword[0] = GRAPH_INKEY_RESPONSE;
                 writeValue.param.pword[3] = key_char;
                 this->parent->getSocketClient()->Write(&writeValue, sizeof(MESSAGE));
-                wxLogMessage(_("[Graphicsd::OnSocketEvent] GRAPH_INKEY wrote response"));
+                wxLogMessage(wxString::Format(_("[Graphicsd::OnSocketEvent] GRAPH_INKEY wrote response %c"),key_char));
                 read_queue.pop();
                 return;
             case GRAPH_READLN:

@@ -20,6 +20,7 @@ int msghead = 0, msgtail = 0;        /* pointers to message queue        */
 word ournode;                        /* this machine node number         */
 word console;                        /* console node number              */
 bool remote = FALSE;                 /* TRUE if remote node              */
+bool remote_id = 0;
 bool reschedule = TRUE;              /* TRUE if must re-schedule         */
 
 static void ansprot ( message * );

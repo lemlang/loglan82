@@ -22,14 +22,8 @@
 
 void ServerThread::AllocateGraphResource(wxSocketBase* socket) {
     wxIPV4address address;
-    wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)socket));
     socket->GetPeer(address);
     wxLogMessage ( wxString::Format(_( "Allocating graph resource for peer address: %s:%d" ),address.Hostname(), address.Service() ) );
-    wxString wxString1 = wxString::Format("%s%s",
-            this->m_pServer->getExecutablesDir()->GetFullPath(),
-            wxFileName::GetPathSeparators());
-    wxString graphcsCommand = wxString::Format("%svlpgr %d", wxString1, address.Service());
-    wxExecute(graphcsCommand, wxEXEC_ASYNC);
     unsigned short int i = this->m_pServer->getConfiguration()->GetGraphicalResource(address.Service());
     int count = 60;
     while(i == 0 && count > 0) {
@@ -41,16 +35,17 @@ void ServerThread::AllocateGraphResource(wxSocketBase* socket) {
     responseMessage.msg_type = MSG_GRAPH;
     if(i > 0 ) {
         responseMessage.param.pword[0] = GRAPH_ALLOCATED;
+        wxLogMessage(wxString::Format("Write GRAPH_ALLOCATED message"));
     } else {
         responseMessage.param.pword[0] = GRAPH_INACCESSIBLE;
+        wxLogMessage(wxString::Format("Write GRAPH_INACCESSIBLE message"));
     }
-    wxLogMessage(wxString::Format("Write GRAPH_ALLOCATED/GRAPH_INACCESSIBLE message"));
     socket->Write(&responseMessage,sizeof(MESSAGE));
 }
 
 
 void*ServerThread::Entry() {
-    wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)this->m_pSocket));
+     wxLogMessage(wxString::Format("Socket address %lu",(intptr_t)this->m_pSocket));
      AllocateGraphResource(this->m_pSocket);
      wxLogMessage(wxString::Format("thread ending"));
 }

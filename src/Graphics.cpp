@@ -6,6 +6,7 @@
  */
 
 #include "Graphics.h"
+#include "../head/comm.h"
 
 
 void Graphics::OnInitCmdLine(wxCmdLineParser &parser) {
@@ -27,6 +28,7 @@ bool Graphics::OnCmdLineParsed(wxCmdLineParser &parser) {
 }
 
 bool Graphics::OnInit() {
+    this->config = new wxFileConfig(wxT("VLP"));
     wxApp::OnInit();
     wxLog::SetActiveTarget(new wxLogStderr);
     this->client = new wxSocketClient();;
@@ -35,7 +37,9 @@ bool Graphics::OnInit() {
     this->client->Notify(true);
 
     wxIPV4address address;
-    address.Hostname("localhost");
+    wxString hostname;
+    this->config->Read("IP", &hostname, wxString("localhost")) ;
+    address.Hostname(hostname);
     address.Service(3600);
     this->client->Connect(address);
     MESSAGE msg;
@@ -62,13 +66,13 @@ void Graphics::OnClientEvent(wxSocketEvent &event) {
 
 void Graphics::OnSocketEvent(wxSocketEvent &event) {
     try {
-        wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] Proccesing event %ld", __LINE__, (long)&event));
         switch (event.GetSocketEvent()) {
             case wxSOCKET_INPUT:
                 //wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Socket wxSOCKET_INPUT %ld", (long)&event));
 
                 MESSAGE readValue;
                 event.GetSocket()->Read(&readValue, sizeof(MESSAGE));
+                wxLogMessage(wxString::Format("[Graphics:%d::OnSocketEvent] Proccesing event wxSOCKET_INPUT %d", __LINE__, readValue.param.pword[0]));
                 //wxLogMessage(wxString::Format("[Graphics::OnSocketEvent] Readed MESSAGE %ld", (long)&event));
                 if (readValue.msg_type == MSG_GRAPH) {
                     switch (readValue.param.pword[0]) {
@@ -117,7 +121,7 @@ void Graphics::OnSocketEvent(wxSocketEvent &event) {
                 break;
 
             case wxSOCKET_LOST:
-                wxLogMessage(wxString(_ ("[Graphics::OnSocketEvent] Socket lost")));
+                wxLogMessage(wxString::Format(_ ("[Graphics::OnSocketEvent] Socket lost") ));
                 break;
 
             case wxSOCKET_OUTPUT:

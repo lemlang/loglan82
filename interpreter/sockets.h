@@ -37,3 +37,5 @@ int send_and_select_response(SOCKET,MESSAGE*,MESSAGE*);
 int send_message(SOCKET, MESSAGE*);
 int receive_message(SOCKET, MESSAGE*);
 #endif
+
+char listen_host[255];

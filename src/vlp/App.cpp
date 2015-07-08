@@ -10,7 +10,9 @@
 
 
 bool App::OnInit() {
-    #if defined (__LINUX__)
+    this->config = new wxFileConfig(wxT("VLP"));
+    reconnectTimer = new wxTimer(this, TIMER_ID);
+#if defined (__LINUX__)
     if( SetSignalHandler(SIGINT,&App::OnSigTerm) || SetSignalHandler(SIGTERM,&App::OnSigTerm) ) {
         wxLogVerbose( _( "Successfully handler installed." ) );
     } else {
@@ -25,7 +27,9 @@ bool App::OnInit() {
     this->client->Notify(true);
 
     wxIPV4address address;
-    address.Hostname("localhost");
+    wxString hostname;
+    this->config->Read("IP", &hostname, wxString("localhost")) ;
+    address.Hostname(hostname);
     address.Service(3600);
     if( this->client->Connect(address, true) == false) {
         //cannot connect; try to 
@@ -138,7 +142,9 @@ void App::OnSocketEvent(wxSocketEvent &event) {
                 break;
 
                         case wxSOCKET_LOST:
-                            wxLogMessage(wxString(_ ("[VLP::OnSocketEvent] Socket lost")));
+                            this->mainWindow->text->AppendText(_("Lost connection to VM\n"));
+                            wxLogMessage(wxString(_("[VLP::OnSocketEvent] Socket lost")));
+                            reconnectTimer->Start(1000,true);
                             break;
 
                         case wxSOCKET_OUTPUT:
@@ -169,8 +175,32 @@ wxSocketClient *App::getSocketClient() {
     return client;
 }
 
+
+void App::Reconnect(wxTimerEvent&) {
+    wxLogMessage(wxString(_("[VLP::Reconnect] Reconnecting")));
+    if( ! this->client->IsConnected() ) {
+        wxIPV4address address;
+        if( this->client->GetPeer(address) ) {
+            if ( this->client->Connect(address, true) ) {
+
+                MESSAGE msg;
+                msg.msg_type = MSG_VLP;
+                msg.param.pword[0] = VLP_CONNECT;
+                wxLogMessage(wxString::Format("[VLP::Reconnect] Reconnecting VM\n"));
+                this->client->Write(&msg, sizeof(MESSAGE));
+
+                this->mainWindow->text->AppendText(_("Reconnected to VM\n"));
+                return;
+            }
+        }
+    }
+
+    reconnectTimer->Start(1000,true);
+}
+
+
 BEGIN_EVENT_TABLE(App, wxApp)
                 EVT_SOCKET(CLIENT_EVENT_ID, App::OnClientEvent)
                 EVT_SOCKET(SOCKET_EVENT_ID, App::OnSocketEvent)
+                EVT_TIMER(TIMER_ID,App::Reconnect)
 END_EVENT_TABLE()
-
