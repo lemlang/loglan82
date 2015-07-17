@@ -416,21 +416,29 @@ void VM::ForwardToGraphModule(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
     wxSocketBase *graph_socket = this->configuration.GetGraphicalSocket(address.Service());
-    MESSAGE output;
-    memcpy ( &output, message, sizeof(MESSAGE) );
-    graph_socket->Write(&output, sizeof(MESSAGE));
-    wxLogVerbose(wxString::Format("Message forwarded to GraphModule"));
+    if(graph_socket != NULL) {
+        MESSAGE output;
+        memcpy(&output, message, sizeof(MESSAGE));
+        graph_socket->Write(&output, sizeof(MESSAGE));
+        wxLogVerbose(wxString::Format("Message forwarded to GraphModule"));
+    } else {
+        wxLogError("Cannot forward message to graph module");
+    }
 }
 
 void VM::ForwardToIntModule(MESSAGE *message, wxSocketBase *socket) {
     wxIPV4address address;
     socket->GetPeer(address);
     wxSocketBase *int_socket = this->configuration.GetIntSocket(address.Service());
-    int_socket->Write(message, sizeof(MESSAGE));
-    if (int_socket->Error()) {
-        wxLogVerbose(wxString::Format("Message forwarding to InthModule failed"));
+    if( int_socket == NULL ) {
+        wxLogVerbose(wxString::Format("Cant forward message to Int Module, no int module found"));
     } else {
-        wxLogVerbose(wxString::Format("Message forwarded to InthModule"));
+        int_socket->Write(message, sizeof(MESSAGE));
+        if (int_socket->Error()) {
+            wxLogVerbose(wxString::Format("Message forwarding to Int Module failed"));
+        } else {
+            wxLogVerbose(wxString::Format("Message forwarded to Int Module"));
+        }
     }
 }
 
@@ -574,14 +582,21 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
     char s[255];
     const RemoteVM* remotevm = this->configuration.GetRemoteVMByNodeId(remoteNodeNumber);
     if( remotevm != NULL) {
-        this->TransmitFiles(remotevm->socket, remoteNodeNumber, this->configuration.GetLocalEntry(localNodeNumber)->filename,
-                            localNodeNumber);
+        const LocalEntry * localEntry = this->configuration.GetLocalEntry(localNodeNumber);
+        if( localEntry == NULL) {
+            wxLogError("No local entry found, fuckup!: local node number: %d",localNodeNumber);
+            wxLogError("Cannot continue, exiting");
+            this->Exit();
+            return;
+        }
+        this->TransmitFiles(remotevm->socket, remoteNodeNumber, localEntry->filename, localNodeNumber);
         msg.msg_type = MSG_VLP;
         msg.param.pword[0] = VLP_REMOTE_INSTANCE;
         msg.param.pword[2] = localNodeNumber;
         msg.param.pword[4] = remoteNodeNumber;
         msg.param.pword[7] = localNodeNumber;
-        strcpy(msg.param.pstr,this->configuration.GetLocalEntry(localNodeNumber)->filename->mb_str());
+        strcpy(msg.param.pstr,localEntry->filename->mb_str());
+        wxLogMessage(_("Sending file name to remote VM"));
         remotevm->socket->Write(&msg,sizeof(MESSAGE));
     } else {
         //There is no such a node!

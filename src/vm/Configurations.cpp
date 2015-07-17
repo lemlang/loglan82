@@ -58,18 +58,30 @@ void Configurations::ChangeLocalInstance ( int entryId, unsigned  short  interpr
 short unsigned int Configurations::GetGraphicalResource ( short unsigned int interpreter_port ) {
     LocalIndexByIntepreter::iterator it0;
     it0 = get<LocalEntry::ByInterpreter>(li).find(interpreter_port);
+    if ( it0 == get<LocalEntry::ByInterpreter>(li).end()) {
+        wxLogMessage("LocalEntry not found\n");
+        return NULL;
+    }
     wxLogMessage (  wxString::Format("get graphical resource %d for interpreter_port %d\n",(it0)->graphic_resource_port, interpreter_port));
     return (it0)->graphic_resource_port;
 }
 wxSocketBase* Configurations::GetGraphicalSocket( short unsigned int interpreter_port ) {
     LocalIndexByIntepreter::iterator it0;
     it0 = get<LocalEntry::ByInterpreter>(li).find(interpreter_port);
+    if ( it0 == get<LocalEntry::ByInterpreter>(li).end()) {
+        wxLogMessage("LocalEntry not found\n");
+        return NULL;
+    }
     wxLogMessage (  wxString::Format("get Graphical Socket %d for interpreter_port %d\n",(it0)->graphic_resource_port, interpreter_port));
     return (it0)->graphic_socket;
 }
 wxSocketBase* Configurations::GetIntSocket( short unsigned int graphical_port ) {
     LocalIndexByGraphics::iterator it0;
     it0 = get<LocalEntry::ByGraphics>(li).find(graphical_port);
+    if ( it0 == get<LocalEntry::ByGraphics>(li).end()) {
+        wxLogMessage("LocalEntry not found\n");
+        return NULL;
+    }
     wxLogMessage (  wxString::Format("get int socket %lu for graphical_port %d\n",(intptr_t)((it0)->interpreter_socket), graphical_port));
     return (it0)->interpreter_socket;
 }
@@ -101,6 +113,10 @@ wxSocketBase *Configurations::GetRemoteSocketById(int node_id) {
 wxSocketBase *Configurations::GetIntSocketById(int entry_id) {
     LocalIndexByEntryId::iterator it1;
     it1 = get<LocalEntry::ByEntryId>(li).find(entry_id);
+    if ( it1 == get<LocalEntry::ByEntryId>(li).end()) {
+        wxLogMessage("LocalEntry not found\n");
+        return NULL;
+    }
     wxLogMessage (  wxString::Format("get int socket %lu for node number  %d\n",(it1)->interpreter_socket, entry_id));
 
     return (it1)->interpreter_socket;
@@ -154,7 +170,8 @@ void Configurations::RemoveRemote(int interpreter_port) {
 const LocalEntry *Configurations::GetLocalEntry(int node_id) {
     LocalIndexByEntryId::iterator it1;
     it1 = get<LocalEntry::ByEntryId>(li).find(node_id);
-    wxLogMessage (  wxString::Format("get int socket for node number  %d\n",node_id));
+
+    wxLogMessage("get int socket for node number  %d, possible: %d\n",node_id, get<LocalEntry::ByEntryId>(li).size());
     if( it1 != get<LocalEntry::ByEntryId>(li).end() ) {
         return &(* it1);
     }
@@ -163,6 +180,10 @@ const LocalEntry *Configurations::GetLocalEntry(int node_id) {
 
 void Configurations::RemoveInt(int entry_id) {
     LocalIndexByEntryId::iterator it  = get<LocalEntry::ByEntryId>(li).find(entry_id);
+    if ( it == get<LocalEntry::ByEntryId>(li).end()) {
+        wxLogMessage("LocalEntry not found\n");
+        return ;
+    }
     wxLogMessage (  wxString::Format("get int %d for node number  %d\n",(it)->entry_id, entry_id));
     (it)->interpreter_socket->Close();
     get<LocalEntry::ByEntryId>(li).erase(it);
@@ -208,6 +229,10 @@ void Configurations::AddRemoteVM(int node_id, wxSocketBase *socket) {
 void Configurations::RemoveRemoteVM(int node_id) {
 
     RemoteVMIndexByNodeId::iterator rvmit = get<RemoteVM::ByNodeId>(this->vmi).find(node_id);
+    if ( rvmit == get<RemoteVM::ByNodeId>(this->vmi).end()) {
+        wxLogMessage("RemoveRemoteVM not found\n");
+        return;
+    }
     get<RemoteVM::ByNodeId>(this->vmi).erase(rvmit);
 
 }
