@@ -23,7 +23,7 @@
 class iterator;
 
 Configurations::Configurations() {
-    localEntryLastId = 1;
+    localEntryLastId = 10;
 }
 
 Configurations::~Configurations() {
@@ -60,7 +60,7 @@ short unsigned int Configurations::GetGraphicalResource ( short unsigned int int
     it0 = get<LocalEntry::ByInterpreter>(li).find(interpreter_port);
     if ( it0 == get<LocalEntry::ByInterpreter>(li).end()) {
         wxLogMessage("LocalEntry not found\n");
-        return NULL;
+        return 0;
     }
     wxLogMessage (  wxString::Format("get graphical resource %d for interpreter_port %d\n",(it0)->graphic_resource_port, interpreter_port));
     return (it0)->graphic_resource_port;
@@ -100,7 +100,7 @@ std::size_t hash_value(const wxIPV4address &ipv4address)
     return seed;
 }
 
-wxSocketBase *Configurations::GetRemoteSocketById(int node_id) {
+/*wxSocketBase *Configurations::GetRemoteSocketById(int node_id) {
     RemoteIndexByNodeId::iterator it1;
     it1 = get<RemoteEntry::ByNodeId>(ri).find(node_id);
     wxLogMessage (  wxString::Format("get remote socket %lu for node number  %d\n",(it1)->socket, node_id));
@@ -109,7 +109,7 @@ wxSocketBase *Configurations::GetRemoteSocketById(int node_id) {
     } else {
         return NULL;
     }
-}
+}*/
 wxSocketBase *Configurations::GetIntSocketById(int entry_id) {
     LocalIndexByEntryId::iterator it1;
     it1 = get<LocalEntry::ByEntryId>(li).find(entry_id);
@@ -117,14 +117,15 @@ wxSocketBase *Configurations::GetIntSocketById(int entry_id) {
         wxLogMessage("LocalEntry not found\n");
         return NULL;
     }
-    wxLogMessage (  wxString::Format("get int socket %lu for node number  %d\n",(it1)->interpreter_socket, entry_id));
+    wxLogMessage ("get int socket %lu for node number  %d\n",(it1)->interpreter_socket, entry_id);
 
     return (it1)->interpreter_socket;
 }
 
-int Configurations::AddRemoteInstance(int node_id, int entry_id, wxSocketBase *base, unsigned  short remote_id ) {
-    ri.get<1>().insert(RemoteEntry(node_id,entry_id, remote_id, base, wxFalse  ));
-    return remote_id;
+int Configurations::AddRemoteInstance(int node_id, int entry_id, int program_id, wxSocketBase *base) {
+    wxLogMessage ("AddRemoteInstance node: %d entry: %d program: %d\n", node_id, entry_id, program_id);
+    ri.get<1>().insert(RemoteEntry(node_id,entry_id, program_id, base, wxFalse  ));
+    return program_id;
 }
 
 void Configurations::CloseRemoteConnections(int MyNodeId) {
@@ -134,15 +135,16 @@ void Configurations::CloseRemoteConnections(int MyNodeId) {
     message.param.pword[0] = NET_DISCONNECT;
     message.param.pword[1] = MyNodeId;
 
-    RemoteIndexByNodeId::iterator rit;
 
-    rit = get<RemoteEntry::ByNodeId>(ri).begin();
+    RemoteIndexBySocket::iterator rit;
 
-    while (rit != get<RemoteEntry::ByNodeId>(ri).end() ) {
-        printf("%d\n",(rit)->interpreter_port);
+    rit = get<RemoteEntry::BySocket>(ri).begin();
+
+    while (rit != get<RemoteEntry::BySocket>(ri).end() ) {
+        printf("CloseRemoteConnections %d\n",(rit)->entry_id);
         (rit)->socket->Write(&message, sizeof(MESSAGE));
         (rit)->socket->Close();
-        get<RemoteEntry::ByNodeId>(ri).erase(rit);
+        get<RemoteEntry::BySocket>(ri).erase(rit);
         ++rit;
     }
 
@@ -155,23 +157,11 @@ void Configurations::CloseRemoteConnections(int MyNodeId) {
     }
 }
 
-void Configurations::RemoveRemote(int interpreter_port) {
-    RemoteIndexByInterpreterPort::iterator rit;
-    rit = get<RemoteEntry::ByInterpreterPort>(ri).find(interpreter_port);
-    while (rit != get<RemoteEntry::ByInterpreterPort>(ri).end() )
-    {
-        wxLogMessage(wxString::Format("remove remote socket %lu for node number  %d\n", (rit)->socket, interpreter_port));
-        (rit)->socket->Close();
-        get<RemoteEntry::ByInterpreterPort>(ri).erase(rit);
-        ++rit;
-    }
-}
-
 const LocalEntry *Configurations::GetLocalEntry(int node_id) {
     LocalIndexByEntryId::iterator it1;
     it1 = get<LocalEntry::ByEntryId>(li).find(node_id);
-
-    wxLogMessage("get int socket for node number  %d, possible: %d\n",node_id, get<LocalEntry::ByEntryId>(li).size());
+    int index_size = get<LocalEntry::ByEntryId>(li).size();
+    wxLogMessage("get int socket for node number  %d, possible: %d\n",node_id,index_size);
     if( it1 != get<LocalEntry::ByEntryId>(li).end() ) {
         return &(* it1);
     }
@@ -184,38 +174,41 @@ void Configurations::RemoveInt(int entry_id) {
         wxLogMessage("LocalEntry not found\n");
         return ;
     }
-    wxLogMessage (  wxString::Format("get int %d for node number  %d\n",(it)->entry_id, entry_id));
+    wxLogMessage("get int (port) %d for node number  %d\n",(it)->interpreter_port, entry_id);
     (it)->interpreter_socket->Close();
     get<LocalEntry::ByEntryId>(li).erase(it);
 }
 
-void Configurations::CloseRemote(unsigned short interpreter_port) {
-MESSAGE msg;
-            msg.msg_type = MSG_NET;
-            msg.param.pword[0] = NET_PROPAGATE;
-            msg.param.pword[1] = MSG_VLP;
+void Configurations::CloseRemote(int program_id) {
+    MESSAGE msg;
+    msg.msg_type = MSG_NET;
+    msg.param.pword[0] = NET_PROPAGATE;
+    msg.param.pword[1] = MSG_VLP;
     //todo src node
-            msg.param.pword[2] = INT_MAX;
-            //todo what is it?
-            //msg.param.pword[4] = i;
-            msg.param.pword[6] = VLP_CLOSE_INSTANCE;
+    msg.param.pword[2] = INT_MAX;
+    //todo what is it?
+    //msg.param.pword[4] = i;
+    msg.param.pword[6] = VLP_CLOSE_INSTANCE;
 
-    RemoteIndexByInterpreterPort::iterator rit = get<RemoteEntry::ByInterpreterPort>(ri).find(interpreter_port);
-    while (rit != get<RemoteEntry::ByInterpreterPort>(ri).end() )
+    int index_size = get<RemoteEntry::ByProgramId>(ri).size();
+    wxLogMessage("close remote interpreters for program_id:  %d, number items in index: %d\n", program_id, index_size );
+    RemoteIndexByProgramId::iterator rit = get<RemoteEntry::ByProgramId>(ri).find(program_id);
+
+    while (rit != get<RemoteEntry::ByProgramId>(ri).end() )
     {
-        wxLogMessage(wxString::Format("close remote interpreter %lu for node number  %d\n", (rit)->socket, interpreter_port));
-        msg.param.pword[7] = (rit)->node_id;
+        wxLogMessage("close remote interpreter entry_id  %d on node %d for program: %d\n", (rit)->entry_id, (rit)->node_id, (rit)->program_id);
+        msg.param.pword[7] = (rit)->entry_id;
+        msg.param.pword[4] = (rit)->node_id;
         (rit)->socket->Write(&msg,sizeof(MESSAGE));
-        (rit)->socket->Close();
-        get<RemoteEntry::ByInterpreterPort>(ri).erase(rit);
-        ++rit;
+        get<RemoteEntry::ByProgramId>(ri).erase(rit);
+        rit = get<RemoteEntry::ByProgramId>(ri).find(program_id);
     }
 }
 
 const RemoteVM* Configurations::GetRemoteVMByNodeId(int node_id) {
     RemoteVMIndexByNodeId::iterator rvmit = get<RemoteVM::ByNodeId>(vmi).find(node_id);
     if ( rvmit == get<RemoteVM::ByNodeId>(vmi).end()) {
-        wxLogMessage("Remote VM not found\n");
+        wxLogMessage("Remote VM not found %d\n", node_id);
         return NULL;
     }
     wxLogMessage(wxString::Format("number of remote nodes: %d\n", this->GetRemoteVMCount()));;

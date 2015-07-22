@@ -370,7 +370,7 @@ void read_line() {
         while ((m.msg_type != MSG_NET) && (m.param.pword[0] != NET_NODE_EXIST)) {
             read(network_socket, &m, sizeof(MESSAGE));
         }
-    DEBUG_PRINT("NET_NODE_EXIST");
+        DEBUG_PRINT("NET_NODE_EXIST %d: %d\n", k, m.param.pword[1]);
         if (m.param.pword[1] != 1) return 0;
         strcpy(addr, m.param.pstr);
 
@@ -382,7 +382,7 @@ void read_line() {
             m.param.pword[2] = k;
             send_to_kernel(&m);
             bzero(&m, sizeof(MESSAGE));
-    DEBUG_PRINT("VLP_REMOTE_INSTANCE_PLEASE send");
+            DEBUG_PRINT("VLP_REMOTE_INSTANCE_PLEASE of program id: %d on node %d\n", my_ctx.program_id, k);
 
             while (1) {
                 read(network_socket, &m, sizeof(MESSAGE));
@@ -400,13 +400,14 @@ void read_line() {
             if (len != 0) {
                 RInstance[k] = -1;
                 writeln_str("Cannot connect remote instance!");
-                DEBUG_PRINT("Cannot establish remote connection");
+                DEBUG_PRINT("Cannot establish remote connection\n");
             } else {
-                DEBUG_PRINT("Remote connection established");
+                DEBUG_PRINT("Remote connection established\n");
                 //fcntl ( DirConn[k], F_SETFL, O_NONBLOCK | fcntl ( DirConn[k], F_GETFL, 0 ) );
             }
         }
         if (RInstance[k] != -1) {
+            DEBUG_PRINT("Remote instance already exists\n");
             write(DirConn[k], &(msg->int_msg), sizeof(message));
         }
         return 1;
@@ -487,18 +488,18 @@ void read_line() {
         m.param.pword[1] = remote;
         m.param.pword[2] = remote_id;
         strcpy(m.param.pstr,ProgName);
-        send_and_select_response(network_socket, &m, &m);
-        if ((m.msg_type != MSG_INT) || (m.param.pword[0] != INT_CTX)) {
+        send_and_select_response(network_socket, &m, &m1);
+        if ((m1.msg_type != MSG_INT) || (m1.param.pword[0] != INT_CTX)) {
             // todo should throw exception, bad response from VM
-            DEBUG_PRINT("BAD response from VM! Waiting for INT_CTX but recived: %d %d \n", m.msg_type, m.param.pword[0]);
+            DEBUG_PRINT("BAD response from VM! Waiting for INT_CTX but recived: %d %d \n", m1.msg_type, m1.param.pword[0]);
             exit(-8777);
         }
 
-        my_ctx.node = m.param.pword[1];
-        my_ctx.program_id = m.param.pword[2];
+        my_ctx.node = m1.param.pword[1];
+        my_ctx.program_id = m1.param.pword[2];
         if (remote) {
-            parent_ctx.node = m.param.pword[3];
-            parent_ctx.program_id = m.param.pword[4];
+            parent_ctx.node = m1.param.pword[3];
+            parent_ctx.program_id = m1.param.pword[4];
             DEBUG_PRINT("We are remote, setting parent_ctx node: %d and program_id: %d \n", parent_ctx.node, parent_ctx.program_id);
             RInstance[parent_ctx.node] = parent_ctx.program_id;
         } else {
@@ -543,7 +544,7 @@ void read_line() {
 
         bzero(&svr, sizeof(svr));
         DirConn[parent_ctx.node] = accept(sock, (struct sockaddr *) &svr, &len);
-        DEBUG_PRINT("DirConn[parent_ctx.node] = accept(..... finished");
+        DEBUG_PRINT("DirConn[parent_ctx.node] = accept(..... finished\n");
         //fcntl ( DirConn[parent_ctx.node], F_SETFL, O_NONBLOCK | fcntl ( DirConn[parent_ctx.node], F_GETFL, 0 ) );
     }
 

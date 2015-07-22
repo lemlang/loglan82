@@ -202,6 +202,7 @@ word nrproc;
 
     case 43  : /* readchar */
         param[ 0 ].xword = read_char();
+        DEBUG_PRINT("read_char %c",param[ 0 ].xword);
         break;
 
     case 44  : /* readchar(f) */

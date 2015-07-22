@@ -160,7 +160,7 @@ void VM::ProcessMessageInt(MESSAGE *message, wxSocketBase *socket) {
         case INT_EXITING:
             //check if from local int module
             socket->Close();
-            this->configuration.CloseRemote(address.Service());
+            this->configuration.CloseRemote(message->param.pword[1]);
             log_message = (wxString::Format(_("%s : End of program execution"), message->param.pstr));
             WriteAtConsole(&log_message);
             this->configuration.RemoveInt(this->configuration.GetInterpreterByInterpreter(address.Service())->entry_id);
@@ -260,7 +260,7 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
         case NET_DISCONNECT:
             log_message = (wxString::Format("Node: %d (%s) disconnected", message->param.pword[1],
                                             address.IPAddress()));
-            this->configuration.RemoveRemote(message->param.pword[1]);
+            this->configuration.RemoveRemoteVM(message->param.pword[1]);
             WriteAtConsole(&log_message);
             wxLogVerbose(log_message);
             break;
@@ -280,20 +280,23 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
             this->CheckNode( message->param.pword[1], socket);
             break;
         case NET_PROPAGATE:
-            wxLogVerbose(wxString::Format("NET_PROPAGATE to %d type %d message %d", message->param.pword[4], message->param.pword[1], message->param.pword[6]));
+            wxLogMessage(wxString::Format("NET_PROPAGATE to %d type %d message %d", message->param.pword[4], message->param.pword[1], message->param.pword[6]));
             const RemoteVM*  remoteVM = this->configuration.GetRemoteVMByNodeId(message->param.pword[4]);
             wxSocketBase *rsocket = NULL;
             if (nodeNumber == message->param.pword[4]) {
-            wxLogVerbose("NET_PROPAGATE to ME :D");
+            wxLogMessage("NET_PROPAGATE to ME :D\n");
+
                 if (message->param.pword[1] == MSG_VLP) {
                     switch(message->param.pword[6]) {
                         case VLP_CLOSE_INSTANCE:
+                            wxLogMessage("Close instance %d\n", message->param.pword[7]);
                             rsocket =this->configuration.GetIntSocketById(message->param.pword[7]);
-                            if( socket != NULL) {
+                            if( rsocket != NULL) {
                                 MESSAGE m1;
                                 m1.msg_type = MSG_INT;
                                 m1.param.pword[0] = INT_CLOSE_INSTANCE;
-                                socket->Write(&m1,sizeof(MESSAGE));
+                                rsocket->Write(&m1,sizeof(MESSAGE));
+                                wxLogMessage("Close int message send %lu\n", rsocket->LastWriteCount());
                                 this->configuration.RemoveInt(message->param.pword[7]);
                             }
 
@@ -302,8 +305,7 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
                         case VLP_REMOTE_INSTANCE_OK: {
                             wxLogVerbose("VLP_REMOTE_INSTANCE_OK to ME :D %d",message->param.pword[9]);
                             remoteVM = configuration.GetRemoteVMBySocket(socket);
-                            configuration.AddRemoteInstance(message->param.pword[9], message->param.pword[7], socket,
-                                                            remoteVM->node_id);
+                            configuration.AddRemoteInstance(message->param.pword[2], message->param.pword[7], message->param.pword[9], socket);
                             const LocalEntry *localEntry = configuration.GetLocalEntry(message->param.pword[9]);
                             if( localEntry != NULL) {
                                 MESSAGE response;
@@ -395,7 +397,8 @@ void VM::ProcessMessageVLP(MESSAGE *message, wxSocketBase *socket) {
             break;
         }
         case VLP_REMOTE_INSTANCE_PLEASE:
-            this->AllocateRemoteInstance(this->nodeNumber, message->param.pword[2]);
+            wxLogVerbose("[VM::ProcessMessageVLP]VLP_REMOTE_INSTANCE_PLEASE localNode: %d remoteNode: %d", this->nodeNumber, message->param.pword[2]);
+            this->AllocateRemoteInstance(this->nodeNumber, message->param.pword[2], message->param.pword[1]);
             break;
         case VLP_REMOTE_INSTANCE_OK:
             //todo
@@ -577,14 +580,14 @@ void VM::SendToInt(MESSAGE *message) {
     this->configuration.GetIntSocket(message->param.pword[5]);
 }
 
-void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
+void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber, int programId) {
     MESSAGE msg;
     char s[255];
     const RemoteVM* remotevm = this->configuration.GetRemoteVMByNodeId(remoteNodeNumber);
     if( remotevm != NULL) {
-        const LocalEntry * localEntry = this->configuration.GetLocalEntry(localNodeNumber);
+        const LocalEntry * localEntry = this->configuration.GetLocalEntry(programId);
         if( localEntry == NULL) {
-            wxLogError("No local entry found, fuckup!: local node number: %d",localNodeNumber);
+            wxLogError("No local entry found, fuckup!: program number: %d",programId);
             wxLogError("Cannot continue, exiting");
             this->Exit();
             return;
@@ -594,7 +597,7 @@ void VM::AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber) {
         msg.param.pword[0] = VLP_REMOTE_INSTANCE;
         msg.param.pword[2] = localNodeNumber;
         msg.param.pword[4] = remoteNodeNumber;
-        msg.param.pword[7] = localNodeNumber;
+        msg.param.pword[7] = programId;
         strcpy(msg.param.pstr,localEntry->filename->mb_str());
         wxLogMessage(_("Sending file name to remote VM"));
         remotevm->socket->Write(&msg,sizeof(MESSAGE));
@@ -781,7 +784,7 @@ void VM::RemoveLostSocket(wxSocketBase *pBase) {
     }
     const RemoteEntry* remote = this->configuration.GetRemoteInterpreterBySocket(pBase);
     if( remote != NULL ) {
-        this->configuration.RemoveRemote(remote->interpreter_port);
+        this->configuration.CloseRemote(remote->entry_id);
         return;
     }
     local =  this->configuration.GetInterpreterByGraphics(address.Service());

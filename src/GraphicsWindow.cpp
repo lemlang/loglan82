@@ -11,8 +11,8 @@
 
 GraphicsWindow::GraphicsWindow(const wxString& title, Graphics*parent)
 : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(650, 350)) {
-    input_queue_nl_count = 0;
     this->parent = parent;
+    input_queue_nl_count = 0;
     wxTextValidator validator(wxFILTER_INCLUDE_LIST );
     text = new wxTextCtrl(this, TEXT_Main, "", wxDefaultPosition, wxDefaultSize,
             wxTE_MULTILINE ,validator , wxTextCtrlNameStr);
@@ -22,8 +22,8 @@ GraphicsWindow::GraphicsWindow(const wxString& title, Graphics*parent)
     Connect(wxID_EXECUTE, wxEVT_COMMAND_MENU_SELECTED,
             wxCommandEventHandler(GraphicsWindow::OnExecute));
     //text->Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(GraphicsWindow::onKeyDown));
-    text->Connect(wxEVT_CHAR_HOOK,   wxKeyEventHandler(GraphicsWindow::onChar));
-    text->Connect(wxEVT_KEY_UP,   wxKeyEventHandler(GraphicsWindow::onKeyUp), NULL, this);
+    text->Connect(wxEVT_CHAR,   wxKeyEventHandler(GraphicsWindow::onChar), NULL, this);
+    //text->Connect(wxEVT_KEY_UP,   wxKeyEventHandler(GraphicsWindow::onChar), NULL, this);
     text->Connect(wxEVT_LEFT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
     text->Connect(wxEVT_LEFT_UP, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
     text->Connect(wxEVT_RIGHT_DOWN, wxMouseEventHandler(GraphicsWindow::onMouseClick), NULL, this);
@@ -61,10 +61,11 @@ void GraphicsWindow::onKeyUp(wxKeyEvent& aEvent)
 }
 
 void GraphicsWindow::onChar(wxKeyEvent& aEvent) {
-    int key_char = 11;
+    wxChar key_char = 11;
     if( aEvent.GetUnicodeKey() == WXK_NONE) {
         wxLogMessage(wxString::Format(_("GraphicsWindow::onChar %d\n"),aEvent.GetKeyCode() ));
         key_char = aEvent.GetKeyCode();
+        return;
 
     } else {
         wxLogMessage(wxString::Format(_("GraphicsWindow::onChar unicode %d\n"),aEvent.GetUnicodeKey()));
@@ -99,7 +100,7 @@ void GraphicsWindow::onChar(wxKeyEvent& aEvent) {
             case GRAPH_READCHAR:
                 writeValue.msg_type = MSG_GRAPH;
                 writeValue.param.pword[0] = GRAPH_READCHAR_RESPONSE;
-                writeValue.param.pword[3] = key_char;
+                writeValue.param.pchar = key_char;
                 this->parent->getSocketClient()->Write(&writeValue, sizeof(MESSAGE));
                 wxLogMessage(_("[Graphicsd::OnSocketEvent] GRAPH_READCHAR wrote response"));
                 read_queue.pop();
@@ -121,7 +122,7 @@ void GraphicsWindow::onChar(wxKeyEvent& aEvent) {
                     return;
                 } else {
                     wxLogMessage(_("[Graphicsd::OnSocketEvent] GRAPH_READSTR"));
-                    input_buffer.append((wxChar)key_char);
+                    input_buffer.append(key_char);
                     //(*text) << (wxChar)key_char;
 
                     return;
@@ -132,8 +133,9 @@ void GraphicsWindow::onChar(wxKeyEvent& aEvent) {
     if( 13 == key_char) {
         input_queue_nl_count++;
         wxLogMessage(_("[Graphicsd::OnSocketEvent] append newline"));
-    } else
+    } else {
         wxLogMessage("[Graphicsd::OnSocketEvent] appending %d", key_char);
+    }
     input_queue.push_back(key_char);
 }
 void GraphicsWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
@@ -141,8 +143,8 @@ void GraphicsWindow::OnQuit(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void GraphicsWindow::OnClose(wxCloseEvent& event) {
-    /*this->Destroy();return;
-    if (showQuitDialog() == wxID_YES) {
+    this->Destroy();return;
+    /*if (showQuitDialog() == wxID_YES) {
         this->Destroy();
     } else {
         if (event.CanVeto()) {
@@ -208,7 +210,7 @@ bool GraphicsWindow::GetLine() {
 
     if( input_queue_nl_count>0) {
         input_queue_nl_count--;
-        std::deque<int>::iterator it = input_queue.begin();
+        std::deque<wxChar>::iterator it = input_queue.begin();
         while (it != input_queue.end()) {
             if( 13 == *it) {
                 input_queue.erase(it);

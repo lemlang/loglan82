@@ -42,12 +42,11 @@ public:
 private:
     int showQuitDialog();
     wxTextCtrl* text; // the main text area
-    std::queue<int> read_queue;
-    std::deque<int> input_queue;
+    std::queue<wxChar> read_queue;
+    std::deque<wxChar> input_queue;
     int input_queue_nl_count;
     wxString input_buffer;
-    Graphics* parent;
-};
+    Graphics* parent; };
 
 enum  {
     TEXT_Main = wxID_HIGHEST + 1

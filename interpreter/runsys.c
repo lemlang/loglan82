@@ -254,8 +254,9 @@ void endrun ( int status ) {
 
     msg.msg_type = MSG_INT;
     msg.param.pword[0] = INT_EXITING;
+    msg.param.pword[1] = my_ctx.program_id;
     strcpy ( msg.param.pstr,ProgName );
-    write ( network_socket, &msg, sizeof ( MESSAGE ) );
+    send_message ( network_socket, &msg);
 
     for ( i=0; i<255; i++ )
         if ( DirConn[i]!=-1 ) close ( DirConn[i] );

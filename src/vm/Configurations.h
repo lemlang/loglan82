@@ -76,23 +76,22 @@ struct RemoteVM {
 struct RemoteEntry {
     int node_id;
     int entry_id;
-    unsigned short interpreter_port;
+    int program_id;
     wxSocketBase* socket;
     bool connected;
     struct ByNodeId {};
     struct ByEntryId {};
-    struct BySlotId {};
-    struct ByInterpreterPort {};
+    struct ByProgramId {};
     struct BySocket{};
     RemoteEntry(
         int node_id,
         int entry_id,
-        unsigned short interpreter_port,
+        int program_id,
         wxSocketBase*socket,
         bool connected):
             node_id(node_id),
             entry_id(entry_id),
-            interpreter_port(interpreter_port),
+            program_id(program_id),
             socket(socket),
             connected(connected)
         {}
@@ -118,13 +117,15 @@ typedef multi_index_container<
         RemoteEntry,
     indexed_by<
         hashed_non_unique<tag<RemoteEntry::ByNodeId>, member<RemoteEntry,int,&RemoteEntry::node_id> >,
-        hashed_non_unique<tag<RemoteEntry::ByInterpreterPort>, member<RemoteEntry,unsigned short,&RemoteEntry::interpreter_port> >,
+        hashed_non_unique<tag<RemoteEntry::ByEntryId>, member<RemoteEntry,int,&RemoteEntry::entry_id> >,
+        hashed_non_unique<tag<RemoteEntry::ByProgramId>, member<RemoteEntry,int,&RemoteEntry::program_id> >,
         hashed_unique<tag<RemoteEntry::BySocket>, member<RemoteEntry,wxSocketBase*,&RemoteEntry::socket> >
     >
 > RemoteIndex;
 
 typedef RemoteIndex::index<RemoteEntry::ByNodeId>::type RemoteIndexByNodeId;
-typedef RemoteIndex::index<RemoteEntry::ByInterpreterPort>::type RemoteIndexByInterpreterPort;
+typedef RemoteIndex::index<RemoteEntry::ByEntryId>::type RemoteIndexByEntryId;
+typedef RemoteIndex::index<RemoteEntry::ByProgramId>::type RemoteIndexByProgramId;
 typedef RemoteIndex::index<RemoteEntry::BySocket>::type RemoteIndexBySocket;
 
 using namespace boost::multi_index;
@@ -158,18 +159,15 @@ public:
     const LocalEntry*GetLocalEntry(int node_id);
 
 
-    int AddRemoteInstance(int node_id, int entry_id,  wxSocketBase *base, unsigned  short remote_id );
-    //void ChangeRemoteInstance(wxSocketBase*);
+    int AddRemoteInstance(int node_id, int entry_id, int program_id, wxSocketBase *base);
 
     void CloseRemoteConnections(int MyNodeId);
 
     void CloseConnections();
 
-    void RemoveRemote(int interpreter_port);
-
     void RemoveInt(int id);
 
-    void CloseRemote(unsigned short local_port);
+    void CloseRemote(int entry_id);
 
     const RemoteVM* GetRemoteVMByNodeId(int node_id);
     const RemoteVM* GetRemoteVMBySocket(wxSocketBase*socket);
@@ -182,7 +180,6 @@ public:
     RemoteVMIndexByNodeId::iterator GetRemoteVMIIndexEnd();
 
     const LocalEntry *GetInterpreterByInterpreter(unsigned short interpreterPort);
-    const LocalEntry *GetInterpreterById(int entryId);
 
     const RemoteEntry *GetRemoteInterpreterBySocket(wxSocketBase *pBase);
 

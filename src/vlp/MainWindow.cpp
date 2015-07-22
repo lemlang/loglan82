@@ -98,8 +98,9 @@ void MainWindow::OnExecute(wxCommandEvent& WXUNUSED(event)) {
     wxString wxString1 = wxString::Format("%s%s",
             executablesDir.GetFullPath(),
             wxFileName::GetPathSeparators());
-    wxString graphcsCommand = wxString::Format("%sloglanint %s", wxString1, openFileDialog.GetPath());
-    wxExecute(graphcsCommand, wxEXEC_ASYNC);
+    wxString execCommand = wxString::Format("%sloglanint %s", wxString1, openFileDialog.GetPath());
+    wxExecute(execCommand, wxEXEC_ASYNC);
+    wxLogMessage(execCommand);
 }
 
 void MainWindow::OnKill(wxCommandEvent &event) {

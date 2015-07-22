@@ -432,6 +432,7 @@ message *msg;
         memcpy ( &m.int_msg,msg,sizeof ( message ) );
         result = send_to_net ( &m );
         if ( result == 0 ) {
+            DEBUG_PRINT("local allocation\n");
             /* 2010 local allocation */
             msg->control.receiver.node == ournode;
             msginterrupt ( msg );      /* call directly interrupt handler */

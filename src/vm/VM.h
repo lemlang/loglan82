@@ -99,7 +99,7 @@ private:
 
     void SendToInt(MESSAGE *message);
 
-    void AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber);
+    void AllocateRemoteInstance(int localNodeNumber, int remoteNodeNumber, int programId);
 
     void TransmitFiles(wxSocketBase*socket, int remoteNodeNumber, wxString *filename, int localNodeNumber);
 

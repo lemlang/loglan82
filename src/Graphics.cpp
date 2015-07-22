@@ -176,7 +176,7 @@ void Graphics::ReadCharRespond() {
     MESSAGE message;
     message.msg_type = MSG_GRAPH;
     message.param.pword[0] = GRAPH_READCHAR_RESPONSE;
-    message.param.pword[3] = 0;
+    message.param.pchar = 0;
     if(! this->window->PopInputQueue(&message.param.pword[3]) ) {
         this->window->WaitRead(GRAPH_READCHAR);
     }
