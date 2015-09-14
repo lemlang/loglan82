@@ -155,24 +155,27 @@ int par1, dir;
                         word ah=M[am+offset];
                         if ( !isprocess ( ( virtaddr* ) ( M+am+offset ) ) &&
                                 M[ ah+1 ] == M[ am+offset+1 ]
-                           )
-                            if ( prototype[ M[ M[ ah ]+PROTNUM ] ]->kind == PROCESS ) {
+                           ) {
+                            if (prototype[M[M[ah] + PROTNUM]]->kind == PROCESS) {
                                 pa.node = ournode;
-                                pa.pix  = pix;
+                                pa.pix = pix;
                                 pa.mark = thisp->mark;
-                            } else
+                            } else {
                                 /*pat  errsignal(RTENONGL); */ /* only process may be global */
-                                /*pat*/ obj2mess ( p->M, ( virtaddr* ) ( p->M+am+offset ),&pa );
-                        else
-                            obj2mess ( M, ( virtaddr* ) ( M+am+offset ),&pa );
+                                /*pat*/ obj2mess(p->M, (virtaddr *) (p->M + am + offset), &pa);
+                            }
+                        } else {
+                            obj2mess(M, (virtaddr *) (M + am + offset), &pa);
+                        }
                     }
                     /*
                                       mkglobal(am+offset);
                                       obj2mess(p->M,(virtaddr*)(p->M+am+offset),&pa);
                     */
                     moveblock ( ( char * ) &pa, cp, ap=sizeof ( procaddr ) );
-                } else
-                    moveblock ( ( char * ) &p->M[ am+offset ], cp, ap );
+                } else {
+                    moveblock((char *) &p->M[am + offset], cp, ap);
+                }
                 break;
 
 

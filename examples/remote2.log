@@ -1,17 +1,26 @@
 program remote;
 
+unit Wiadomosc: class;
+  var tznak:arrayof char, znak:char, rozmiar:integer;
+
+end Wiadomosc;
 
 unit MyProcess:process(n:integer);
 var koniec:boolean;
   unit Destroy:procedure;
   begin
+  write("Destroy called");
     koniec:=TRUE;
   end Destroy;
 
-  unit WriteChar:procedure(a:char);
+
+  unit WriteWiadomosc:procedure(a:Wiadomosc);
   begin
-    write(a);
-  end WriteChar;
+    write("przyszla wiadomosc: ");
+
+    writeln(a.znak);
+    (* writeln(a.tznak(1)); *)
+  end WriteWiadomosc;
 
 begin
 koniec:=FALSE;
@@ -19,25 +28,38 @@ koniec:=FALSE;
 writeln("READY");
 return;
 while not koniec do
-accept WriteChar;
+accept WriteWiadomosc;
 od;
 writeln;
 writeln("END");
 
 end MyProcess;
 
-var p:MyProcess,i:integer;
+var p:MyProcess,i:integer,w:Wiadomosc;
 begin
-pref IIUWGRAPH block
-begin
-p:=new MyProcess(2);
-resume(p);
-i:=inkey;
-while i<>ord('q') do
-if i<>0 then call p.WriteChar(chr(i)); write(chr(i)); fi;
+  pref IIUWGRAPH block
+  begin
+    p:=new MyProcess(2);
+    resume(p);
+    i:=inkey;
+    while i<>ord('q') do
+      if i<>0 then
+         w := new Wiadomosc;
+         array w.tznak dim(1:10);
+        w.znak := chr(i);
+        w.tznak(1) := chr(i);
+        w.rozmiar :=1;
 
-i:=inkey;
-od;
-call p.Destroy;
-end;
+        call p.WriteWiadomosc(w);
+        write(chr(i));
+      fi;
+
+      i:=inkey;
+    od;
+
+    writeln;
+    writeln("p.Destroy");
+    call p.Destroy;
+    writeln("p.Destroyed :D");
+  end;
 end.
