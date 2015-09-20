@@ -101,11 +101,7 @@ int newstatus;
 /* Copy parameters from object to message or vice versa. */
 
 
-void moveparams ( pix, am, msg, par1, dir )
-word pix, am;
-message *msg;
-int par1, dir;
-{
+void moveparams ( word pix, word am, message *msg, int par1, int dir ) {
     protdescr *ptr;
     procdescr *p;
     word i, tpd, ap, pd, prim, offset;
@@ -122,10 +118,11 @@ int par1, dir;
         tpd = M[ ptr->pfdescr+i ];        /* type description of param */
         pd = M[ tpd ];
 
-        if ( par1 == PARIN )
-            cflag = ( pd==PARIN || pd==PARINOUT || pd==FORMFUNC || pd==FORMPROC );
-        else
-            cflag = ( pd==PAROUT || pd==PARINOUT );
+        if ( par1 == PARIN ) {
+            cflag = (pd == PARIN || pd == PARINOUT || pd == FORMFUNC || pd == FORMPROC);
+        } else {
+            cflag = (pd == PAROUT || pd == PARINOUT);
+        }
 
         if ( cflag ) {
             if ( pd == FORMFUNC || pd == FORMPROC ) {
@@ -145,7 +142,7 @@ int par1, dir;
             switch ( dir ) {       /* copy parameter in right direction */
 
             case LOADPAR :
-
+                DEBUG_PRINT("LOADPAR");
                 /* we always load parameters from OUR process */
                 assert ( pix==thispix );
 
@@ -180,7 +177,7 @@ int par1, dir;
 
 
             case SAVEPAR :
-
+                DEBUG_PRINT("SAVEPAR");
                 if ( convert ) {
                     procaddr pa;
                     ap=sizeof ( procaddr );

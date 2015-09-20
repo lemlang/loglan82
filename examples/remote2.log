@@ -18,8 +18,9 @@ var koniec:boolean;
   begin
     write("przyszla wiadomosc: ");
 
-    writeln(a.znak);
-    (* writeln(a.tznak(1)); *)
+     writeln(a.rozmiar);
+     writeln(a.znak);
+     (* writeln(a.tznak(1)); *)
   end WriteWiadomosc;
 
 begin
@@ -49,9 +50,9 @@ begin
         w.znak := chr(i);
         w.tznak(1) := chr(i);
         w.rozmiar :=1;
-
+        write(w.tznak(1));
         call p.WriteWiadomosc(w);
-        write(chr(i));
+
       fi;
 
       i:=inkey;

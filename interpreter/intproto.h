@@ -53,7 +53,7 @@ void msginterrupt ( message * );
 void loosen ( void );
 void update ( word, word );
 void compactify ( void );
-void moveparams ( word, word, message *, int, int );
+void moveparams ( word pix, word am, message *msg, int par1, int dir );
 void sendmsg1 ( message * );
 word getnode ( word );
 void endprocess ( int );

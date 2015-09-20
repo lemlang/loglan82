@@ -78,13 +78,12 @@ word ah, am;
             loadvirt ( v, apt+SL );
             obj2mess ( M, &v, &msg.control.receiver );
 
-            /* fprintf(
-                      stderr, "send rpc from process %d to (%d,%d,%d)\n",
+            DEBUG_PRINT( "send rpc from process %d to (%d,%d,%d)\n",
                       thispix,
                       msg.control.receiver.node,
                       msg.control.receiver.pix,
                       msg.control.receiver.mark
-                    );*/
+                    );
 
         }
         msg.control.type = RPCALL;

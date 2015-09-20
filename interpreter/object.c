@@ -58,12 +58,8 @@ word *ah, *am;
     slopen ( prot, &v1, ah, am );
 } /* end openobj */
 
-
-void newarry ( low, up, kind, virt, am )	/* Reserve room for array */
-word low, up, kind;
-virtaddr *virt;
-word *am;
-{
+/* Reserve room for array */
+void newarry ( word low, word up, word kind, virtaddr *virt, word *am) {
     word ap;
 
     switch ( ( int ) kind ) {
@@ -80,10 +76,10 @@ word *am;
         ap = APINT;
         break;
     }
-    low *= ap;
-    up *= ap;
+    low = low * ap;
+    up = low * ap;
     if ( up < low ) errsignal ( RTEILLAB );	/* illegal array bounds */
-    low -= 3;
+    low = low-3;
     request ( up-low+ap, &virt->addr, am );
     M[ *am+1 ] = kind;
     M[ *am+2 ] = low;
