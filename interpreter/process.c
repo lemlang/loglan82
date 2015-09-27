@@ -48,12 +48,13 @@ void schedule() {                    /* Choose next ready process to exec */
     }
 }
 
-
-void transfer ( pix )        /* Context switch to another process */
-word pix;
-{
+/* Context switch to another process */
+void transfer ( word pix) {
     word apt;
-    if ( pix == thispix ) return;       /* optimized for case of one process */
+    if ( pix == thispix )  {
+        DEBUG_PRINT("One process\n");
+        return;
+    }       /* optimized for case of one process */
 
     if ( thisp != NULL ) {         /* previous process is alive */
         thisp->ic = ic;            /* store previous context */
@@ -142,7 +143,7 @@ void moveparams ( word pix, word am, message *msg, int par1, int dir ) {
             switch ( dir ) {       /* copy parameter in right direction */
 
             case LOADPAR :
-                DEBUG_PRINT("LOADPAR");
+                DEBUG_PRINT("LOADPAR\n");
                 /* we always load parameters from OUR process */
                 assert ( pix==thispix );
 
@@ -177,7 +178,7 @@ void moveparams ( word pix, word am, message *msg, int par1, int dir ) {
 
 
             case SAVEPAR :
-                DEBUG_PRINT("SAVEPAR");
+                DEBUG_PRINT("SAVEPAR\n");
                 if ( convert ) {
                     procaddr pa;
                     ap=sizeof ( procaddr );
@@ -242,6 +243,7 @@ message *msg;
     initprocess ( i, prot, &msg->control.sender );
     moveparams ( i, process[ i ].prochead, msg, PARIN, SAVEPAR );
     process[ i ].status = GENERATING;   /* execute process until RETURN */
+    DEBUG_PRINT("dingp prces\n");
     ready = pinsert ( ready, i );
     reschedule = TRUE;
     if ( ( remote ) && ( i==0 ) ) {

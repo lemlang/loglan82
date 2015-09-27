@@ -35,8 +35,7 @@ Cambridge, MA 02139, USA.  */
    necessary.  Returns the number of characters read (not including the
    null terminator), or -1 on error or EOF.  */
 
-int _getline(char **lineptr, size_t *n, FILE *stream)
-{
+int _getline(char **lineptr, size_t *n, FILE *stream) {
 static char line[256];
 char *ptr;
 unsigned int len;

@@ -17,10 +17,7 @@ var koniec:boolean;
   unit WriteWiadomosc:procedure(a:Wiadomosc);
   begin
     write("przyszla wiadomosc: ");
-
-     writeln(a.rozmiar);
      writeln(a.znak);
-     (* writeln(a.tznak(1)); *)
   end WriteWiadomosc;
 
 begin
@@ -46,13 +43,9 @@ begin
     while i<>ord('q') do
       if i<>0 then
          w := new Wiadomosc;
-         array w.tznak dim(1:10);
-        w.znak := chr(i);
-        w.tznak(1) := chr(i);
-        w.rozmiar :=1;
-        write(w.tznak(1));
-        call p.WriteWiadomosc(w);
-
+         w.znak := chr(i);
+         call p.WriteWiadomosc(w);
+         writeln(w.znak);
       fi;
 
       i:=inkey;

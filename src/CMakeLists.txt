@@ -9,10 +9,17 @@ include(${wxWidgets_USE_FILE})
 find_package(Boost 1.46.0 REQUIRED  COMPONENTS system thread)
 include_directories(${Boost_INCLUDE_DIRS})
 
-find_library(PATH_LIBDW_LIB NAMES dw)
-find_path(PATH_LIBDW_H "elfutils/libdw.h")
-#set(PATH_LIBDW_LIB "")
+
+set(SRCSL vlp.cpp vlp/App.cpp vlp/MainWindow.cpp)
+set(SRCSR vm.cpp vm/ServerThread.cpp vm/VM.cpp vm/Configurations.cpp)
+set(SRCSG graphicsmain.cpp Graphics.cpp GraphicsWindow.cpp)
+
+set(PATH_LIBDW_LIB "")
+set(PATH_LIBDW_H "")
 IF(CMAKE_BUILD_TYPE MATCHES DEBUG)
+  find_library(PATH_LIBDW_LIB NAMES dw)
+  find_path(PATH_LIBDW_H "elfutils/libdw.h")
+
     message("debug mode")
 if(PATH_LIBDW_LIB AND PATH_LIBDW_H)
   string(REGEX REPLACE "/libdw.*[.]${LIB_EXE}$" "" PATH_LIBDW_LIB "${PATH_LIBDW_LIB}")
@@ -20,14 +27,15 @@ if(PATH_LIBDW_LIB AND PATH_LIBDW_H)
 
   include_directories(${PATH_LIBDW_H})
   link_directories(${PATH_LIBDW_LIB})
+
+  IST(APPEND SRCSL backward.cpp)
+  IST(APPEND SRCSR backward.cpp)
+  IST(APPEND SRCSG backward.cpp)
 else()
   message(FATAL_ERROR "Please install the libdw-dev package.")
 endif()
 ENDIF(CMAKE_BUILD_TYPE MATCHES DEBUG)
 
-set(SRCSL vlp.cpp vlp/App.cpp vlp/MainWindow.cpp backward.cpp)
-set(SRCSR vm.cpp vm/ServerThread.cpp vm/VM.cpp vm/Configurations.cpp backward.cpp)
-set(SRCSG graphicsmain.cpp Graphics.cpp GraphicsWindow.cpp backward.cpp)
 
 # If we build for windows systems, we also include the resource file
 # containing the manifest, icon and other resources

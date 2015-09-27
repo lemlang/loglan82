@@ -59,7 +59,7 @@ word *ah, *am;
 } /* end openobj */
 
 /* Reserve room for array */
-void newarry ( word low, word up, word kind, virtaddr *virt, word *am) {
+void newarry ( word low, word up, word kind, virtaddr *virt, word *am)	{
     word ap;
 
     switch ( ( int ) kind ) {
@@ -76,10 +76,10 @@ void newarry ( word low, word up, word kind, virtaddr *virt, word *am) {
         ap = APINT;
         break;
     }
-    low = low * ap;
-    up = low * ap;
+    low *= ap;
+    up *= ap;
     if ( up < low ) errsignal ( RTEILLAB );	/* illegal array bounds */
-    low = low-3;
+    low -= 3;
     request ( up-low+ap, &virt->addr, am );
     M[ *am+1 ] = kind;
     M[ *am+2 ] = low;

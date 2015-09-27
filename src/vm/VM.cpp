@@ -327,6 +327,8 @@ void VM::ProcessMessageNet(MESSAGE *message, wxSocketBase *socket) {
                 } else if (message->param.pword[1] == MSG_INT) {
                     SendToInt(message);
                 } else {
+                    wxLogVerbose(_("todo what to do now?"));
+                    exit(2323);
                     /* todo what to do now? */
                 }
             } else if (remoteVM != NULL && remoteVM->socket != NULL) {
