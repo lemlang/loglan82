@@ -9,6 +9,7 @@ project(loglanint)
 #          passivations and returns are written to stderr
 # NO_GRAPH -    nonstand.c defines only INKEY grom IIUWGRAPH
 add_definitions(-DOBJECTADDR -DSYSV -DRPCDBG)
+#add_definitions(-DNDEBUG)
 IF(${BASIC})
 add_definitions(-DBASIC=1)
 ENDIF()

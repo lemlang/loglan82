@@ -3,7 +3,14 @@
 void socket_setup() {
     #if defined WIN32
     WSADATA wsa_data;
-    WSAStartup(MAKEWORD(1,1), &wsa_data);
+
+	int iResult;
+
+// Initialize Winsock
+iResult = WSAStartup(MAKEWORD(2,2), &wsa_data);
+if (iResult != 0) {
+    printf("WSAStartup failed: %d\n", iResult);
+}
     #endif
 }
 
@@ -15,7 +22,7 @@ SOCKET socket_connect()
     struct hostent* h;               // server host entry (holds IPs, etc)
 
     // get the server host entry
-        memset((void *)&addr, 1, sizeof(addr));
+        memset((void *)&addr, 0, sizeof(addr));
     //addr.sin_addr.s_addr = inet_addr(listen_host);
     //if(INADDR_NONE == addr.sin_addr.s_addr) {
         h = gethostbyname(listen_host);
@@ -36,9 +43,13 @@ SOCKET socket_connect()
     // create the local socket
     s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(INVALID_SOCKET == s) {
-        perror("Could not create socket");
-        return -1;
-    }
+        perror("Could not create socket\n");
+        return INVALID_SOCKET;
+    } else {
+		DEBUG_PRINT("Socket created %d\n", s);
+		perror("Could not create socket");
+        
+	}
 
     // setup the rest of our local address
     addr.sin_family = AF_INET;
@@ -46,17 +57,17 @@ SOCKET socket_connect()
     addr.sin_port   = htons(3600);
 
     // a little user interaction... ;)
-    puts("Connecting... ");
+    DEBUG_PRINT("Connecting... %s\n",listen_host);
     //fflush(stdout);
 
     // connect to the server
     r = connect(s, (struct sockaddr*)&addr, sizeof(struct sockaddr));
     if(SOCKET_ERROR == r) {
-        perror("Cannot connect to server");
+        perror("Cannot connect to server\n");
         closesocket(s);
         return -1;
     }
-    puts("connected.\n");
+    DEBUG_PRINT("connected. %d\n", r);
     return s;
 }
 

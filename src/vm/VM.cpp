@@ -12,8 +12,8 @@
 VM::VM() {
     this->vlp = NULL;
     this->config = new wxFileConfig(wxT("VLP"));
-    wxMilliClock_t now = wxGetLocalTimeMillis();
-    temporaryDirectory = wxFileName::GetTempDir().Append(wxString::Format(wxT("%svlpvm_%lu"), wxFileName::GetPathSeparators(), now));
+    long now = wxGetLocalTime();
+    temporaryDirectory = wxFileName::GetTempDir().Append(wxString::Format(wxT("%svlpvm_%l"), wxFileName::GetPathSeparators(),now));
     wxFileName::Mkdir(temporaryDirectory.GetFullPath());
 }
 
