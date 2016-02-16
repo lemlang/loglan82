@@ -116,6 +116,7 @@ static void initiate(int argc, char **argv) {
     remote = FALSE;
     ournode = 0;
     network = TRUE;
+    strcpy(listen_host,"127.0.0.1");
 
     while (optind < argc) {
         if ((c = getopt(argc, argv, "r:i:")) != -1) {
