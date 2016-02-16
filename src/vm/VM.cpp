@@ -108,7 +108,7 @@ void VM::OnSocketEvent(wxSocketEvent &event) {
         case wxSOCKET_INPUT: {
             MESSAGE readValue;
             // Read the data
-            bzero(&readValue, sizeof(MESSAGE));
+            memset(&readValue, 0, sizeof(MESSAGE));
             sock->Read(&readValue, sizeof(MESSAGE));
             switch (readValue.msg_type) {
                 case MSG_VLP:
