@@ -1,5 +1,4 @@
 program first;
-#include "classes/gui.inc";
 
      unit writer: process(node: integer, s: string);
           var i: integer, A: arrayof char;
@@ -22,12 +21,4 @@ begin
     resume(w1);
     resume(w2);
     resume(w3);
-    pref GUI  block
-    begin
-    while true do
-         if GUI_KeyPressed=ord('f') then exit fi
-    od
-    end (* block *);
-
-    call endrun
 end

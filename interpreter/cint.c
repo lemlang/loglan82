@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <getopt.h>
 
 #include "depend.h"
 #include "genint.h"

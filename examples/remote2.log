@@ -33,18 +33,28 @@ writeln("END");
 
 end MyProcess;
 
-var p:MyProcess,i:integer,w:Wiadomosc;
+var p:MyProcess,i,j:integer,w:Wiadomosc,pr:arrayof MyProcess;
 begin
   pref IIUWGRAPH block
   begin
+  array pr dim(2:4);
+  p:=new MyProcess(2);
+    pr(3):=p;
     p:=new MyProcess(2);
-    resume(p);
+    pr(2):=p;
+    p:=new MyProcess(2);
+    pr(4):=p;
+    resume(pr(2));
+    resume(pr(3));
+    resume(pr(4));
     i:=inkey;
     while i<>ord('q') do
       if i<>0 then
          w := new Wiadomosc;
          w.znak := chr(i);
-         call p.WriteWiadomosc(w);
+         call pr(2).WriteWiadomosc(w);
+         call pr(3).WriteWiadomosc(w);
+         call pr(4).WriteWiadomosc(w);
          writeln(w.znak);
       fi;
 
@@ -53,7 +63,9 @@ begin
 
     writeln;
     writeln("p.Destroy");
-    call p.Destroy;
+    call pr(2).Destroy;
+    call pr(3).Destroy;
+    call pr(4).Destroy;
     writeln("p.Destroyed :D");
   end;
 end.

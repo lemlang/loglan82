@@ -57,7 +57,8 @@ typedef word *memory;
 /* printf("|%d*4|",(n)),getchar(),\ */
 
 #define MAXINTEGER   0x7FFFFFFFL
-#define DEFMEMSIZE   0x13C00L	/* 79K words = 316K bytes */
-#define MAXMEMSIZE   0x400000L	/*  4M words =  16M bytes */
+#define DEFMEMSIZE   0x13C0000L	/* 79K words = 316K bytes */
+//#define DEFMEMSIZE   1000000000	/*  */
+//#define MAXMEMSIZE   0x400000L	/*  4M words =  16M bytes */
 
 int _getline(char **lineptr, size_t *n, FILE *stream);
