@@ -8,8 +8,7 @@ project(loglanint)
 # RPCDBG - debugging of alien call, all actions : alien call, acknowledges,
 #          passivations and returns are written to stderr
 # NO_GRAPH -    nonstand.c defines only INKEY grom IIUWGRAPH
-#add_definitions(-DOBJECTADDR -DSYSV -DRPCDBG)
-add_definitions(-DNDEBUG)
+add_definitions(-DOBJECTADDR -DSYSV -DRPCDBG)
 IF(${BASIC})
 add_definitions(-DBASIC=1)
 ENDIF()
